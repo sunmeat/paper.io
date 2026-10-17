@@ -118,9 +118,14 @@ function App() {
       }
       const idx = keyOf(nx, ny), g = gameRef.current, cell = g.cells[idx];
       if (cell >= 0 && cell !== owner && isPlayer) {
-        if (g.player.trail.length) {
-          entity.alive = false; g.over = true; return;
-        }
+        entity.alive = false;
+        g.over = true;
+        return;
+      }
+      if (entity.trail.includes(idx)) {
+        if (isPlayer) { entity.alive = false; g.over = true; }
+        else { entity.alive = false; }
+        return;
       }
       if (cell === owner && entity.trail.length) {
         capture(g.cells, entity.trail, owner);
