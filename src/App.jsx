@@ -216,10 +216,11 @@ function App() {
   }, [ui.paused]);
 
   const togglePause = () => setUi(v => ({ ...v, paused: !v.paused }));
-  const touchDown = e => setTouchStart({ x: e.clientX, y: e.clientY });
+  const touchDown = e => { const point = e.touches?.[0] ?? e; setTouchStart({ x: point.clientX, y: point.clientY }); };
   const touchUp = e => {
     if (!touchStart) return;
-    const dx = e.clientX - touchStart.x, dy = e.clientY - touchStart.y;
+    const point = e.changedTouches?.[0] ?? e;
+    const dx = point.clientX - touchStart.x, dy = point.clientY - touchStart.y;
     if (Math.max(Math.abs(dx), Math.abs(dy)) > 18) {
       if (Math.abs(dx) > Math.abs(dy)) steer(dx > 0 ? 1 : -1, 0);
       else steer(0, dy > 0 ? 1 : -1);
