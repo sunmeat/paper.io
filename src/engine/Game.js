@@ -7,6 +7,7 @@ import { GAME_CONFIG } from './config.js';
 import { mulberry32 } from './random.js';
 import { resolveHeadCollision, resolveTrailCrossing } from './rules.js';
 import { BasicBot } from './bots/index.js';
+import { getSkinById } from './skins.js';
 
 const COLORS = {
   1: '#9b7bff', 2: '#ff6685', 3: '#ffbd59',
@@ -288,7 +289,7 @@ export class Game {
     player.trailCells = [];
     player.next = null;
     if (killer?.human && !player.human) this.sessionScore += 100;
-    if (!player.human) this.callbacks.onBotDown?.(player.id);
+    if (!player.human) this.callbacks.onBotDown?.(player.id, Boolean(killer?.human));
     if (player.human) {
       this.over = true;
       this.paused = true;
@@ -392,7 +393,7 @@ export class Game {
       if(!owner&&!trail)continue;
       const id=trail||owner,px=x*cellW,py=y*cellH;
       const palette=['#9b7bff','#ff6685','#ffbd59','#42d9c0','#65a8ff','#f58bdf','#a6e36f','#ff8d5e','#7de0ff','#e4dc6a','#c4a1ff'];
-      ctx.fillStyle=COLORS[id]||palette[(id-1)%palette.length];ctx.globalAlpha=trail?.98:.72;
+      ctx.fillStyle=id===1?getSkinById(this.callbacks.getSkin?.()||'classic').color:(COLORS[id]||palette[(id-1)%palette.length]);ctx.globalAlpha=trail?.98:.72;
       ctx.fillRect(px+.6,py+.6,Math.max(1,cellW-1.2),Math.max(1,cellH-1.2));
       if(id!==1&&!trail){ctx.globalAlpha=.25;ctx.strokeStyle='#10131c';ctx.lineWidth=1;
         if(id%3===0){ctx.beginPath();ctx.moveTo(px+2,py+2);ctx.lineTo(px+cellW-2,py+cellH-2);ctx.stroke();}
