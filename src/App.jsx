@@ -73,7 +73,8 @@ function App() {
     const g = gameRef.current;
     if (!g || g.over) return;
     const p = g.player;
-    if (dx === -p.dx && dy === -p.dy) return;
+    const direction = p.next ?? p;
+    if (dx === -direction.dx && dy === -direction.dy) return;
     p.next = { dx, dy };
     setHelp(false);
   }, []);
@@ -109,42 +110,67 @@ function App() {
 
     const move = (entity, owner, isPlayer) => {
       if (!entity.alive) return;
-      if (entity.next) { entity.dx = entity.next.dx; entity.dy = entity.next.dy; entity.next = null; }
-      const nx = entity.x + entity.dx, ny = entity.y + entity.dy;
+      const g = gameRef.current;
+      if (entity.next) {
+        entity.dx = entity.next.dx;
+        entity.dy = entity.next.dy;
+        entity.next = null;
+      }
+
+      const nx = entity.x + entity.dx;
+      const ny = entity.y + entity.dy;
+
       if (!inside(nx, ny)) {
-        if (isPlayer) { entity.alive = false; gameRef.current.over = true; }
-        else { entity.dx *= -1; entity.dy *= -1; }
+        if (isPlayer) {
+          entity.alive = false;
+          g.over = true;
+        } else {
+          entity.dx *= -1;
+          entity.dy *= -1;
+        }
         return;
       }
-      const idx = keyOf(nx, ny), g = gameRef.current, cell = g.cells[idx];
-      if (cell >= 0 && cell !== owner && isPlayer) {
-        entity.alive = false;
-        g.over = true;
-        return;
+
+      const idx = keyOf(nx, ny);
+      const cell = g.cells[idx];
+
+      // Touching an opponent's open trail eliminates its owner, not the attacker.
+      const rivals = [g.player, ...g.bots].filter(other => other !== entity && other.alive);
+      for (const rival of rivals) {
+        if (!rival.trail.includes(idx)) continue;
+        rival.alive = false;
+        rival.trail = [];
+        if (rival === g.player) g.over = true;
       }
+
+      // Crossing your own open trail is fatal.
       if (entity.trail.includes(idx)) {
-        if (isPlayer) { entity.alive = false; g.over = true; }
-        else { entity.alive = false; }
+        entity.alive = false;
+        if (isPlayer) g.over = true;
         return;
       }
-      if (cell === owner && entity.trail.length) {
+
+      // A player cannot enter enemy territory. Bots turn away from it.
+      if (cell >= 0 && cell !== owner) {
+        if (isPlayer) {
+          entity.alive = false;
+          g.over = true;
+        } else {
+          entity.dx *= -1;
+          entity.dy *= -1;
+        }
+        return;
+      }
+
+      if (cell === owner && entity.trail.length > 0) {
         capture(g.cells, entity.trail, owner);
         entity.trail = [];
       } else if (cell === -1) {
-        if (!entity.trail.includes(idx)) entity.trail.push(idx);
-        if (isPlayer) {
-          for (const bot of g.bots) {
-            if (bot.alive && bot.trail.includes(idx)) { g.over = true; entity.alive = false; return; }
-          }
-        } else {
-          const p = g.player;
-          if (p.trail.includes(idx)) { g.over = true; p.alive = false; return; }
-        }
-      } else if (cell !== owner && cell >= 0 && !isPlayer) {
-        entity.dx = -entity.dx; entity.dy = -entity.dy;
-        return;
+        entity.trail.push(idx);
       }
-      entity.x = nx; entity.y = ny;
+
+      entity.x = nx;
+      entity.y = ny;
     };
 
     const tick = () => {
