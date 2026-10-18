@@ -1,14 +1,14 @@
 /**
- * Converts a closed trail into territory and fills unclaimed areas that cannot
- * be reached from the map boundary without crossing the player's territory.
- * @param {{width:number,height:number,owners:Uint8Array,trail:Uint8Array,clearTrail:(owner?:number)=>void}} grid Grid to update.
+ * Closes a trail and captures all cells unreachable from the map boundary.
+ * Capturing rival cells transfers ownership and updates incremental counts.
+ * @param {import('./Grid.js').Grid} grid Grid to update.
  * @param {number} owner Player ID.
- * @param {number[]} trailCells Indices forming the player's closed trail.
- * @returns {number} Number of newly captured cells, excluding trail cells.
+ * @param {number[]} trailCells Indices forming the closed trail.
+ * @returns {number} Number of newly acquired cells, excluding trail cells.
  */
 export function captureArea(grid, owner, trailCells) {
   for (const index of trailCells) {
-    grid.owners[index] = owner;
+    grid.setOwnerAt(index, owner);
     grid.trail[index] = 0;
   }
 
@@ -46,7 +46,7 @@ export function captureArea(grid, owner, trailCells) {
   let captured = 0;
   for (let i = 0; i < owners.length; i++) {
     if (!visited[i] && owners[i] !== owner) {
-      owners[i] = owner;
+      grid.setOwnerAt(i, owner);
       captured++;
     }
   }

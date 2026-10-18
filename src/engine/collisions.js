@@ -1,6 +1,5 @@
 /**
- * Finds a live rival whose trail occupies the exact target cell.
- * Adjacent trail cells do not count as collisions.
+ * Finds a live rival whose exposed trail occupies the exact target cell.
  * @param {number} cellIndex Target grid index.
  * @param {number} playerId Moving player's ID.
  * @param {Array<{id:number, alive:boolean, trailCells:number[]}>} players Players to check.

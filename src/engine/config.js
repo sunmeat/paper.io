@@ -13,5 +13,6 @@ export const GAME_CONFIG = Object.freeze({
   playerStartWidth: 5,
   playerStartHeight: 4,
   botStartWidth: 4,
-  botStartHeight: 3
+  botStartHeight: 3,
+  respawnSteps: 12
 });
