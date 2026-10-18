@@ -16,5 +16,5 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm test
-      - run: npm run sim -- 20 1200
+      - run: npm run sim -- 200 3000
       - run: npm run build
