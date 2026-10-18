@@ -64,7 +64,7 @@ describe('captureArea', () => {
     expect(grid.ownerAt(3, 0)).toBe(1);
   });
 
-  it('preserves another player's trail when capturing adjacent cells', () => {
+  it("preserves another player's trail when capturing adjacent cells", () => {
     const grid = new Grid(5, 5);
     grid.setOwner(1, 1, 1);
     grid.setTrail(2, 2, 1);
