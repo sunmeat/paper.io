@@ -13,7 +13,7 @@ const STEP_MS = 105;
 const CELL_SIZE = 12;
 
 function randomDirection(current) {
-  const options = DIRECTIONS.filter(([x, y]) => !(x === -current.x && y === -current.y));
+  const options = DIRECTIONS.filter(([x, y]) => !(x === -current.dx && y === -current.dy));
   return options[Math.floor(Math.random() * options.length)];
 }
 
