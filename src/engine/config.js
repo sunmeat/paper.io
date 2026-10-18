@@ -8,7 +8,7 @@ export const GAME_CONFIG = Object.freeze({
   swipeThresholdPx: 24,
   minColumns: 16,
   minRows: 24,
-  botCount: 3,
+  botCount: 10,
   seed: 0x51f15e,
   playerStartWidth: 5,
   playerStartHeight: 4,
