@@ -1,282 +1,42 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
-
-:root{font-family:Manrope,system-ui,sans-serif;color:#f5f6ff;background:#10131c;font-synthesis:none;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;font-optical-sizing:auto;font-weight:500;font-size:14px;--muted:#81889e;--panel:#171b28;--line:#282d3d;--purple:#9b7bff}
-*{box-sizing:border-box}
-html,body,#root{margin:0;min-height:100%;width:100%}
-body{min-width:320px;background:radial-gradient(ellipse at 50% -15%,#25213f 0%,#10131c 47%);overscroll-behavior:none}
-button,a{-webkit-tap-highlight-color:transparent}
-button{font:inherit}
-.app-shell{min-height:100dvh;padding:0 18px 22px}
-.topbar{height:62px;max-width:620px;margin:0 auto;display:flex;align-items:center;border-bottom:1px solid #ffffff0d;gap:10px}
-.brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:#fff;font-size:20px;font-weight:800;letter-spacing:-1px}
-.brand-mark{display:grid;place-items:center;width:29px;height:29px;background:var(--purple);border-radius:9px;color:#151120;font-size:18px;font-weight:900;box-shadow:0 4px 18px #9b7bff35}
-.brand-dot,.game-heading h1 span{color:var(--purple)}
-.online{display:flex;align-items:center;gap:7px;margin-left:auto;font:10px 'DM Mono',monospace;letter-spacing:1.3px;color:#9da4b9}
-.online-dot,.live-dot{width:6px;height:6px;border-radius:50%;background:#42d9a0;box-shadow:0 0 10px #42d9a066}
-.icon-button{border:1px solid var(--line);background:#ffffff05;color:#d8d9e7;border-radius:10px;width:36px;height:36px;display:grid;place-items:center;cursor:pointer}
-.sound-button{margin-left:8px}
-.game-layout{max-width:520px;margin:0 auto}
-.game-heading{display:flex;align-items:center;justify-content:space-between;padding:24px 0 17px}
-.eyebrow{display:flex;align-items:center;gap:6px;color:#b4a2ff;font:10px 'DM Mono',monospace;letter-spacing:1.4px}
-.game-heading h1{font-size:clamp(23px,6vw,31px);letter-spacing:-1.2px;line-height:1.15;margin:9px 0 5px;font-weight:800}
-.game-heading p{margin:0;color:var(--muted);font-size:12px}
-.level-chip{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:#ffffff04}
-.level-chip span{font:9px 'DM Mono',monospace;color:var(--muted);letter-spacing:1px}
-.level-chip strong{font-size:20px;letter-spacing:-1px}
-.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:13px}
-.stat-card{display:flex;align-items:center;gap:9px;min-width:0;padding:10px 9px;background:linear-gradient(135deg,#1b2030,#171b27);border:1px solid #ffffff0b;border-radius:13px}
-.stat-icon{width:31px;height:31px;flex-shrink:0;border-radius:10px;display:grid;place-items:center}
-.stat-icon.purple{color:#b5a1ff;background:#9b7bff1a}.stat-icon.gold{color:#ffce72;background:#ffbd5919}
-.stat-card small{display:block;color:var(--muted);font:8px 'DM Mono',monospace;letter-spacing:.45px;white-space:nowrap}
-.stat-card strong{display:block;margin-top:3px;font-size:21px;line-height:1;font-weight:800;letter-spacing:-.8px}
-.stat-card strong em{font-style:normal;font-size:11px;color:#9b8acb;margin-left:2px}
-.enemy-dots{width:31px;display:flex;align-items:center;justify-content:center}
-.enemy-dots i{display:block;width:12px;height:12px;border:2px solid #171b27;border-radius:50%;margin-left:-3px;background:#ff6685}.enemy-dots i:nth-child(2){background:#ffbd59}.enemy-dots i:nth-child(3){background:#42d9c0}
-.arena-wrap{overflow:hidden;border:1px solid #353247;border-radius:17px;background:#141824;box-shadow:0 16px 50px #0002}
-.arena-top,.arena-bottom{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;color:#9399ac;font:9px 'DM Mono',monospace;letter-spacing:.8px}
-.arena-top{border-bottom:1px solid #ffffff0b}
-.arena-top span:first-child{display:flex;align-items:center;gap:7px;color:#d4d7e5}
- .canvas-wrap{position:relative;width:100%;height:min(112vw,590px);min-height:350px;max-height:590px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
-canvas{display:block;width:100%;height:100%;touch-action:none}
-.arena-bottom{border-top:1px solid #ffffff0b;gap:10px}
-.arena-bottom span{display:flex;align-items:center;gap:6px;white-space:nowrap}
-.legend-player,.legend-enemy{width:7px;height:7px;border-radius:2px;background:var(--purple)}
-.legend-enemy{background:#ff6685}
-.arena-bottom button{display:flex;align-items:center;gap:5px;border:0;background:transparent;color:#c5bddf;font:9px 'DM Mono',monospace;letter-spacing:.4px;padding:6px 0 6px 6px;cursor:pointer}
-.arena-bottom button:disabled{opacity:.3}
-.hint,.game-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;background:#10131cbd;backdrop-filter:blur(5px);padding:22px}
-.hint-finger{font-size:33px;margin-bottom:8px;animation:float 1.2s ease-in-out infinite}
-.hint strong,.game-overlay h2{font-size:18px;letter-spacing:-.5px}
-.hint small,.game-overlay p{color:#a2a8ba;font-size:12px;margin-top:6px}
-.hint button{margin-top:18px;padding:10px 17px;border:1px solid #ffffff22;border-radius:9px;background:#9b7bff;color:#151120;font:10px 'DM Mono',monospace;font-weight:500;letter-spacing:1px}
-.game-overlay{background:#10131ce8}
-.overlay-icon{display:grid;place-items:center;width:54px;height:54px;border-radius:17px;background:#9b7bff20;color:#b6a3ff}
-.overlay-icon.defeat{font-size:27px;color:#ff8298;background:#ff66851a}
-.game-overlay h2{font-size:25px;margin:15px 0 0}
-.game-overlay p{margin:8px 0 18px}
-.primary-button{display:flex;align-items:center;justify-content:center;gap:9px;background:var(--purple);color:#171124;border:0;border-radius:11px;padding:12px 17px;font-weight:800;cursor:pointer}
-.mobile-controls{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:15px 1px}
-.controls-copy strong{display:block;font-size:12px}
-.controls-copy span{display:block;color:var(--muted);font-size:10px;line-height:1.5;margin-top:4px;max-width:150px}
-.dpad{display:grid;grid-template-columns:39px 39px 39px;grid-template-rows:35px 35px;gap:4px;flex-shrink:0}
-.dpad button{display:grid;place-items:center;border:1px solid #343449;border-radius:10px;background:#1c2030;color:#e3ddff;font-size:13px;box-shadow:0 2px 0 #0a0c13;touch-action:manipulation;cursor:pointer}
-.dpad button:active{background:#9b7bff;color:#171124;transform:translateY(1px)}
-.dpad .up{grid-column:2;grid-row:1}.dpad .left{grid-column:1;grid-row:2}.dpad .down{grid-column:2;grid-row:2}.dpad .right{grid-column:3;grid-row:2}
-.tip{display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border:1px solid #9b7bff24;background:linear-gradient(100deg,#9b7bff0e,#9b7bff03);border-radius:13px}
-.tip-star{color:#b5a1ff;font-size:18px;line-height:1}
-.tip strong{font-size:11px}
-.tip p{font-size:10px;color:#999fb2;line-height:1.6;margin:5px 0 0}
-footer{display:flex;justify-content:space-between;padding:19px 2px 0;color:#51576b;font:8px 'DM Mono',monospace;letter-spacing:1px}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
-@media(min-width:700px){.app-shell{padding-bottom:40px}.topbar{height:72px}.game-heading{padding-top:32px}.canvas-wrap{height:590px}.mobile-controls{padding:18px 4px}.dpad{grid-template-columns:44px 44px 44px;grid-template-rows:39px 39px}}
-@media(max-width:370px){.app-shell{padding-left:11px;padding-right:11px}.stat-card{gap:6px;padding:9px 6px}.stat-icon{width:27px;height:27px}.stat-card small{font-size:7px}.stat-card strong{font-size:19px}.online{font-size:8px}.dpad{grid-template-columns:35px 35px 35px;grid-template-rows:32px 32px}.controls-copy span{max-width:125px}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
-
-/* Desktop layout */
-@media (min-width: 900px) {
-  .app-shell {
-    padding: 0 32px 36px;
-  }
-
-  .topbar {
-    max-width: 1180px;
-    height: 76px;
-  }
-
-  .game-layout {
-    max-width: 1180px;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 270px;
-    column-gap: 24px;
-    align-items: start;
-  }
-
-  .game-heading,
-  .stats-row,
-  footer {
-    grid-column: 1 / -1;
-  }
-
-  .game-heading {
-    padding: 34px 0 22px;
-  }
-
-  .game-heading h1 {
-    font-size: clamp(34px, 3vw, 46px);
-    letter-spacing: -1.8px;
-  }
-
-  .game-heading p {
-    font-size: 14px;
-  }
-
-  .level-chip {
-    min-width: 92px;
-    padding: 12px 16px;
-  }
-
-  .stats-row {
-    gap: 14px;
-    margin-bottom: 20px;
-  }
-
-  .stat-card {
-    padding: 14px 16px;
-    gap: 13px;
-    border-radius: 15px;
-  }
-
-  .stat-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-  }
-
-  .stat-card small {
-    font-size: 9px;
-    letter-spacing: .8px;
-  }
-
-  .stat-card strong {
-    font-size: 25px;
-  }
-
-  .arena-wrap {
-    grid-column: 1;
-    min-width: 0;
-    border-radius: 20px;
-  }
-
-  .arena-top,
-  .arena-bottom {
-    padding: 14px 17px;
-    font-size: 10px;
-  }
-
-  .canvas-wrap {
-    height: min(72vh, 760px);
-    min-height: 560px;
-    max-height: 760px;
-  }
-
-  .mobile-controls {
-    grid-column: 2;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
-    gap: 18px;
-    padding: 20px;
-    margin: 0 0 16px;
-    border: 1px solid var(--line);
-    border-radius: 18px;
-    background: linear-gradient(145deg, #1b2030, #151925);
-  }
-
-  .controls-copy strong {
-    font-size: 15px;
-  }
-
-  .controls-copy span {
-    max-width: none;
-    font-size: 12px;
-    line-height: 1.7;
-  }
-
-  .controls-copy span::after {
-    content: " На компьютере также работают WASD и стрелки. Пробел ставит игру на паузу.";
-    display: block;
-    margin-top: 8px;
-    color: #b9aaff;
-  }
-
-  .dpad {
-    align-self: center;
-    grid-template-columns: 54px 54px 54px;
-    grid-template-rows: 48px 48px;
-    gap: 7px;
-    margin: 4px 0;
-  }
-
-  .dpad button {
-    border-radius: 13px;
-    font-size: 16px;
-  }
-
-  .tip {
-    grid-column: 2;
-    align-self: start;
-    padding: 17px;
-    gap: 12px;
-    border-radius: 16px;
-  }
-
-  .tip strong {
-    font-size: 12px;
-    line-height: 1.5;
-  }
-
-  .tip p {
-    font-size: 11px;
-    line-height: 1.75;
-  }
-
-  footer {
-    padding-top: 26px;
-  }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-@media (min-width: 900px) and (max-height: 800px) {
-  .canvas-wrap {
-    height: 68vh;
-    min-height: 460px;
-  }
+:root {
+  color-scheme: dark;
+  background: #10131c;
+  font-family: system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-@media (min-width: 900px) and (max-height: 650px) {
-  .canvas-wrap {
-    height: 62vh;
-    min-height: 360px;
-  }
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  margin: 0;
+  overflow: hidden;
 }
 
-@media (max-width: 899px) {
-  .game-layout {
-    display: block;
-  }
+body {
+  min-width: 320px;
+  background: #10131c;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .icon-button,
-  .arena-bottom button,
-  .dpad button,
-  .primary-button,
-  .hint button {
-    transition: transform .15s ease, background-color .15s ease, border-color .15s ease;
-  }
-
-  .icon-button:hover {
-    border-color: #9b7bff88;
-    background: #9b7bff12;
-  }
-
-  .dpad button:hover {
-    border-color: #9b7bff88;
-    background: #9b7bff18;
-  }
-
-  .primary-button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 7px 24px #9b7bff30;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .icon-button,
-  .arena-bottom button,
-  .dpad button,
-  .primary-button,
-  .hint button {
-    transition: none;
-  }
+.app-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  background: #10131c;
 }
