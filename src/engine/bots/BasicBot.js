@@ -19,7 +19,8 @@ export class BasicBot {
     this.stepsSinceTurn++;
     const options = DIRECTIONS.filter(direction => !reverse(direction, [player.dx, player.dy]));
     if (!player.trailCells.length) this.expeditionTarget = 3 + Math.floor(this.random() * this.params.expedition);
-    const returningHome = player.trailCells.length >= this.expeditionTarget;\n    const candidates = options.map(direction => {
+    const returningHome = player.trailCells.length >= this.expeditionTarget;
+    const candidates = options.map(direction => {
       const nx = player.x + direction[0];
       const ny = player.y + direction[1];
       if (!game.grid.inside(nx, ny)) return { direction, score: -10000 };
