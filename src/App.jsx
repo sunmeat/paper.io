@@ -46,22 +46,23 @@ function App() {
       <div className="side-hud">
         <div className="legend"><i className="legend-player" /> ТЫ</div>
         <div className="legend"><i className="legend-pink" /> СОПЕРНИКИ <strong>{stats.bots}</strong></div>
+        <div className="legend session-points"><Trophy size={13} /> ОЧКИ <strong>{stats.sessionScore || 0}</strong></div>
       </div>
       <div className="bottom-hud">
         <div className="tip-icon"><Trophy size={17} /></div>
-        <div><strong>Рисуй. Замыкай. Захватывай.</strong><span>Не дай врагам пересечь твой след</span></div>
+        <div>
+          <strong>{stats.respawning ? 'Возвращаемся на поле...' : 'Рисуй. Замыкай. Захватывай.'}</strong>
+          <span>{stats.respawning ? 'Территория будет восстановлена' : 'Не дай врагам пересечь твой след'}</span>
+        </div>
         <div className="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
       </div>
-      {(paused || stats.over) && (
+      {paused && (
         <div className="game-overlay">
           <div className="overlay-card">
-            <span className="overlay-kicker">{stats.over ? 'КОНЕЦ ИГРЫ' : 'ПАУЗА'}</span>
-            <h1>{stats.over ? 'След оборван.' : 'Передышка.'}</h1>
-            <p>{stats.over ? `Ты захватил ${stats.territory}% поля. Попробуем ещё раз?` : 'Арена подождёт. Готов продолжить?'}</p>
-            <button className="primary-button" onClick={stats.over ? restart : togglePause}>
-              {stats.over ? <RotateCcw size={17} /> : <Play size={17} />}
-              {stats.over ? 'ЕЩЁ РАУНД' : 'ПРОДОЛЖИТЬ'}
-            </button>
+            <span className="overlay-kicker">ПАУЗА</span>
+            <h1>Передышка.</h1>
+            <p>Арена подождёт. Готов продолжить?</p>
+            <button className="primary-button" onClick={togglePause}><Play size={17} />ПРОДОЛЖИТЬ</button>
           </div>
         </div>
       )}
