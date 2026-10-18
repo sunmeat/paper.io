@@ -6,6 +6,7 @@ import { findTrailCollision } from './collisions.js';
 import { GAME_CONFIG } from './config.js';
 import { mulberry32 } from './random.js';
 import { resolveHeadCollision, resolveTrailCrossing } from './rules.js';
+import { BasicBot } from './bots/index.js';
 
 const COLORS = {
   1: '#9b7bff', 2: '#ff6685', 3: '#ffbd59',
@@ -78,16 +79,25 @@ export class Game {
     const cx = Math.floor(this.cellsWide / 2);
     const cy = Math.floor(this.cellsHigh / 2);
     this.player = this.createPlayer(1, cx, cy, 1, 0, true);
-    const spawns = [
-      [Math.floor(this.cellsWide * .22), Math.floor(this.cellsHigh * .28), 1, 0],
-      [Math.floor(this.cellsWide * .76), Math.floor(this.cellsHigh * .38), 0, 1],
-      [Math.floor(this.cellsWide * .70), Math.floor(this.cellsHigh * .76), -1, 0],
-      [Math.floor(this.cellsWide * .25), Math.floor(this.cellsHigh * .76), 0, -1],
-      [Math.floor(this.cellsWide * .75), Math.floor(this.cellsHigh * .20), 0, 1]
-    ];
-    this.bots = spawns.slice(0, GAME_CONFIG.botCount).map((spawn, index) =>
-      this.createPlayer(index + 2, spawn[0], spawn[1], spawn[2], spawn[3])
-    );
+    const spawns = Array.from({ length: GAME_CONFIG.botCount }, (_, index) => {
+      const angle = (Math.PI * 2 * index) / GAME_CONFIG.botCount;
+      const x = Math.round(this.cellsWide / 2 + Math.cos(angle) * this.cellsWide * .34);
+      const y = Math.round(this.cellsHigh / 2 + Math.sin(angle) * this.cellsHigh * .34);
+      const horizontal = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle));
+      const dx = horizontal ? -Math.sign(Math.cos(angle)) : 0;
+      const dy = horizontal ? 0 : -Math.sign(Math.sin(angle));
+      return [x, y, dx || (dy ? 0 : 1), dy];
+    });
+    this.bots = spawns.map((spawn, index) => {
+      const bot = this.createPlayer(index + 2, spawn[0], spawn[1], spawn[2], spawn[3]);
+      bot.homeX = bot.x;
+      bot.homeY = bot.y;
+      bot.strategy = new BasicBot({
+        random: this.random,
+        difficulty: ['easy', 'normal', 'hard'][index % 3]
+      });
+      return bot;
+    });
     this.over = false;
     this.paused = false;
     this.accumulator = 0;
@@ -178,10 +188,9 @@ export class Game {
     for (const bot of this.bots) {
       if (!bot.alive) continue;
       bot.turnTimer--;
-      if (bot.turnTimer <= 0 || this.random() < .025) {
-        const [dx, dy] = this.randomDirection(bot);
-        bot.next = [dx, dy];
-        bot.turnTimer = 5 + Math.floor(this.random() * 12);
+      if (bot.turnTimer <= 0) {
+        bot.next = bot.strategy.nextDirection(bot, this);
+        bot.turnTimer = bot.strategy.params.reactionTicks;
       }
       this.movePlayer(bot);
     }
@@ -374,7 +383,8 @@ export class Game {
   /** Draws a player marker. */
   drawPlayer(ctx, player, cellW, cellH) {
     if (!player?.alive) return;
-    const color = COLORS[player.id] || '#ffffff';
+    const palette = ['#9b7bff', '#ff6685', '#ffbd59', '#42d9c0', '#65a8ff', '#f58bdf', '#a6e36f', '#ff8d5e', '#7de0ff', '#e4dc6a', '#c4a1ff'];
+    const color = COLORS[player.id] || palette[(player.id - 1) % palette.length];
     this.ctx.fillStyle = '#ffffff';
     this.ctx.fillRect(player.x * cellW + 1, player.y * cellH + 1, Math.max(2, cellW - 2), Math.max(2, cellH - 2));
     this.ctx.fillStyle = color;
