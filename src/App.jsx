@@ -37,6 +37,7 @@ function createGame() {
     bots,
     paused: false,
     over: false,
+    won: false,
     tick: 0,
     score: 0,
     best: Number(localStorage.getItem('paperio-best') || 0)
@@ -79,7 +80,7 @@ function App() {
 
   const restart = useCallback(() => {
     gameRef.current = createGame();
-    setUi(v => ({ ...v, score: 0, paused: false, over: false, enemies: 3 }));
+    setUi(v => ({ ...v, score: 0, paused: false, over: false, won: false, enemies: 3 }));
     setHelp(true);
   }, []);
 
@@ -156,7 +157,13 @@ function App() {
         if (!rival.trail.includes(idx)) continue;
         rival.alive = false;
         rival.trail = [];
-        if (rival === g.player) g.over = true;
+        if (rival === g.player) {
+          g.over = true;
+        } else {
+          for (let i = 0; i < g.cells.length; i++) {
+            if (g.cells[i] === rival.id) g.cells[i] = -1;
+          }
+        }
       }
 
       // Crossing your own open trail is fatal.
@@ -207,11 +214,13 @@ function App() {
       const owned = g.cells.filter(c => c === 0).length;
       const score = Math.round(owned / g.cells.length * 100);
       g.score = score;
+      g.won = g.player.alive && (g.bots.every(bot => !bot.alive) || score >= 100);
+      if (g.won) g.over = true;
       if (score > g.best) {
         g.best = score;
         localStorage.setItem('paperio-best', String(score));
       }
-      setUi(v => ({ ...v, score, best: g.best, over: g.over, enemies: g.bots.filter(bot => bot.alive).length }));
+      setUi(v => ({ ...v, score, best: g.best, over: g.over, won: g.won, enemies: g.bots.filter(bot => bot.alive).length }));
     };
 
     const draw = (time) => {
@@ -301,7 +310,7 @@ function App() {
             <canvas ref={canvasRef} aria-label="Игровое поле Paper.io" />
             {help && !ui.over && <div className="hint"><span className="hint-finger">☝️</span><strong>Свайпай, чтобы двигаться</strong><small>Замкни контур и захвати землю</small><button onClick={() => setHelp(false)}>ПОНЯТНО</button></div>}
             {ui.paused && !ui.over && <div className="game-overlay"><div className="overlay-icon"><Pause size={26}/></div><h2>Пауза</h2><p>Территория подождёт.</p><button className="primary-button" onClick={togglePause}><Play size={17} fill="currentColor"/> Продолжить</button></div>}
-            {ui.over && <div className="game-overlay"><div className="overlay-icon defeat">✦</div><h2>Игра окончена</h2><p>Твоя территория: {ui.score}%</p><button className="primary-button" onClick={restart}><RotateCcw size={17}/> Играть снова</button></div>}
+            {ui.over && <div className="game-overlay"><div className="overlay-icon defeat">✦</div><h2>{ui.won ? 'Победа!' : 'Игра окончена'}</h2><p>{ui.won ? 'Все соперники выбыли. Карта твоя!' : `Твоя территория: ${ui.score}%`}</p><button className="primary-button" onClick={restart}><RotateCcw size={17}/> Играть снова</button></div>}
           </div>
           <div className="arena-bottom"><span><i className="legend-player"/> ТЫ</span><span><i className="legend-enemy"/> СОПЕРНИКИ</span><button onClick={togglePause} disabled={ui.over}><Pause size={13}/> {ui.paused ? 'ПРОДОЛЖИТЬ' : 'ПАУЗА'}</button></div>
         </div>
