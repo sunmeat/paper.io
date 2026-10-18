@@ -71,3 +71,212 @@ footer{display:flex;justify-content:space-between;padding:19px 2px 0;color:#5157
 @media(min-width:700px){.app-shell{padding-bottom:40px}.topbar{height:72px}.game-heading{padding-top:32px}.canvas-wrap{height:590px}.mobile-controls{padding:18px 4px}.dpad{grid-template-columns:44px 44px 44px;grid-template-rows:39px 39px}}
 @media(max-width:370px){.app-shell{padding-left:11px;padding-right:11px}.stat-card{gap:6px;padding:9px 6px}.stat-icon{width:27px;height:27px}.stat-card small{font-size:7px}.stat-card strong{font-size:19px}.online{font-size:8px}.dpad{grid-template-columns:35px 35px 35px;grid-template-rows:32px 32px}.controls-copy span{max-width:125px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
+
+/* Desktop layout */
+@media (min-width: 900px) {
+  .app-shell {
+    padding: 0 32px 36px;
+  }
+
+  .topbar {
+    max-width: 1180px;
+    height: 76px;
+  }
+
+  .game-layout {
+    max-width: 1180px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 270px;
+    column-gap: 24px;
+    align-items: start;
+  }
+
+  .game-heading,
+  .stats-row,
+  footer {
+    grid-column: 1 / -1;
+  }
+
+  .game-heading {
+    padding: 34px 0 22px;
+  }
+
+  .game-heading h1 {
+    font-size: clamp(34px, 3vw, 46px);
+    letter-spacing: -1.8px;
+  }
+
+  .game-heading p {
+    font-size: 14px;
+  }
+
+  .level-chip {
+    min-width: 92px;
+    padding: 12px 16px;
+  }
+
+  .stats-row {
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    padding: 14px 16px;
+    gap: 13px;
+    border-radius: 15px;
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  .stat-card small {
+    font-size: 9px;
+    letter-spacing: .8px;
+  }
+
+  .stat-card strong {
+    font-size: 25px;
+  }
+
+  .arena-wrap {
+    grid-column: 1;
+    min-width: 0;
+    border-radius: 20px;
+  }
+
+  .arena-top,
+  .arena-bottom {
+    padding: 14px 17px;
+    font-size: 10px;
+  }
+
+  .canvas-wrap {
+    height: min(72vh, 760px);
+    min-height: 560px;
+    max-height: 760px;
+  }
+
+  .mobile-controls {
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 18px;
+    padding: 20px;
+    margin: 0 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: linear-gradient(145deg, #1b2030, #151925);
+  }
+
+  .controls-copy strong {
+    font-size: 15px;
+  }
+
+  .controls-copy span {
+    max-width: none;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+
+  .controls-copy span::after {
+    content: " На компьютере также работают WASD и стрелки. Пробел ставит игру на паузу.";
+    display: block;
+    margin-top: 8px;
+    color: #b9aaff;
+  }
+
+  .dpad {
+    align-self: center;
+    grid-template-columns: 54px 54px 54px;
+    grid-template-rows: 48px 48px;
+    gap: 7px;
+    margin: 4px 0;
+  }
+
+  .dpad button {
+    border-radius: 13px;
+    font-size: 16px;
+  }
+
+  .tip {
+    grid-column: 2;
+    align-self: start;
+    padding: 17px;
+    gap: 12px;
+    border-radius: 16px;
+  }
+
+  .tip strong {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .tip p {
+    font-size: 11px;
+    line-height: 1.75;
+  }
+
+  footer {
+    padding-top: 26px;
+  }
+}
+
+@media (min-width: 900px) and (max-height: 800px) {
+  .canvas-wrap {
+    height: 68vh;
+    min-height: 460px;
+  }
+}
+
+@media (min-width: 900px) and (max-height: 650px) {
+  .canvas-wrap {
+    height: 62vh;
+    min-height: 360px;
+  }
+}
+
+@media (max-width: 899px) {
+  .game-layout {
+    display: block;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .icon-button,
+  .arena-bottom button,
+  .dpad button,
+  .primary-button,
+  .hint button {
+    transition: transform .15s ease, background-color .15s ease, border-color .15s ease;
+  }
+
+  .icon-button:hover {
+    border-color: #9b7bff88;
+    background: #9b7bff12;
+  }
+
+  .dpad button:hover {
+    border-color: #9b7bff88;
+    background: #9b7bff18;
+  }
+
+  .primary-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 7px 24px #9b7bff30;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-button,
+  .arena-bottom button,
+  .dpad button,
+  .primary-button,
+  .hint button {
+    transition: none;
+  }
+}
