@@ -388,20 +388,24 @@ export class Game {
     ctx.save();
     ctx.translate(width/2-this.camera.x*this.camera.zoom,height/2-this.camera.y*this.camera.zoom);
     ctx.scale(this.camera.zoom,this.camera.zoom);
+    const skin=getSkinById(this.callbacks.getSkin?.()||'classic');
     for(let y=0;y<this.cellsHigh;y++)for(let x=0;x<this.cellsWide;x++){
       const index=this.grid.index(x,y),owner=this.grid.owners[index],trail=this.grid.trail[index];
       if(!owner&&!trail)continue;
       const id=trail||owner,px=x*cellW,py=y*cellH;
       const palette=['#9b7bff','#ff6685','#ffbd59','#42d9c0','#65a8ff','#f58bdf','#a6e36f','#ff8d5e','#7de0ff','#e4dc6a','#c4a1ff'];
-      ctx.fillStyle=id===1?getSkinById(this.callbacks.getSkin?.()||'classic').color:(COLORS[id]||palette[(id-1)%palette.length]);ctx.globalAlpha=trail?.98:.72;
-      ctx.fillRect(px+.6,py+.6,Math.max(1,cellW-1.2),Math.max(1,cellH-1.2));
+      ctx.fillStyle=id===1?skin.color:(COLORS[id]||palette[(id-1)%palette.length]);ctx.globalAlpha=trail?.98:.72;
+      if(id===1&&trail&&skin.trailShape==='circle'){ctx.beginPath();ctx.arc(px+cellW/2,py+cellH/2,cellW*.43,0,Math.PI*2);ctx.fill();}
+      else if(id===1&&trail&&skin.trailShape==='diamond'){ctx.beginPath();ctx.moveTo(px+cellW/2,py+1);ctx.lineTo(px+cellW-1,py+cellH/2);ctx.lineTo(px+cellW/2,py+cellH-1);ctx.lineTo(px+1,py+cellH/2);ctx.closePath();ctx.fill();}
+      else ctx.fillRect(px+.6,py+.6,Math.max(1,cellW-1.2),Math.max(1,cellH-1.2));
+      if(id===1&&skin.pattern!=='solid'){ctx.globalAlpha=.35;ctx.strokeStyle='#fff';ctx.lineWidth=1;if(skin.pattern==='dots'){ctx.beginPath();ctx.arc(px+cellW/2,py+cellH/2,Math.max(1,cellW*.15),0,Math.PI*2);ctx.stroke();}else if(skin.pattern==='stripes'){ctx.beginPath();ctx.moveTo(px+1,py+cellH-1);ctx.lineTo(px+cellW-1,py+1);ctx.stroke();}else if(skin.pattern==='grid'){ctx.strokeRect(px+2,py+2,cellW-4,cellH-4);}else if(skin.pattern==='rings'){ctx.beginPath();ctx.arc(px+cellW/2,py+cellH/2,cellW*.25,0,Math.PI*2);ctx.stroke();}}
       if(id!==1&&!trail){ctx.globalAlpha=.25;ctx.strokeStyle='#10131c';ctx.lineWidth=1;
         if(id%3===0){ctx.beginPath();ctx.moveTo(px+2,py+2);ctx.lineTo(px+cellW-2,py+cellH-2);ctx.stroke();}
         else if(id%3===1){ctx.beginPath();ctx.arc(px+cellW/2,py+cellH/2,Math.max(1,cellW*.18),0,Math.PI*2);ctx.stroke();}
         else ctx.strokeRect(px+cellW*.28,py+cellH*.28,cellW*.44,cellH*.44);
       }
     }
-    ctx.globalAlpha=1;this.drawPlayer(ctx,this.player,cellW,cellH);
+    ctx.globalAlpha=1;this.drawPlayer(ctx,this.player,cellW,cellH,skin);
     for(const bot of this.bots)if(bot.alive)this.drawPlayer(ctx,bot,cellW,cellH);
     const now=performance.now();this.effects=this.effects.filter(effect=>now-effect.started<effect.duration);
     for(const effect of this.effects){
@@ -413,10 +417,10 @@ export class Game {
   }
 
   /** Draws a player marker. */
-  drawPlayer(ctx, player, cellW, cellH) {
+  drawPlayer(ctx, player, cellW, cellH, skin = null) {
     if (!player?.alive) return;
     const palette = ['#9b7bff', '#ff6685', '#ffbd59', '#42d9c0', '#65a8ff', '#f58bdf', '#a6e36f', '#ff8d5e', '#7de0ff', '#e4dc6a', '#c4a1ff'];
-    const color = COLORS[player.id] || palette[(player.id - 1) % palette.length];
+    const color = player.id===1&&skin?skin.color:(COLORS[player.id] || palette[(player.id - 1) % palette.length]);
     this.ctx.fillStyle = '#ffffff';
     this.ctx.fillRect(player.x * cellW + 1, player.y * cellH + 1, Math.max(2, cellW - 2), Math.max(2, cellH - 2));
     this.ctx.fillStyle = color;
