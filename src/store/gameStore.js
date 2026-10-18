@@ -1,17 +1,3 @@
 import { create } from 'zustand';
-
-const INITIAL_SNAPSHOT = {
-  territory: 0,
-  score: 0,
-  bots: 3,
-  over: false,
-  paused: false,
-  top5: []
-};
-
-/** Zustand bridge for infrequent engine snapshots used by the HUD. */
-export const useGameStore = create(set => ({
-  snapshot: INITIAL_SNAPSHOT,
-  setSnapshot: snapshot => set({ snapshot }),
-  resetSnapshot: () => set({ snapshot: INITIAL_SNAPSHOT })
-}));
+const INITIAL_SNAPSHOT={territory:0,score:0,sessionScore:0,bots:10,over:false,paused:false,respawning:false,top5:[]};
+export const useGameStore=create(set=>({screen:'menu',paused:false,language:localStorage.getItem('paper-io-language')||'ru',settingsOpen:false,snapshot:INITIAL_SNAPSHOT,setScreen:screen=>set({screen}),setPaused:paused=>set({paused}),toggleSettings:()=>set(s=>({settingsOpen:!s.settingsOpen}),setLanguage:language=>{localStorage.setItem('paper-io-language',language);set({language});},setSnapshot:snapshot=>set({snapshot}),resetSnapshot:()=>set({snapshot:INITIAL_SNAPSHOT,paused:false})}));

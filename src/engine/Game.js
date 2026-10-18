@@ -185,6 +185,7 @@ export class Game {
       if (player.respawnTimer <= 0) this.respawnPlayer(player);
     }
     this.movePlayer(this.player);
+    if (this.over) return;
     for (const bot of this.bots) {
       if (!bot.alive) continue;
       bot.turnTimer--;
@@ -273,13 +274,19 @@ export class Game {
   eliminatePlayer(player, killer = null) {
     if (!player.alive) return;
     player.alive = false;
-    player.respawnTimer = GAME_CONFIG.respawnSteps;
+    player.respawnTimer = player.human ? 0 : GAME_CONFIG.respawnSteps;
     this.grid.clearTerritory(player.id);
     for (const index of player.trailCells) this.grid.trail[index] = 0;
     player.trailCells = [];
     player.next = null;
     if (killer?.human && !player.human) this.sessionScore += 100;
     if (!player.human) this.callbacks.onBotDown?.(player.id);
+    if (player.human) {
+      this.over = true;
+      this.paused = true;
+      const snapshot = this.getStats();
+      this.callbacks.onGameOver?.(snapshot);
+    }
     this.emitStats();
   }
 
