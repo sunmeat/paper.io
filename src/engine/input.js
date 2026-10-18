@@ -1,3 +1,5 @@
+import { GAME_CONFIG } from './config.js';
+
 const DIRECTIONS = {
   ArrowUp: [0, -1],
   w: [0, -1],
@@ -13,6 +15,12 @@ const DIRECTIONS = {
   D: [1, 0]
 };
 
+/**
+ * Attaches keyboard and touch controls to the game.
+ * @param {HTMLCanvasElement} canvas Input surface.
+ * @param {{queueDirection:(dx:number,dy:number)=>void}} game Game receiving directions.
+ * @returns {() => void} Removes all registered listeners.
+ */
 export function bindInput(canvas, game) {
   let touchStart = null;
   let lastTouch = null;
@@ -37,8 +45,7 @@ export function bindInput(canvas, game) {
     const touch = event.changedTouches[0];
     const dx = touch.clientX - lastTouch.x;
     const dy = touch.clientY - lastTouch.y;
-    const threshold = 24;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) >= threshold) {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) >= GAME_CONFIG.swipeThresholdPx) {
       if (Math.abs(dx) > Math.abs(dy)) game.queueDirection(Math.sign(dx), 0);
       else game.queueDirection(0, Math.sign(dy));
       lastTouch = { x: touch.clientX, y: touch.clientY };

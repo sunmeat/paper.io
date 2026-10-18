@@ -1,20 +1,21 @@
 import { useCallback, useRef, useState } from 'react';
 import { Pause, Play, RotateCcw, Trophy, Zap } from 'lucide-react';
 import GameCanvas from './ui/GameCanvas.jsx';
-
-const INITIAL_STATS = { territory: 0, bots: 3, over: false, paused: false };
+import { useGameStore } from './store/gameStore.js';
 
 function App() {
   const gameRef = useRef(null);
-  const [stats, setStats] = useState(INITIAL_STATS);
+  const stats = useGameStore(state => state.snapshot);
+  const setSnapshot = useGameStore(state => state.setSnapshot);
+  const resetSnapshot = useGameStore(state => state.resetSnapshot);
   const [round, setRound] = useState(0);
   const [paused, setPaused] = useState(false);
 
-  const handleStats = useCallback(nextStats => setStats(nextStats), []);
+  const handleStats = useCallback(nextStats => setSnapshot(nextStats), [setSnapshot]);
   const handleGameOver = useCallback(nextStats => {
-    setStats(nextStats);
+    setSnapshot(nextStats);
     setPaused(false);
-  }, []);
+  }, [setSnapshot]);
 
   const togglePause = () => {
     if (paused) gameRef.current?.resume();
@@ -23,7 +24,7 @@ function App() {
   };
 
   const restart = () => {
-    setStats(INITIAL_STATS);
+    resetSnapshot();
     setPaused(false);
     setRound(value => value + 1);
   };

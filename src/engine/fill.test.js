@@ -17,21 +17,63 @@ describe('Grid', () => {
 });
 
 describe('captureArea', () => {
-  it('captures cells enclosed by the player territory', () => {
+  it('captures a simple enclosed square', () => {
     const grid = new Grid(7, 7);
-    for (let y = 1; y <= 5; y++) {
-      for (let x = 1; x <= 5; x++) {
-        if (x === 1 || x === 5 || y === 1 || y === 5) grid.setOwner(x, y, 1);
-      }
+    for (let x = 2; x <= 4; x++) {
+      grid.setOwner(x, 1, 1);
+      grid.setOwner(x, 5, 1);
+    }
+    for (let y = 2; y <= 4; y++) {
+      grid.setOwner(1, y, 1);
+      grid.setOwner(5, y, 1);
     }
 
-    const captured = captureArea(grid, 1, [grid.index(1, 1)]);
+    const captured = captureArea(grid, 1, []);
 
     expect(captured).toBe(9);
-    for (let y = 2; y <= 4; y++) {
-      for (let x = 2; x <= 4; x++) expect(grid.ownerAt(x, y)).toBe(1);
+    expect(grid.ownerAt(3, 3)).toBe(1);
+  });
+
+  it('leaves an enclosed-looking area unclaimed when a hole connects it to the edge', () => {
+    const grid = new Grid(7, 7);
+    for (let x = 1; x <= 5; x++) {
+      if (x !== 3) {
+        grid.setOwner(x, 1, 1);
+        grid.setOwner(x, 5, 1);
+      }
     }
-    expect(grid.trailAt(1, 1)).toBe(0);
+    for (let y = 2; y <= 4; y++) {
+      grid.setOwner(1, y, 1);
+      grid.setOwner(5, y, 1);
+    }
+
+    captureArea(grid, 1, []);
+
+    expect(grid.ownerAt(3, 3)).toBe(0);
+  });
+
+  it('handles a trail running along the map boundary without reading outside the grid', () => {
+    const grid = new Grid(4, 4);
+    grid.setTrail(0, 0, 1);
+    grid.setTrail(1, 0, 1);
+    grid.setTrail(2, 0, 1);
+    grid.setTrail(3, 0, 1);
+
+    expect(() => captureArea(grid, 1, [0, 1, 2, 3])).not.toThrow();
+    expect(grid.ownerAt(0, 0)).toBe(1);
+    expect(grid.ownerAt(3, 0)).toBe(1);
+  });
+
+  it('preserves another player's trail when capturing adjacent cells', () => {
+    const grid = new Grid(5, 5);
+    grid.setOwner(1, 1, 1);
+    grid.setTrail(2, 2, 1);
+    grid.setTrail(3, 2, 2);
+
+    captureArea(grid, 1, [grid.index(2, 2)]);
+
+    expect(grid.trailAt(2, 2)).toBe(0);
+    expect(grid.trailAt(3, 2)).toBe(2);
   });
 
   it('does not capture open cells connected to the edge', () => {
