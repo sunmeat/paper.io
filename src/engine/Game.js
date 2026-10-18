@@ -397,7 +397,9 @@ export class Game {
     ctx.save();
     ctx.translate(width/2-this.camera.x*this.camera.zoom,height/2-this.camera.y*this.camera.zoom);
     ctx.scale(this.camera.zoom,this.camera.zoom);
-    const skin=getSkinById(this.callbacks.getSkin?.()||'classic');
+    const skinId=this.callbacks.getSkin?.()||'classic';
+    const skin=getSkinById(skinId);
+    if(this.cachedSkinId!==skinId){this.cachedSkinId=skinId;this.terrainDirty=true;}
     if(this.terrainCanvas.width!==Math.ceil(this.cellsWide*cellW)||this.terrainCanvas.height!==Math.ceil(this.cellsHigh*cellH)){
       this.terrainCanvas.width=Math.ceil(this.cellsWide*cellW);
       this.terrainCanvas.height=Math.ceil(this.cellsHigh*cellH);
