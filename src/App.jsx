@@ -1,29 +1,45 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pause, Play, RotateCcw, Volume2, VolumeX, Trophy, Zap, Shield } from 'lucide-react';
 
-const W = 36;
-const H = 48;
+const IS_WIDE = typeof window !== 'undefined' && window.matchMedia('(min-width: 900px)').matches;
+const W = IS_WIDE ? 56 : 36;
+const H = IS_WIDE ? 36 : 48;
 const COLORS = ['#9b7bff', '#ff6685', '#ffbd59', '#42d9c0'];
 const keyOf = (x, y) => y * W + x;
 const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
 
 function createGame() {
   const cells = Array(W * H).fill(-1);
-  const start = { x: 8, y: 25 };
-  for (let y = 22; y <= 28; y++) for (let x = 5; x <= 11; x++) cells[keyOf(x, y)] = 0;
-  const bots = [
-    { id: 1, x: 27, y: 10, dx: -1, dy: 0, trail: [], alive: true, color: COLORS[1], turn: 0 },
-    { id: 2, x: 27, y: 36, dx: 0, dy: -1, trail: [], alive: true, color: COLORS[2], turn: 0 },
-    { id: 3, x: 16, y: 8, dx: 1, dy: 0, trail: [], alive: true, color: COLORS[3], turn: 0 }
-  ];
-  for (const b of bots) {
-    for (let y = b.y - 2; y <= b.y + 2; y++) for (let x = b.x - 2; x <= b.x + 2; x++) {
-      if (inside(x, y) && cells[keyOf(x, y)] === -1) cells[keyOf(x, y)] = b.id;
+  const start = { x: Math.floor(W * 0.22), y: Math.floor(H * 0.52) };
+  for (let y = start.y - 3; y <= start.y + 3; y++) {
+    for (let x = start.x - 3; x <= start.x + 3; x++) {
+      if (inside(x, y)) cells[keyOf(x, y)] = 0;
     }
   }
+
+  const bots = [
+    { id: 1, x: Math.floor(W * 0.76), y: Math.floor(H * 0.28), dx: -1, dy: 0, trail: [], alive: true, color: COLORS[1], turn: 0 },
+    { id: 2, x: Math.floor(W * 0.76), y: Math.floor(H * 0.74), dx: 0, dy: -1, trail: [], alive: true, color: COLORS[2], turn: 0 },
+    { id: 3, x: Math.floor(W * 0.52), y: Math.floor(H * 0.15), dx: 1, dy: 0, trail: [], alive: true, color: COLORS[3], turn: 0 }
+  ];
+
+  for (const bot of bots) {
+    for (let y = bot.y - 2; y <= bot.y + 2; y++) {
+      for (let x = bot.x - 2; x <= bot.x + 2; x++) {
+        if (inside(x, y) && cells[keyOf(x, y)] === -1) cells[keyOf(x, y)] = bot.id;
+      }
+    }
+  }
+
   return {
-    cells, player: { ...start, dx: 1, dy: 0, trail: [], alive: true, next: null },
-    bots, paused: false, over: false, tick: 0, score: 0, best: Number(localStorage.getItem('paperio-best') || 0)
+    cells,
+    player: { ...start, dx: 1, dy: 0, trail: [], alive: true, next: null },
+    bots,
+    paused: false,
+    over: false,
+    tick: 0,
+    score: 0,
+    best: Number(localStorage.getItem('paperio-best') || 0)
   };
 }
 
