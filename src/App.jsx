@@ -7,24 +7,9 @@ const COLORS = ['#9b7bff', '#ff6685', '#ffbd59', '#42d9c0'];
 const indexOf = (x, y) => y * SIZE + x;
 const cellAt = (x, y) => ({ x: Math.floor(x), y: Math.floor(y) });
 const inside = (x, y) => x >= 0 && y >= 0 && x < SIZE && y < SIZE;
-const UKRAINE = [
-  [18, 20], [27, 17], [35, 13], [44, 16], [52, 12], [61, 15],
-  [71, 17], [82, 22], [91, 29], [88, 36], [92, 42], [88, 49],
-  [82, 55], [77, 60], [73, 63], [72, 69], [68, 76], [72, 82],
-  [78, 85], [81, 81], [79, 75], [77, 68], [80, 63], [84, 59],
-  [76, 61], [68, 62], [61, 60], [54, 64], [45, 62], [36, 65],
-  [28, 61], [21, 60], [15, 54], [9, 49], [11, 42], [8, 35],
-  [12, 27]
-];
-const arenaCell = (x, y) => {
-  const px = x + .5, py = y + .5;
-  let insidePolygon = false;
-  for (let i = 0, j = UKRAINE.length - 1; i < UKRAINE.length; j = i++) {
-    const [xi, yi] = UKRAINE[i], [xj, yj] = UKRAINE[j];
-    if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) insidePolygon = !insidePolygon;
-  }
-  return insidePolygon;
-};
+const ARENA_CENTER = SIZE / 2;
+const ARENA_RADIUS = 48;
+const arenaCell = (x, y) => Math.hypot(x + .5 - ARENA_CENTER, y + .5 - ARENA_CENTER) <= ARENA_RADIUS;
 const ARENA_COUNT = (() => {
   let total = 0;
   for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) if (arenaCell(x, y)) total++;
@@ -32,7 +17,7 @@ const ARENA_COUNT = (() => {
 })();
 const traceMap = ctx => {
   ctx.beginPath();
-  UKRAINE.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
+  ctx.arc(ARENA_CENTER, ARENA_CENTER, ARENA_RADIUS, 0, Math.PI * 2);
   ctx.closePath();
 };
 const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
@@ -266,7 +251,7 @@ function App() {
   const pointMove = e => {
     const rect = canvasRef.current?.getBoundingClientRect(), g = gameRef.current;
     if (!rect || !g?.player?.alive) return;
-    const x = (e.clientX - rect.left) / rect.width * SIZE, y = (e.clientY - rect.top) / rect.height * SIZE;
+    const scale = Math.min(rect.width, rect.height) / SIZE;\n    const ox = (rect.width - SIZE * scale) / 2, oy = (rect.height - SIZE * scale) / 2;\n    const x = (e.clientX - rect.left - ox) / scale, y = (e.clientY - rect.top - oy) / scale;
     const dx = x - g.player.x, dy = y - g.player.y;
     if (Math.hypot(dx, dy) > 3) { g.player.targetAngle = Math.atan2(dy, dx); setHelp(false); }
   };
@@ -279,14 +264,14 @@ function App() {
         <button className="icon-button sound-button" onClick={() => setUi(v => ({ ...v, sound: !v.sound }))} aria-label="Звук">{ui.sound ? <Volume2 size={19}/> : <VolumeX size={19}/>}</button>
       </header>
       <section className="game-layout">
-        <div className="game-heading"><div><div className="eyebrow"><Zap size={13}/> CLAIM YOUR SPACE</div><h1>Захвати территорию<span>.</span></h1><p>Карта Украины из клеток. Захватывай регионы и расширяй границы.</p></div><div className="level-chip"><span>АРЕНА</span><strong>01</strong></div></div>
+        <div className="game-heading"><div><div className="eyebrow"><Zap size={13}/> CLAIM YOUR SPACE</div><h1>Захвати территорию<span>.</span></h1><p>Оставляй след, замыкай петли и захватывай территорию.</p></div><div className="level-chip"><span>АРЕНА</span><strong>02</strong></div></div>
         <div className="stats-row">
           <div className="stat-card"><span className="stat-icon purple"><Shield size={16}/></span><div><small>ТЕРРИТОРИЯ</small><strong>{ui.score}<em>%</em></strong></div></div>
           <div className="stat-card"><span className="stat-icon gold"><Trophy size={16}/></span><div><small>РЕКОРД</small><strong>{ui.best}<em>%</em></strong></div></div>
           <div className="stat-card enemies-stat"><span className="enemy-dots"><i/><i/><i/></span><div><small>СОПЕРНИКИ</small><strong>{String(ui.enemies).padStart(2, '0')}</strong></div></div>
         </div>
         <div className="arena-wrap">
-          <div className="arena-top"><span><i className="live-dot"/> УКРАИНА</span><span>КАРТА ИЗ КЛЕТОК</span></div>
+          <div className="arena-top"><span><i className="live-dot"/> PAPER.IO ARENA</span><span>ЗАХВАТ ТЕРРИТОРИИ</span></div>
           <div className="canvas-wrap" onTouchStart={touchDown} onTouchEnd={touchUp} onPointerMove={pointMove}>
             <canvas ref={canvasRef} aria-label="Игровая арена с захватом территории" />
             {help && !ui.over && <div className="hint"><span className="hint-finger">☝️</span><strong>Рискуй за пределами своей зоны</strong><small>Вернись в свою территорию, чтобы замкнуть след</small><button onClick={() => setHelp(false)}>ПОЕХАЛИ</button></div>}
