@@ -25,6 +25,11 @@ const arenaCell = (x, y) => {
   }
   return insidePolygon;
 };
+const ARENA_COUNT = (() => {
+  let total = 0;
+  for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) if (arenaCell(x, y)) total++;
+  return total;
+})();
 const traceMap = ctx => {
   ctx.beginPath();
   UKRAINE.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
@@ -200,7 +205,7 @@ function App() {
         if (hudClock > .12) {
           hudClock = 0;
           const owned = g.cells.reduce((n, c) => n + (c === 0 ? 1 : 0), 0);
-          g.score = Math.round(owned / COUNT * 100);
+          g.score = Math.round(owned / ARENA_COUNT * 100);
           g.won = g.player.alive && (g.bots.every(b => !b.alive) || g.score >= 98);
           if (g.won) g.over = true;
           if (g.score > g.best) { g.best = g.score; localStorage.setItem('paperio-best', String(g.score)); }
@@ -274,14 +279,14 @@ function App() {
         <button className="icon-button sound-button" onClick={() => setUi(v => ({ ...v, sound: !v.sound }))} aria-label="Звук">{ui.sound ? <Volume2 size={19}/> : <VolumeX size={19}/>}</button>
       </header>
       <section className="game-layout">
-        <div className="game-heading"><div><div className="eyebrow"><Zap size={13}/> CLAIM YOUR SPACE</div><h1>Захвати территорию<span>.</span></h1><p>Плавное движение. Рискованный захват. Твоя арена.</p></div><div className="level-chip"><span>АРЕНА</span><strong>01</strong></div></div>
+        <div className="game-heading"><div><div className="eyebrow"><Zap size={13}/> CLAIM YOUR SPACE</div><h1>Захвати территорию<span>.</span></h1><p>Карта Украины из клеток. Захватывай регионы и расширяй границы.</p></div><div className="level-chip"><span>АРЕНА</span><strong>01</strong></div></div>
         <div className="stats-row">
           <div className="stat-card"><span className="stat-icon purple"><Shield size={16}/></span><div><small>ТЕРРИТОРИЯ</small><strong>{ui.score}<em>%</em></strong></div></div>
           <div className="stat-card"><span className="stat-icon gold"><Trophy size={16}/></span><div><small>РЕКОРД</small><strong>{ui.best}<em>%</em></strong></div></div>
           <div className="stat-card enemies-stat"><span className="enemy-dots"><i/><i/><i/></span><div><small>СОПЕРНИКИ</small><strong>{String(ui.enemies).padStart(2, '0')}</strong></div></div>
         </div>
         <div className="arena-wrap">
-          <div className="arena-top"><span><i className="live-dot"/> LIVE ARENA</span><span>FREE MOVEMENT</span></div>
+          <div className="arena-top"><span><i className="live-dot"/> УКРАИНА</span><span>КАРТА ИЗ КЛЕТОК</span></div>
           <div className="canvas-wrap" onTouchStart={touchDown} onTouchEnd={touchUp} onPointerMove={pointMove}>
             <canvas ref={canvasRef} aria-label="Игровая арена с захватом территории" />
             {help && !ui.over && <div className="hint"><span className="hint-finger">☝️</span><strong>Рискуй за пределами своей зоны</strong><small>Вернись в свою территорию, чтобы замкнуть след</small><button onClick={() => setHelp(false)}>ПОЕХАЛИ</button></div>}
