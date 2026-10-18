@@ -76,6 +76,8 @@ export class Game {
   reset() {
     if (!this.cellsWide || !this.cellsHigh) return;
     this.random = mulberry32(this.seed);
+    this.effects = [];
+    this.camera = { x: 0, y: 0, zoom: 1 };
     this.grid = new Grid(this.cellsWide, this.cellsHigh);
     this.sessionScore = 0;
     const cx = Math.floor(this.cellsWide / 2);
