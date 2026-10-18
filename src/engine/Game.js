@@ -222,17 +222,6 @@ export class Game {
       return;
     }
 
-    const trailOwnerId = this.grid.trail[nextIndex];
-    if (trailOwnerId && trailOwnerId !== player.id) {
-      const trailOwner = [this.player, ...this.bots].find(candidate => candidate.id === trailOwnerId);
-      if (trailOwner?.alive) {
-        const loserId = resolveTrailCrossing(player.id, trailOwnerId);
-        const loser = [this.player, ...this.bots].find(candidate => candidate.id === loserId);
-        if (loser) this.eliminatePlayer(loser, player);
-      }
-      if (!player.alive) return;
-    }
-
     const rivalHead = [this.player, ...this.bots].find(candidate =>
       candidate.id !== player.id && candidate.alive && candidate.x === nx && candidate.y === ny
     );
@@ -241,6 +230,17 @@ export class Game {
       for (const loserId of losers) {
         const loser = [this.player, ...this.bots].find(candidate => candidate.id === loserId);
         if (loser?.alive) this.eliminatePlayer(loser, losers.length === 1 ? (loser.id === player.id ? rivalHead : player) : null);
+      }
+      if (!player.alive) return;
+    }
+
+    const trailOwnerId = this.grid.trail[nextIndex];
+    if (trailOwnerId && trailOwnerId !== player.id) {
+      const trailOwner = [this.player, ...this.bots].find(candidate => candidate.id === trailOwnerId);
+      if (trailOwner?.alive) {
+        const loserId = resolveTrailCrossing(player.id, trailOwnerId);
+        const loser = [this.player, ...this.bots].find(candidate => candidate.id === loserId);
+        if (loser) this.eliminatePlayer(loser, player);
       }
       if (!player.alive) return;
     }
