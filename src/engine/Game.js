@@ -268,7 +268,7 @@ export class Game {
         player.trailCells = [];
         if (player.human) this.sessionScore += captured;
         this.effects.push({type:'capture',x:player.x,y:player.y,started:performance.now(),duration:420});
-        this.callbacks.onCapture?.(captured);
+        if(player.human)this.callbacks.onCapture?.(captured);
         this.checkTerritoryLoss();
       }
     } else {
