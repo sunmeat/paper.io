@@ -38,6 +38,8 @@ export class Game {
     this.cellsWide = 0;
     this.cellsHigh = 0;
     this.sessionScore = 0;
+    this.camera = { x: 0, y: 0, zoom: 1 };
+    this.effects = [];
     this.grid = null;
     this.player = null;
     this.bots = [];
@@ -262,6 +264,8 @@ export class Game {
         const captured = captureArea(this.grid, player.id, player.trailCells);
         player.trailCells = [];
         if (player.human) this.sessionScore += captured;
+        this.effects.push({type:'capture',x:player.x,y:player.y,started:performance.now(),duration:420});
+        this.callbacks.onCapture?.(captured);
         this.checkTerritoryLoss();
       }
     } else {
@@ -275,6 +279,8 @@ export class Game {
     if (!player.alive) return;
     player.alive = false;
     player.respawnTimer = player.human ? 0 : GAME_CONFIG.respawnSteps;
+    this.effects.push({type:'death',x:player.x,y:player.y,started:performance.now(),duration:480,particles:Array.from({length:18},(_,i)=>({angle:Math.PI*2*i/18,speed:.6+(i%5)*.32}))});
+    this.callbacks.onDeath?.(player.id,player.human);
     this.grid.clearTerritory(player.id);
     for (const index of player.trailCells) this.grid.trail[index] = 0;
     player.trailCells = [];
@@ -360,31 +366,47 @@ export class Game {
     this.callbacks.onStats?.(this.getStats());
   }
 
-  /** Draws current territory, trails and active player markers. */
+  /** Draws the world with a smooth player camera and short-lived feedback effects. */
   draw() {
     if (!this.ctx || !this.grid) return;
-    const { width, height } = this.canvas.getBoundingClientRect();
-    if (!width || !height) return;
-    const ctx = this.ctx;
-    const cellW = width / this.cellsWide;
-    const cellH = height / this.cellsHigh;
-    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.fillStyle = '#10131c';
-    ctx.fillRect(0, 0, width, height);
-    for (let y = 0; y < this.cellsHigh; y++) {
-      for (let x = 0; x < this.cellsWide; x++) {
-        const index = this.grid.index(x, y);
-        const owner = this.grid.owners[index];
-        const trail = this.grid.trail[index];
-        if (!owner && !trail) continue;
-        ctx.fillStyle = trail ? COLORS[trail] : COLORS[owner];
-        ctx.globalAlpha = trail ? .95 : .72;
-        ctx.fillRect(x * cellW + .6, y * cellH + .6, Math.max(1, cellW - 1.2), Math.max(1, cellH - 1.2));
+    const {width,height}=this.canvas.getBoundingClientRect();
+    if(!width||!height)return;
+    const ctx=this.ctx,cellW=width/this.cellsWide,cellH=height/this.cellsHigh;
+    const targetX=this.player?.alive?this.player.x*cellW:width/2;
+    const targetY=this.player?.alive?this.player.y*cellH:height/2;
+    const territory=this.grid.territoryCount(1)/Math.max(1,this.grid.owners.length);
+    const targetZoom=Math.max(.84,Math.min(1.12,1.08-territory*.9));
+    if(!this.camera.x&&!this.camera.y){this.camera.x=targetX;this.camera.y=targetY;}
+    this.camera.x+=(targetX-this.camera.x)*.16;
+    this.camera.y+=(targetY-this.camera.y)*.16;
+    this.camera.zoom+=(targetZoom-this.camera.zoom)*.045;
+    ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
+    ctx.fillStyle='#10131c';ctx.fillRect(0,0,width,height);
+    ctx.save();
+    ctx.translate(width/2-this.camera.x*this.camera.zoom,height/2-this.camera.y*this.camera.zoom);
+    ctx.scale(this.camera.zoom,this.camera.zoom);
+    for(let y=0;y<this.cellsHigh;y++)for(let x=0;x<this.cellsWide;x++){
+      const index=this.grid.index(x,y),owner=this.grid.owners[index],trail=this.grid.trail[index];
+      if(!owner&&!trail)continue;
+      const id=trail||owner,px=x*cellW,py=y*cellH;
+      const palette=['#9b7bff','#ff6685','#ffbd59','#42d9c0','#65a8ff','#f58bdf','#a6e36f','#ff8d5e','#7de0ff','#e4dc6a','#c4a1ff'];
+      ctx.fillStyle=COLORS[id]||palette[(id-1)%palette.length];ctx.globalAlpha=trail?.98:.72;
+      ctx.fillRect(px+.6,py+.6,Math.max(1,cellW-1.2),Math.max(1,cellH-1.2));
+      if(id!==1&&!trail){ctx.globalAlpha=.25;ctx.strokeStyle='#10131c';ctx.lineWidth=1;
+        if(id%3===0){ctx.beginPath();ctx.moveTo(px+2,py+2);ctx.lineTo(px+cellW-2,py+cellH-2);ctx.stroke();}
+        else if(id%3===1){ctx.beginPath();ctx.arc(px+cellW/2,py+cellH/2,Math.max(1,cellW*.18),0,Math.PI*2);ctx.stroke();}
+        else ctx.strokeRect(px+cellW*.28,py+cellH*.28,cellW*.44,cellH*.44);
       }
     }
-    ctx.globalAlpha = 1;
-    this.drawPlayer(ctx, this.player, cellW, cellH);
-    for (const bot of this.bots) if (bot.alive) this.drawPlayer(ctx, bot, cellW, cellH);
+    ctx.globalAlpha=1;this.drawPlayer(ctx,this.player,cellW,cellH);
+    for(const bot of this.bots)if(bot.alive)this.drawPlayer(ctx,bot,cellW,cellH);
+    const now=performance.now();this.effects=this.effects.filter(effect=>now-effect.started<effect.duration);
+    for(const effect of this.effects){
+      const progress=(now-effect.started)/effect.duration,cx=(effect.x+.5)*cellW,cy=(effect.y+.5)*cellH;
+      if(effect.type==='capture'){ctx.strokeStyle='#fff';ctx.globalAlpha=(1-progress)*.85;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(cx,cy,2+progress*cellW*5,0,Math.PI*2);ctx.stroke();}
+      else for(const particle of effect.particles){const distance=progress*cellW*particle.speed*8;ctx.globalAlpha=1-progress;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(cx+Math.cos(particle.angle)*distance,cy+Math.sin(particle.angle)*distance,Math.max(1,cellW*.13*(1-progress)),0,Math.PI*2);ctx.fill();}
+    }
+    ctx.globalAlpha=1;ctx.restore();
   }
 
   /** Draws a player marker. */
