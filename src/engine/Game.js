@@ -1,6 +1,7 @@
 import { captureArea } from './fill.js';
 import { bindInput } from './input.js';
 import { Grid } from './Grid.js';
+import { isReverseDirection } from './directions.js';
 
 const COLORS = {
   1: '#9b7bff',
@@ -104,8 +105,8 @@ export class Game {
     if (!this.running || this.paused || this.over) return;
     const current = this.player;
     if (!current?.alive) return;
-    if (dx === -current.dx && dy === -current.dy) return;
-    if (current.next && dx === -current.next[0] && dy === -current.next[1]) return;
+    if (isReverseDirection([current.dx, current.dy], [dx, dy])) return;
+    if (current.next && isReverseDirection(current.next, [dx, dy])) return;
     current.next = [dx, dy];
   }
 
@@ -156,7 +157,7 @@ export class Game {
     if (!player.alive) return;
     if (player.next) {
       const [dx, dy] = player.next;
-      if (!(dx === -player.dx && dy === -player.dy)) {
+      if (!isReverseDirection([player.dx, player.dy], [dx, dy])) {
         player.dx = dx;
         player.dy = dy;
       }
