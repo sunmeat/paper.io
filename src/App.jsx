@@ -42,7 +42,8 @@ function capture(g, entity) {
   for (let i = 0; i < COUNT; i++) {
     const x = i % SIZE, y = Math.floor(i / SIZE);
     if (!arenaCell(x, y) || g.cells[i] !== -1) { seen[i] = 1; continue; }
-    if (x === 0 || y === 0 || x === SIZE - 1 || y === SIZE - 1) { seen[i] = 1; queue[tail++] = i; }
+    const edge = !arenaCell(x - 1, y) || !arenaCell(x + 1, y) || !arenaCell(x, y - 1) || !arenaCell(x, y + 1);
+    if (edge) { seen[i] = 1; queue[tail++] = i; }
   }
   while (head < tail) {
     const i = queue[head++], x = i % SIZE, y = Math.floor(i / SIZE);
