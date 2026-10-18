@@ -1,7 +1,7 @@
 /** Shared gameplay tuning values. */
 export const GAME_CONFIG = Object.freeze({
   cellSize: 12,
-  moveIntervalMs: 105,
+  moveIntervalMs: 100,
   fixedStepMs: 1000 / 30,
   maxFrameDeltaMs: 250,
   statsIntervalMs: 150,
