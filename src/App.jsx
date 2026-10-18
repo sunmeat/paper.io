@@ -57,13 +57,13 @@ function capture(cells, trail, owner) {
 function App() {
   const canvasRef = useRef(null);
   const gameRef = useRef(null);
-  const [ui, setUi] = useState({ score: 0, best: Number(localStorage.getItem('paperio-best') || 0), paused: false, over: false, sound: true });
+  const [ui, setUi] = useState({ score: 0, best: Number(localStorage.getItem('paperio-best') || 0), paused: false, over: false, sound: true, enemies: 3 });
   const [help, setHelp] = useState(true);
   const [touchStart, setTouchStart] = useState(null);
 
   const restart = useCallback(() => {
     gameRef.current = createGame();
-    setUi(v => ({ ...v, score: 0, paused: false, over: false }));
+    setUi(v => ({ ...v, score: 0, paused: false, over: false, enemies: 3 }));
     setHelp(true);
   }, []);
 
@@ -195,7 +195,7 @@ function App() {
         g.best = score;
         localStorage.setItem('paperio-best', String(score));
       }
-      setUi(v => ({ ...v, score, best: g.best, over: g.over }));
+      setUi(v => ({ ...v, score, best: g.best, over: g.over, enemies: g.bots.filter(bot => bot.alive).length }));
     };
 
     const draw = (time) => {
@@ -276,7 +276,7 @@ function App() {
         <div className="stats-row">
           <div className="stat-card"><span className="stat-icon purple"><Shield size={16}/></span><div><small>ТЕРРИТОРИЯ</small><strong>{ui.score}<em>%</em></strong></div></div>
           <div className="stat-card"><span className="stat-icon gold"><Trophy size={16}/></span><div><small>РЕКОРД</small><strong>{ui.best}<em>%</em></strong></div></div>
-          <div className="stat-card enemies-stat"><span className="enemy-dots"><i/><i/><i/></span><div><small>СОПЕРНИКИ</small><strong>03</strong></div></div>
+          <div className="stat-card enemies-stat"><span className="enemy-dots"><i/><i/><i/></span><div><small>СОПЕРНИКИ</small><strong>{String(ui.enemies).padStart(2, '0')}</strong></div></div>
         </div>
 
         <div className="arena-wrap">
