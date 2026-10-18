@@ -7,20 +7,38 @@ const COLORS = ['#9b7bff', '#ff6685', '#ffbd59', '#42d9c0'];
 const indexOf = (x, y) => y * SIZE + x;
 const cellAt = (x, y) => ({ x: Math.floor(x), y: Math.floor(y) });
 const inside = (x, y) => x >= 0 && y >= 0 && x < SIZE && y < SIZE;
+const UKRAINE = [
+  [18, 20], [27, 17], [35, 13], [44, 16], [52, 12], [61, 15],
+  [71, 17], [82, 22], [91, 29], [88, 36], [92, 42], [88, 49],
+  [82, 55], [77, 60], [73, 63], [72, 69], [68, 76], [72, 82],
+  [78, 85], [81, 81], [79, 75], [77, 68], [80, 63], [84, 59],
+  [76, 61], [68, 62], [61, 60], [54, 64], [45, 62], [36, 65],
+  [28, 61], [21, 60], [15, 54], [9, 49], [11, 42], [8, 35],
+  [12, 27]
+];
 const arenaCell = (x, y) => {
-  const dx = (x + .5 - SIZE / 2) / (SIZE / 2 - 5);
-  const dy = (y + .5 - SIZE / 2) / (SIZE / 2 - 5);
-  return dx * dx + dy * dy < 1.12;
+  const px = x + .5, py = y + .5;
+  let insidePolygon = false;
+  for (let i = 0, j = UKRAINE.length - 1; i < UKRAINE.length; j = i++) {
+    const [xi, yi] = UKRAINE[i], [xj, yj] = UKRAINE[j];
+    if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) insidePolygon = !insidePolygon;
+  }
+  return insidePolygon;
+};
+const traceMap = ctx => {
+  ctx.beginPath();
+  UKRAINE.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
+  ctx.closePath();
 };
 const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 
 function createGame() {
   const cells = new Int8Array(COUNT).fill(-1);
-  const player = { id: 0, x: 22, y: 50, angle: 0, targetAngle: 0, trail: [], alive: true, color: COLORS[0], speed: 15 };
+  const player = { id: 0, x: 22, y: 45, angle: 0, targetAngle: 0, trail: [], alive: true, color: COLORS[0], speed: 15 };
   const bots = [
-    { id: 1, x: 75, y: 27, angle: 2.7, targetAngle: 2.7, trail: [], alive: true, color: COLORS[1], speed: 10, think: 0 },
-    { id: 2, x: 76, y: 73, angle: -2.5, targetAngle: -2.5, trail: [], alive: true, color: COLORS[2], speed: 9.4, think: 0 },
-    { id: 3, x: 51, y: 17, angle: 1.4, targetAngle: 1.4, trail: [], alive: true, color: COLORS[3], speed: 9.8, think: 0 }
+    { id: 1, x: 76, y: 35, angle: 2.7, targetAngle: 2.7, trail: [], alive: true, color: COLORS[1], speed: 10, think: 0 },
+    { id: 2, x: 66, y: 52, angle: -2.5, targetAngle: -2.5, trail: [], alive: true, color: COLORS[2], speed: 9.4, think: 0 },
+    { id: 3, x: 51, y: 22, angle: 1.4, targetAngle: 1.4, trail: [], alive: true, color: COLORS[3], speed: 9.8, think: 0 }
   ];
   const paintCircle = (cx, cy, radius, owner) => {
     for (let y = Math.max(0, Math.floor(cy - radius)); y <= Math.min(SIZE - 1, cy + radius); y++) {
@@ -193,7 +211,7 @@ function App() {
       ctx.fillStyle = '#101521'; ctx.fillRect(0, 0, w, h);
       const scale = Math.min(w, h) / SIZE, ox = (w - SIZE * scale) / 2, oy = (h - SIZE * scale) / 2;
       ctx.save(); ctx.translate(ox, oy); ctx.scale(scale, scale);
-      ctx.beginPath(); ctx.ellipse(50, 50, 47.5, 47.5, 0, 0, Math.PI * 2); ctx.clip();
+      traceMap(ctx); ctx.clip();
       ctx.fillStyle = '#202838'; ctx.fillRect(0, 0, SIZE, SIZE);
       for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
         const owner = g?.cells[indexOf(x, y)] ?? -1;
@@ -223,7 +241,9 @@ function App() {
       };
       if (g) { drawEntity(g.player, true); g.bots.forEach(b => drawEntity(b, false)); }
       ctx.restore();
-      ctx.strokeStyle = '#ffffff18'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(ox + 50 * scale, oy + 50 * scale, 47.5 * scale, 47.5 * scale, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.save(); ctx.translate(ox, oy); ctx.scale(scale, scale);
+      traceMap(ctx); ctx.strokeStyle = '#ffffff35'; ctx.lineWidth = .45; ctx.stroke();
+      ctx.restore();
       frame = requestAnimationFrame(draw);
     };
     frame = requestAnimationFrame(draw);
