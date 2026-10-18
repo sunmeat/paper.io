@@ -12,6 +12,7 @@ export class Grid {
     this.owners = new Uint8Array(width * height);
     this.trail = new Uint8Array(width * height);
     this.territoryCounts = new Uint32Array(256);
+    this.version = 0;
   }
 
   /** @returns {number} Flat index for a cell coordinate. */
@@ -36,6 +37,7 @@ export class Grid {
     if (previous) this.territoryCounts[previous]--;
     if (owner) this.territoryCounts[owner]++;
     this.owners[index] = owner;
+    this.version++;
   }
 
   /** Sets a cell owner if the coordinate is inside the map. */
@@ -44,12 +46,12 @@ export class Grid {
   }
 
   /** Sets a trail cell if the coordinate is inside the map. */
-  setTrail(x, y, owner) { if (this.inside(x, y)) this.trail[this.index(x, y)] = owner; }
+  setTrail(x, y, owner) { if (this.inside(x, y)) { const index=this.index(x,y); if(this.trail[index]!==owner){this.trail[index]=owner;this.version++;} } }
 
   /** Clears all trails, or only the selected owner's trail. */
   clearTrail(owner) {
     for (let i = 0; i < this.trail.length; i++) {
-      if (owner === undefined || this.trail[i] === owner) this.trail[i] = 0;
+      if ((owner === undefined || this.trail[i] === owner) && this.trail[i] !== 0) { this.trail[i] = 0; this.version++; }
     }
   }
 

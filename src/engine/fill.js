@@ -1,3 +1,5 @@
+const workspaces = new Map();
+
 /**
  * Closes a trail and captures all cells unreachable from the map boundary.
  * Capturing rival cells transfers ownership and updates incremental counts.
@@ -13,8 +15,10 @@ export function captureArea(grid, owner, trailCells) {
   }
 
   const { width, height, owners } = grid;
-  const visited = new Uint8Array(width * height);
-  const queue = new Int32Array(width * height);
+  let workspace = workspaces.get(owners.length);
+  if (!workspace) { workspace = { visited: new Uint8Array(owners.length), queue: new Int32Array(owners.length) }; workspaces.set(owners.length, workspace); }
+  const { visited, queue } = workspace;
+  visited.fill(0);
   let head = 0;
   let tail = 0;
 

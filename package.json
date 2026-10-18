@@ -19,6 +19,7 @@
     "zustand": "latest"
   },
   "devDependencies": {
-    "vitest": "latest"
+    "vitest": "latest",
+    "rollup-plugin-visualizer": "^6.0.3"
   }
 }

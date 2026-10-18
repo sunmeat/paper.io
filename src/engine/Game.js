@@ -41,6 +41,9 @@ export class Game {
     this.sessionScore = 0;
     this.camera = { x: 0, y: 0, zoom: 1 };
     this.effects = [];
+    this.terrainCanvas = document.createElement('canvas');
+    this.terrainCtx = this.terrainCanvas.getContext('2d');
+    this.terrainDirty = true;
     this.grid = null;
     this.player = null;
     this.bots = [];
@@ -62,6 +65,7 @@ export class Game {
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.canvas.width = Math.round(rect.width * this.dpr);
     this.canvas.height = Math.round(rect.height * this.dpr);
+    this.terrainDirty = true;
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     const width = Math.max(GAME_CONFIG.minColumns, Math.floor(rect.width / GAME_CONFIG.cellSize));
     const height = Math.max(GAME_CONFIG.minRows, Math.floor(rect.height / GAME_CONFIG.cellSize));
@@ -80,6 +84,7 @@ export class Game {
     this.effects = [];
     this.camera = { x: 0, y: 0, zoom: 1 };
     this.grid = new Grid(this.cellsWide, this.cellsHigh);
+    this.terrainDirty = true;
     this.sessionScore = 0;
     const cx = Math.floor(this.cellsWide / 2);
     const cy = Math.floor(this.cellsHigh / 2);
@@ -264,6 +269,7 @@ export class Game {
     player.y = ny;
     if (this.grid.ownerAt(nx, ny) === player.id) {
       if (player.trailCells.length) {
+        this.terrainDirty = true;
         const captured = captureArea(this.grid, player.id, player.trailCells);
         player.trailCells = [];
         if (player.human) this.sessionScore += captured;
@@ -272,6 +278,7 @@ export class Game {
         this.checkTerritoryLoss();
       }
     } else {
+      this.terrainDirty = true;
       this.grid.trail[nextIndex] = player.id;
       player.trailCells.push(nextIndex);
     }
@@ -281,6 +288,7 @@ export class Game {
   eliminatePlayer(player, killer = null) {
     if (!player.alive) return;
     player.alive = false;
+    this.terrainDirty = true;
     player.respawnTimer = player.human ? 0 : GAME_CONFIG.respawnSteps;
     this.effects.push({type:'death',x:player.x,y:player.y,started:performance.now(),duration:480,particles:Array.from({length:18},(_,i)=>({angle:Math.PI*2*i/18,speed:.6+(i%5)*.32}))});
     this.callbacks.onDeath?.(player.id,player.human);
@@ -340,6 +348,7 @@ export class Game {
       alive: true, respawnTimer: 0, turnTimer: 0
     });
     this.initializeTerritory(player, width, height);
+    this.terrainDirty = true;
   }
 
   /** Builds a HUD snapshot from incremental counters without scanning the map. */
@@ -389,22 +398,34 @@ export class Game {
     ctx.translate(width/2-this.camera.x*this.camera.zoom,height/2-this.camera.y*this.camera.zoom);
     ctx.scale(this.camera.zoom,this.camera.zoom);
     const skin=getSkinById(this.callbacks.getSkin?.()||'classic');
-    for(let y=0;y<this.cellsHigh;y++)for(let x=0;x<this.cellsWide;x++){
-      const index=this.grid.index(x,y),owner=this.grid.owners[index],trail=this.grid.trail[index];
-      if(!owner&&!trail)continue;
-      const id=trail||owner,px=x*cellW,py=y*cellH;
-      const palette=['#9b7bff','#ff6685','#ffbd59','#42d9c0','#65a8ff','#f58bdf','#a6e36f','#ff8d5e','#7de0ff','#e4dc6a','#c4a1ff'];
-      ctx.fillStyle=id===1?skin.color:(COLORS[id]||palette[(id-1)%palette.length]);ctx.globalAlpha=trail?.98:.72;
-      if(id===1&&trail&&skin.trailShape==='circle'){ctx.beginPath();ctx.arc(px+cellW/2,py+cellH/2,cellW*.43,0,Math.PI*2);ctx.fill();}
-      else if(id===1&&trail&&skin.trailShape==='diamond'){ctx.beginPath();ctx.moveTo(px+cellW/2,py+1);ctx.lineTo(px+cellW-1,py+cellH/2);ctx.lineTo(px+cellW/2,py+cellH-1);ctx.lineTo(px+1,py+cellH/2);ctx.closePath();ctx.fill();}
-      else ctx.fillRect(px+.6,py+.6,Math.max(1,cellW-1.2),Math.max(1,cellH-1.2));
-      if(id===1&&skin.pattern!=='solid'){ctx.globalAlpha=.35;ctx.strokeStyle='#fff';ctx.lineWidth=1;if(skin.pattern==='dots'){ctx.beginPath();ctx.arc(px+cellW/2,py+cellH/2,Math.max(1,cellW*.15),0,Math.PI*2);ctx.stroke();}else if(skin.pattern==='stripes'){ctx.beginPath();ctx.moveTo(px+1,py+cellH-1);ctx.lineTo(px+cellW-1,py+1);ctx.stroke();}else if(skin.pattern==='grid'){ctx.strokeRect(px+2,py+2,cellW-4,cellH-4);}else if(skin.pattern==='rings'){ctx.beginPath();ctx.arc(px+cellW/2,py+cellH/2,cellW*.25,0,Math.PI*2);ctx.stroke();}}
-      if(id!==1&&!trail){ctx.globalAlpha=.25;ctx.strokeStyle='#10131c';ctx.lineWidth=1;
-        if(id%3===0){ctx.beginPath();ctx.moveTo(px+2,py+2);ctx.lineTo(px+cellW-2,py+cellH-2);ctx.stroke();}
-        else if(id%3===1){ctx.beginPath();ctx.arc(px+cellW/2,py+cellH/2,Math.max(1,cellW*.18),0,Math.PI*2);ctx.stroke();}
-        else ctx.strokeRect(px+cellW*.28,py+cellH*.28,cellW*.44,cellH*.44);
-      }
+    if(this.terrainCanvas.width!==Math.ceil(this.cellsWide*cellW)||this.terrainCanvas.height!==Math.ceil(this.cellsHigh*cellH)){
+      this.terrainCanvas.width=Math.ceil(this.cellsWide*cellW);
+      this.terrainCanvas.height=Math.ceil(this.cellsHigh*cellH);
+      this.terrainDirty=true;
     }
+    if(this.terrainDirty){
+      const layer=this.terrainCtx;
+      layer.clearRect(0,0,this.terrainCanvas.width,this.terrainCanvas.height);
+      const palette=['#9b7bff','#ff6685','#ffbd59','#42d9c0','#65a8ff','#f58bdf','#a6e36f','#ff8d5e','#7de0ff','#e4dc6a','#c4a1ff'];
+      for(let y=0;y<this.cellsHigh;y++)for(let x=0;x<this.cellsWide;x++){
+        const index=this.grid.index(x,y),owner=this.grid.owners[index],trail=this.grid.trail[index];
+        if(!owner&&!trail)continue;
+        const id=trail||owner,px=x*cellW,py=y*cellH;
+        layer.fillStyle=id===1?skin.color:(COLORS[id]||palette[(id-1)%palette.length]);layer.globalAlpha=trail?.98:.72;
+        if(id===1&&trail&&skin.trailShape==='circle'){layer.beginPath();layer.arc(px+cellW/2,py+cellH/2,cellW*.43,0,Math.PI*2);layer.fill();}
+        else if(id===1&&trail&&skin.trailShape==='diamond'){layer.beginPath();layer.moveTo(px+cellW/2,py+1);layer.lineTo(px+cellW-1,py+cellH/2);layer.lineTo(px+cellW/2,py+cellH-1);layer.lineTo(px+1,py+cellH/2);layer.closePath();layer.fill();}
+        else layer.fillRect(px+.6,py+.6,Math.max(1,cellW-1.2),Math.max(1,cellH-1.2));
+        if(id===1&&skin.pattern!=='solid'){layer.globalAlpha=.35;layer.strokeStyle='#fff';layer.lineWidth=1;if(skin.pattern==='dots'){layer.beginPath();layer.arc(px+cellW/2,py+cellH/2,Math.max(1,cellW*.15),0,Math.PI*2);layer.stroke();}else if(skin.pattern==='stripes'){layer.beginPath();layer.moveTo(px+1,py+cellH-1);layer.lineTo(px+cellW-1,py+1);layer.stroke();}else if(skin.pattern==='grid'){layer.strokeRect(px+2,py+2,cellW-4,cellH-4);}else if(skin.pattern==='rings'){layer.beginPath();layer.arc(px+cellW/2,py+cellH/2,cellW*.25,0,Math.PI*2);layer.stroke();}}
+        if(id!==1&&!trail){layer.globalAlpha=.25;layer.strokeStyle='#10131c';layer.lineWidth=1;
+          if(id%3===0){layer.beginPath();layer.moveTo(px+2,py+2);layer.lineTo(px+cellW-2,py+cellH-2);layer.stroke();}
+          else if(id%3===1){layer.beginPath();layer.arc(px+cellW/2,py+cellH/2,Math.max(1,cellW*.18),0,Math.PI*2);layer.stroke();}
+          else layer.strokeRect(px+cellW*.28,py+cellH*.28,cellW*.44,cellH*.44);
+        }
+      }
+      layer.globalAlpha=1;
+      this.terrainDirty=false;
+    }
+    ctx.drawImage(this.terrainCanvas,0,0);
     ctx.globalAlpha=1;this.drawPlayer(ctx,this.player,cellW,cellH,skin);
     for(const bot of this.bots)if(bot.alive)this.drawPlayer(ctx,bot,cellW,cellH);
     const now=performance.now();this.effects=this.effects.filter(effect=>now-effect.started<effect.duration);
