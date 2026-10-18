@@ -151,11 +151,14 @@ function App() {
       entity.angle += Math.max(-turnRate * dt, Math.min(turnRate * dt, angleDiff(entity.angle, entity.targetAngle)));
       const distance = entity.speed * dt;
       const steps = Math.max(1, Math.ceil(distance / .22));
+      let lastProcessedIdx = indexOf(Math.floor(entity.x), Math.floor(entity.y));
       for (let s = 0; s < steps; s++) {
         entity.x += Math.cos(entity.angle) * distance / steps;
         entity.y += Math.sin(entity.angle) * distance / steps;
         if (entity.x < 1 || entity.y < 1 || entity.x > SIZE - 2 || entity.y > SIZE - 2 || !arenaCell(Math.floor(entity.x), Math.floor(entity.y))) { eliminate(g, entity); return; }
         const idx = indexOf(Math.floor(entity.x), Math.floor(entity.y));
+        if (idx === lastProcessedIdx) continue;
+        lastProcessedIdx = idx;
         for (const rival of [g.player, ...g.bots]) {
           if (rival !== entity && rival.alive && rival.trail.includes(idx)) eliminate(g, rival);
         }
