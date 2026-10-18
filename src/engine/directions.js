@@ -1,10 +1,3 @@
-const OPPOSITE_DIRECTION = Object.freeze({
-  up: 'down',
-  down: 'up',
-  left: 'right',
-  right: 'left'
-});
-
-export function isReverseDirection(currentDirection, nextDirection) {
-  return OPPOSITE_DIRECTION[currentDirection] === nextDirection;
+export function isReverseDirection(current, next) {
+  return current[0] === -next[0] && current[1] === -next[1];
 }
