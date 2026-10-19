@@ -34,6 +34,8 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       modeId,
       countryLevel,
       playerLevel,
+      config: new URLSearchParams(window.location.search).get('benchmark') === '1' ? { worldWidth: 150, worldHeight: 150, botCount: 10 } : undefined,
+      onPerformance: metrics => { if (new URLSearchParams(window.location.search).get('benchmark') === '1') console.info('[paper.io benchmark]', metrics); },
       observer: new URLSearchParams(window.location.search).get('observer') === '1',
       onStats: stats => {
         if (roundFinished) return;
