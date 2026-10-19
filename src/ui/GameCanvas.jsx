@@ -28,17 +28,21 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
     if (!canvas) return undefined;
 
     let game;
+    let roundFinished = false;
     game = new Game(canvas, {
       mapId,
       modeId,
       observer: new URLSearchParams(window.location.search).get('observer') === '1',
-      onStats: stats => onStats?.({
-        ...stats,
-        top5: (stats.top5 || []).map(player => ({
-          ...player,
-          name: game?.players.get(player.id)?.name || (player.id === 1 ? 'Игрок' : `Бот ${player.id - 1}`)
-        }))
-      }),
+      onStats: stats => {
+        if (roundFinished) return;
+        onStats?.({
+          ...stats,
+          top5: (stats.top5 || []).map(player => ({
+            ...player,
+            name: game?.players.get(player.id)?.name || (player.id === 1 ? 'Игрок' : `Бот ${player.id - 1}`)
+          }))
+        });
+      },
       getSkin: () => useGameStore.getState().equippedSkin
     });
     const events = game.simulation.events;
@@ -103,6 +107,8 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         vibrate([35, 30, 60]);
       }),
       events.on('gameOver', snapshot => {
+        if (roundFinished) return;
+        roundFinished = true;
         const victoryReward = snapshot.outcome === 'victory' ? 150 : 0;
         const secretReward = snapshot.outcome === 'victory' && snapshot.secretConquered ? 500 : 0;
         const roundReward = victoryReward + secretReward;
