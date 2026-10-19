@@ -14,6 +14,7 @@ export class Game {
     this.simulation = new Simulation({
       seed: callbacks.seed ?? GAME_CONFIG.seed,
       mapId: callbacks.mapId ?? 'circle',
+      modeId: callbacks.modeId ?? 'classic',
       humanPlayer: !callbacks.observer,
       playerLevel: progress.playerLevel,
       winStreak: progress.winStreak,
