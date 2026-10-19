@@ -10,7 +10,15 @@ export class Game {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.callbacks = callbacks;
-    this.simulation = new Simulation({ seed: callbacks.seed ?? GAME_CONFIG.seed, mapId: callbacks.mapId ?? 'circle' });
+    const progress = this.readBotProgress();
+    this.simulation = new Simulation({
+      seed: callbacks.seed ?? GAME_CONFIG.seed,
+      mapId: callbacks.mapId ?? 'circle',
+      humanPlayer: !callbacks.observer,
+      playerLevel: progress.playerLevel,
+      winStreak: progress.winStreak,
+      lossStreak: progress.lossStreak
+    });
     this.running = true;
     this.frame = 0;
     this.lastTime = 0;
@@ -34,6 +42,7 @@ export class Game {
     this.minimapCtx = this.minimapCanvas.getContext('2d');
     this.minimapVersion = -1;
     this.cachedSkinId = null;
+    this.minimapSkinId = null;
     this.cachedOwnerVersion = -1;
 
     this.unsubscribeEvents = [
@@ -59,6 +68,18 @@ export class Game {
     this.resize();
     this.emitStats();
     this.frame = requestAnimationFrame(time => this.loop(time));
+  }
+
+  readBotProgress() {
+    try {
+      const read = (key, fallback = 0) => {
+        const value = Number(localStorage.getItem(key));
+        return Number.isFinite(value) && value >= 0 ? value : fallback;
+      };
+      return { playerLevel: Math.max(1, read('paper-io-player-level', 1)), winStreak: read('paper-io-win-streak'), lossStreak: read('paper-io-loss-streak') };
+    } catch {
+      return { playerLevel: 1, winStreak: 0, lossStreak: 0 };
+    }
   }
 
   get grid() { return this.simulation.grid; }
@@ -197,6 +218,7 @@ export class Game {
     if (this.cachedSkinId !== skinId) {
       this.cachedSkinId = skinId;
       this.terrainDirty = true;
+      this.minimapVersion = -1;
     }
 
     this.renderTerrain(cellSize, skin);
@@ -205,7 +227,7 @@ export class Game {
     this.renderEffects(ctx, cellSize);
     ctx.globalAlpha = 1;
     ctx.restore();
-    this.renderMinimap(width, height);
+    this.renderMinimap(width, height, skin);
     this.renderCountdown(width, height);
   }
 
@@ -247,7 +269,7 @@ export class Game {
         const px = x * cellSize, py = y * cellSize;
         layer.fillStyle = owner === 1 ? skin.color : getPlayerColor(owner);
         layer.globalAlpha = 0.72;
-        layer.fillRect(px, py, cellSize + 0.25, cellSize + 0.25);
+        layer.fillRect(px, py, cellSize + 1, cellSize + 1);
       }
       layer.globalAlpha = 1; this.terrainDirty = false;
       this.cachedOwnerVersion = this.grid.ownerVersion; this.cachedSkinId = this.callbacks.getSkin?.() || 'classic';
@@ -255,11 +277,11 @@ export class Game {
     this.ctx.drawImage(this.maskCanvas, 0, 0); this.ctx.drawImage(this.terrainCanvas, 0, 0);
   }
 
-  renderMinimap(width, height) {
+  renderMinimap(width, height, skin) {
     if (this.minimapVersion !== this.grid.version) {
       const image = this.minimapCtx.createImageData(this.cellsWide, this.cellsHigh);
       const toRgb = id => {
-        const hex = (id === 1 ? '#3ddc84' : getPlayerColor(id)).replace('#', '');
+        const hex = (id === 1 ? skin.color : getPlayerColor(id)).replace('#', '');
         return [parseInt(hex.slice(0, 2), 16) || 0, parseInt(hex.slice(2, 4), 16) || 0, parseInt(hex.slice(4, 6), 16) || 0];
       };
       const palette = new Map();
@@ -281,7 +303,7 @@ export class Game {
     for (const player of this.players.values()) {
       if (!player.alive) continue;
       const px = x + (player.x + 0.5) * size / this.cellsWide, py = y + (player.y + 0.5) * mapHeight / this.cellsHigh;
-      ctx.fillStyle = player.id === 1 ? '#ffffff' : getPlayerColor(player.id);
+      ctx.fillStyle = player.id === 1 ? skin.color : getPlayerColor(player.id);
       ctx.beginPath(); ctx.arc(px, py, player.id === 1 ? 3.2 : 2.1, 0, Math.PI * 2); ctx.fill();
       if (player.id !== 1) { ctx.fillStyle = '#f3f4fa'; ctx.fillText(player.x + ',' + player.y, Math.min(x + size - 26, px + 3), py - 4); }
     }
@@ -290,7 +312,7 @@ export class Game {
 
   renderTrail(ctx, cellSize, interpolation, skin) {
     ctx.save();
-    ctx.lineCap = 'round';
+    ctx.lineCap = 'butt';
     ctx.lineJoin = 'round';
     ctx.lineWidth = cellSize * 0.92;
     for (const player of this.players.values()) {
@@ -315,7 +337,13 @@ export class Game {
       if (points.length === 1) {
         ctx.arc(points[0].x, points[0].y, ctx.lineWidth / 2, 0, Math.PI * 2);
         ctx.fill();
-      } else ctx.stroke();
+      } else {
+        ctx.stroke();
+        const head = points[points.length - 1];
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     ctx.restore();
   }
