@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateRoundOutcome } from './modes.js';
+import { Simulation } from './Simulation.js';
 
 describe('round victory conditions', () => {
   it('wins classic mode at 90 percent territory', () => {
@@ -25,5 +26,41 @@ describe('round victory conditions', () => {
 
   it('always marks a dead player as defeated', () => {
     expect(evaluateRoundOutcome({ playerAlive: false, playerTerritory: 100 })).toBe('defeat');
+  });
+});
+
+describe('game simulation victory integration', () => {
+  const createSimulation = modeId => new Simulation({
+    seed: 7,
+    modeId,
+    config: {
+      worldWidth: 30,
+      worldHeight: 30,
+      botCount: 1,
+      playerStartWidth: 5,
+      playerStartHeight: 4,
+      botStartWidth: 4,
+      botStartHeight: 3
+    }
+  });
+
+  it('finishes the classic simulation when the player captures the whole map', () => {
+    const simulation = createSimulation('classic');
+    simulation.grid.owners.fill(0);
+    for (let i = 0; i < simulation.grid.walkable.length; i++) {
+      if (simulation.grid.walkable[i]) simulation.grid.owners[i] = 1;
+    }
+    simulation.checkRoundOutcome();
+    expect(simulation.over).toBe(true);
+    expect(simulation.outcome).toBe('victory');
+    expect(simulation.secretConquered).toBe(true);
+  });
+
+  it('finishes sprint simulation at the time limit and records the winner', () => {
+    const simulation = createSimulation('sprint');
+    simulation.elapsedMs = 180000;
+    simulation.checkRoundOutcome();
+    expect(simulation.over).toBe(true);
+    expect(['victory', 'defeat']).toContain(simulation.outcome);
   });
 });
