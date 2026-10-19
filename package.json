@@ -9,18 +9,23 @@
     "preview": "vite preview",
     "test": "vitest run",
     "sim": "node scripts/sim.js",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
     "build:analyze": "ANALYZE=1 vite build"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "lucide-react": "latest",
-    "zustand": "latest"
+    "@vitejs/plugin-react": "6.1.2",
+    "vite": "8.3.2",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "lucide-react": "1.59.0",
+    "zustand": "5.0.14"
   },
   "devDependencies": {
-    "vitest": "latest",
-    "rollup-plugin-visualizer": "^6.0.3"
+    "vitest": "4.1.7",
+    "rollup-plugin-visualizer": "6.0.3",
+    "eslint": "9.39.4",
+    "prettier": "3.8.3"
   }
 }
