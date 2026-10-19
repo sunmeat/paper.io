@@ -12,6 +12,21 @@ describe('fixed world and viewport resizing', () => {
     expect(GAME_CONFIG.worldHeight).toBe(90);
   });
 
+  it('reports territory as a percentage of passable world cells', () => {
+    const game = Object.create(Game.prototype);
+    game.grid = {
+      owners: new Uint8Array(90 * 90),
+      territoryCount: owner => owner === 1 ? 81 : 0
+    };
+    game.player = { id: 1, alive: true };
+    game.bots = [];
+    game.sessionScore = 0;
+    game.over = false;
+    game.paused = false;
+
+    expect(game.getStats().territory).toBe(1);
+  });
+
   it('does not mutate game state when the canvas viewport changes size', () => {
     vi.stubGlobal('window', { devicePixelRatio: 2 });
 
