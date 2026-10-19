@@ -62,7 +62,7 @@ export const useGameStore = create(persist((set, get) => ({
   setSnapshot: nextSnapshot => set(state => {
     const achievements = [...state.achievements];
     if (nextSnapshot.territory >= 10 && !achievements.includes('territory-10')) achievements.push('territory-10');
-    if (nextSnapshot.territory >= 25 && !achievements.includes('territory-25')) achievements.push('territory-25');
+    if (nextSnapshot.territory >= 25 && !achievements.includes('territory-25')) achievements.push('territory-25');\n    if ((Number(nextSnapshot.sessionScore) || 0) > 0 && !achievements.includes('first-capture')) achievements.push('first-capture');
     return { snapshot: nextSnapshot, achievements };
   }),
   resetSnapshot: () => set({ snapshot, paused: false }),
@@ -135,7 +135,7 @@ export const useGameStore = create(persist((set, get) => ({
   }
 }), {
   name: 'paper-io-meta',
-  version: 2,
+  version: 3,
   storage: createJSONStorage(() => localStorage),
   partialize: state => ({
     selectedMap: state.selectedMap, coins: state.coins, ownedSkins: state.ownedSkins, equippedSkin: state.equippedSkin,
