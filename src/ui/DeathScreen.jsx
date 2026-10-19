@@ -3,6 +3,8 @@ import { Home, RotateCcw, Coins, Trophy, Clock, Skull, Crown } from 'lucide-reac
 import { useGameStore } from '../store/gameStore.js';
 import { useT } from '../i18n.js';
 
+const formatPercent = value => Number(value || 0).toFixed(3);
+
 const formatTime = ms => {
   const seconds = Math.floor(Math.max(0, ms || 0) / 1000);
   return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
@@ -47,7 +49,7 @@ export default function DeathScreen({ onAgain, onMenu }) {
         <p>{t('deadText')}</p>
         {newRecord && <div className="new-record"><Crown size={16}/>{language === 'ru' ? 'НОВЫЙ РЕКОРД' : 'NEW RECORD'}</div>}
         <div className="result-grid block8-results">
-          <div><span>{t('territory')}</span><strong>{territory}%</strong></div>
+          <div><span>{t('territory')}</span><strong>{formatPercent(territory)}%</strong></div>
           <div><span>{t('score')}</span><strong>{score}</strong></div>
           <div><span><Skull size={12}/>{language === 'ru' ? 'Убийства' : 'Kills'}</span><strong>{kills}</strong></div>
           <div><span><Clock size={12}/>{language === 'ru' ? 'Время' : 'Time'}</span><strong>{formatTime(stats.roundTimeMs)}</strong></div>
