@@ -27,7 +27,7 @@ export class Game {
     this.unsubscribeEvents = [
       this.simulation.events.on('capture', event => {
         this.effects.push({ type: 'capture', x: event.x, y: event.y, started: performance.now(), duration: 420 });
-        this.callbacks.onCapture?.(event.captured);
+        if (event.human) this.callbacks.onCapture?.(event.captured);
       }),
       this.simulation.events.on('death', event => {
         this.effects.push({
