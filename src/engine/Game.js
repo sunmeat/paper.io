@@ -27,7 +27,6 @@ export class Game {
     this.unsubscribeEvents = [
       this.simulation.events.on('capture', event => {
         this.effects.push({ type: 'capture', x: event.x, y: event.y, started: performance.now(), duration: 420 });
-        if (event.human) this.callbacks.onCapture?.(event.captured);
       }),
       this.simulation.events.on('death', event => {
         this.effects.push({
@@ -37,12 +36,7 @@ export class Game {
             angle: Math.PI * 2 * i / 18, speed: 0.6 + (i % 5) * 0.32
           }))
         });
-        this.callbacks.onDeath?.(event.playerId, event.human);
       }),
-      this.simulation.events.on('kill', event => {
-        if (event.victimId !== 1) this.callbacks.onBotDown?.(event.victimId, event.killerHuman);
-      }),
-      this.simulation.events.on('gameOver', snapshot => this.callbacks.onGameOver?.(snapshot))
     ];
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
