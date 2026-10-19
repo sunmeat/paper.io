@@ -10,7 +10,7 @@ export class Game {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.callbacks = callbacks;
-    this.simulation = new Simulation({ seed: callbacks.seed ?? GAME_CONFIG.seed });
+    this.simulation = new Simulation({ seed: callbacks.seed ?? GAME_CONFIG.seed, mapId: callbacks.mapId ?? 'circle' });
     this.running = true;
     this.frame = 0;
     this.lastTime = 0;
