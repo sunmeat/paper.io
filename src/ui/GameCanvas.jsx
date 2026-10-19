@@ -6,7 +6,7 @@ import { getPlayerColor } from '../engine/playerPalette.js';
 import { getSkinById } from '../engine/skins.js';
 import { useGameStore } from '../store/gameStore.js';
 
-const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId = 'circle' }, ref) {
+const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId = 'circle', modeId = 'classic' }, ref) {
   const canvasRef = useRef(null);
   const minimapRef = useRef(null);
   const gameRef = useRef(null);
@@ -30,6 +30,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
     let game;
     game = new Game(canvas, {
       mapId,
+      modeId,
       observer: new URLSearchParams(window.location.search).get('observer') === '1',
       onStats: stats => onStats?.({
         ...stats,
@@ -102,7 +103,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         vibrate([35, 30, 60]);
       }),
       events.on('gameOver', snapshot => {
-        const finalSnapshot = { ...snapshot, roundTimeMs: Math.max(0, performance.now() - game.startedAt), roundCoinsEarned: earnedCoins };
+        const finalSnapshot = { ...snapshot, roundTimeMs: game.simulation.elapsedMs, roundCoinsEarned: earnedCoins };
         gameOverTimer = window.setTimeout(() => onGameOver?.(finalSnapshot), 900);
       })
     ];
@@ -115,7 +116,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       game.destroy();
       if (gameRef.current === game) gameRef.current = null;
     };
-  }, [onStats, onGameOver, mapId]);
+  }, [onStats, onGameOver, mapId, modeId]);
 
   return <><canvas ref={canvasRef} className="game-canvas" aria-label="Paper.io game arena" /><canvas ref={minimapRef} className="game-minimap" aria-label="Minimap" /></>;
 });
