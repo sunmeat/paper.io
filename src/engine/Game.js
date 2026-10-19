@@ -15,7 +15,7 @@ export class Game {
       seed: callbacks.seed ?? GAME_CONFIG.seed,
       mapId: callbacks.mapId ?? 'circle',
       modeId: callbacks.modeId ?? 'classic',
-      config: callbacks.countryLevel ? { botCount: Math.min(18, 9 + callbacks.countryLevel - 1) } : null,
+      config: { ...(callbacks.countryLevel ? { botCount: Math.min(18, 9 + callbacks.countryLevel - 1) } : {}), ...(callbacks.config || {}) },
       humanPlayer: !callbacks.observer,
       playerLevel: Math.max(progress.playerLevel, callbacks.playerLevel || 1, callbacks.countryLevel || 1),
       winStreak: progress.winStreak,
@@ -390,6 +390,8 @@ export class Game {
     ctx.save();
     ctx.strokeStyle = '#10131c';
     ctx.lineWidth = Math.max(0.7, cellSize * 0.055);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
     ctx.beginPath();
     for (const index of (indices || this.grid.owners.keys())) {
       const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
@@ -443,7 +445,7 @@ export class Game {
     ctx.save();
     ctx.lineCap = 'butt';
     ctx.lineJoin = 'round';
-    ctx.lineWidth = cellSize * 0.92;
+    ctx.lineWidth = cellSize * (0.88 + (Math.sin(performance.now() / 115) + 1) * 0.035);
     for (const player of this.players.values()) {
       if (!player.alive || !player.trailCells.length) continue;
       const points = player.trailCells.filter(index => this.grid.trail[index] === player.id).map(index => ({
