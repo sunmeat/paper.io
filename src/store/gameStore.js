@@ -41,7 +41,8 @@ const base = {
   dailyQuestClaims: {},
   walletChecksum: walletChecksum(0),
   totalRoundCoins: 0,
-  ...DEFAULT_WORLD_PROGRESS
+  ...DEFAULT_WORLD_PROGRESS,
+  completedCountries: ['ukraine']
 };
 
 const dateKey = (date = new Date()) =>
