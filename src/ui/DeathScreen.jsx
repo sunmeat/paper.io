@@ -33,7 +33,8 @@ export default function DeathScreen({ onAgain, onMenu }) {
   const score = useCountUp(stats.sessionScore || 0);
   const kills = useCountUp(stats.kills || 0);
   const coins = useCountUp(stats.roundCoinsEarned || 0);
-  const place = Math.max(1, (stats.top5 || []).findIndex(player => player.id === 1) + 1);
+  const ranking = [...(stats.playerStats || [])].sort((a, b) => b.territory - a.territory || a.id - b.id);
+  const place = Math.max(1, ranking.findIndex(player => player.id === 1) + 1);
   const [newRecord, setNewRecord] = useState(false);
 
   useEffect(() => {
