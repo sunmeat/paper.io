@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Home, RotateCcw, Coins, Trophy, Clock, Skull, Crown } from 'lucide-react';
+import { Home, RotateCcw, Coins, Trophy, Clock, Skull, Crown, Star } from 'lucide-react';
 import { useGameStore } from '../store/gameStore.js';
 import { useT } from '../i18n.js';
 
@@ -62,6 +62,7 @@ export default function DeathScreen({ onAgain, onMenu }) {
           <div><span><Clock size={12}/>{language === 'ru' ? 'Время' : 'Time'}</span><strong>{formatTime(stats.roundTimeMs)}</strong></div>
           <div><span><Trophy size={12}/>{language === 'ru' ? 'Место' : 'Place'}</span><strong>#{place}</strong></div>
           <div><span><Coins size={12}/>{language === 'ru' ? 'Монеты за раунд' : 'Coins earned'}</span><strong>+{coins}</strong></div>
+          <div><span><Star size={12}/>{language === 'ru' ? 'Опыт за раунд' : 'XP earned'}</span><strong>+{stats.experienceGained || 0}</strong></div>
         </div>
         <div className="reward-breakdown">
           <span>{t('roundReward')}</span>
