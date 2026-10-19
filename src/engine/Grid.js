@@ -14,6 +14,7 @@ export class Grid {
     this.walkableCount = this.walkable.reduce((sum, value) => sum + value, 0);
     this.version = 0;
     this.ownerVersion = 0;
+    this.dirtyOwnerIndices = [];
   }
 
   index(x, y) { return y * this.width + x; }
@@ -37,8 +38,16 @@ export class Grid {
     if (previous) this.territoryCounts[previous]--;
     if (owner) this.territoryCounts[owner]++;
     this.owners[index] = owner;
+    this.dirtyOwnerIndices.push(index);
     this.version++;
     this.ownerVersion++;
+  }
+
+  drainDirtyOwners() {
+    if (!this.dirtyOwnerIndices.length) return [];
+    const changed = this.dirtyOwnerIndices;
+    this.dirtyOwnerIndices = [];
+    return changed;
   }
 
   setOwner(x, y, owner) {
