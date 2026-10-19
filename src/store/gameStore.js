@@ -35,7 +35,11 @@ const base = {
   bestTerritory: 0,
   roundsPlayed: 0,
   selectedMode: 'classic',
-  modeRecords: {}
+  modeRecords: {},
+  dailyQuestProgress: {},
+  dailyQuestClaims: {},
+  walletChecksum: walletChecksum(0),
+  totalRoundCoins: 0
 };
 
 const dateKey = (date = new Date()) =>
@@ -88,21 +92,36 @@ export const useGameStore = create(persist((set, get) => ({
   awardAchievement: id => set(state => state.achievements.includes(id) ? {} : { achievements: [...state.achievements, id] }),
   finishRound: () => set(state => {
     const achievements = [...state.achievements];
+    const round = state.snapshot || {};
     const roundsPlayed = state.roundsPlayed + 1;
-    const modeId = state.snapshot?.modeId || state.selectedMode || 'classic';
+    const territory = Math.max(0, Number(round.territory) || 0);
+    const kills = Math.max(0, Number(round.kills) || 0);
+    const elapsedMs = Math.max(0, Number(round.roundTimeMs ?? round.elapsedMs) || 0);
+    const victory = round.outcome === 'victory';
+    const roundCoinsEarned = Math.max(10, 10 + Math.floor(territory * 2) + kills * 35 + Math.min(50, Math.floor(elapsedMs / 60000) * 5) + (victory ? 75 : 0) + (round.secretConquered && victory ? 500 : 0));
+    const coins = state.coins + roundCoinsEarned;
+    const totalRoundCoins = (Number(state.totalRoundCoins) || 0) + roundCoinsEarned;
+    const today = dateKey();
+    const dailyQuestProgress = { ...(state.dailyQuestProgress || {}) };
+    const previous = dailyQuestProgress[today] || {};
+    dailyQuestProgress[today] = {
+      'kills-3': Math.max(Number(previous['kills-3']) || 0, kills),
+      'territory-30': Math.max(Number(previous['territory-30']) || 0, territory),
+      'play-1': Math.max(Number(previous['play-1']) || 0, 1)
+    };
+    const modeId = round.modeId || state.selectedMode || 'classic';
     const modeRecords = { ...(state.modeRecords || {}) };
     if (!achievements.includes('first-round')) achievements.push('first-round');
     if (roundsPlayed >= 10 && !achievements.includes('rounds-10')) achievements.push('rounds-10');
     if (kills >= 3 && !achievements.includes('killer-3')) achievements.push('killer-3');
     if (territory >= 30 && !achievements.includes('territory-30')) achievements.push('territory-30');
     if (totalRoundCoins >= 1000 && !achievements.includes('coins-1000')) achievements.push('coins-1000');
-    if (round.modeId === 'sprint' && territory >= 20 && !achievements.includes('sprint-winner')) achievements.push('sprint-winner');
-    modeRecords[modeId] = Math.max(Number(modeRecords[modeId]) || 0, Number(state.snapshot.territory) || 0);
+    if (modeId === 'sprint' && territory >= 20 && !achievements.includes('sprint-winner')) achievements.push('sprint-winner');
+    modeRecords[modeId] = Math.max(Number(modeRecords[modeId]) || 0, territory);
     return {
-      roundsPlayed,
-      bestTerritory: Math.max(state.bestTerritory, state.snapshot.territory || 0),
-      modeRecords,
-      achievements
+      roundsPlayed, coins, walletChecksum: walletChecksum(coins), totalRoundCoins, dailyQuestProgress,
+      snapshot: { ...round, roundCoinsEarned },
+      bestTerritory: Math.max(state.bestTerritory, territory), modeRecords, achievements
     };
   }),
   claimDailyReward: () => {
@@ -166,6 +185,19 @@ export const useGameStore = create(persist((set, get) => ({
     set({ coins, walletChecksum: walletChecksum(coins), dailyQuestClaims: claims });
     return { ok: true, reward: quest.reward };
   },
+  claimDailyQuest: id => {
+    const state = get();
+    const today = dateKey();
+    const quest = getDailyQuests().find(item => item.id === id);
+    const progress = Number(state.dailyQuestProgress?.[today]?.[id]) || 0;
+    const claims = { ...(state.dailyQuestClaims || {}) };
+    const todayClaims = [...(claims[today] || [])];
+    if (!quest || progress < quest.target || todayClaims.includes(id)) return { ok: false };
+    todayClaims.push(id); claims[today] = todayClaims;
+    const coins = state.coins + quest.reward;
+    set({ coins, walletChecksum: walletChecksum(coins), dailyQuestClaims: claims });
+    return { ok: true, reward: quest.reward };
+  },
   equipCosmetic: (type, id) => {
     const ownedKey = type === 'hat' ? 'ownedHats' : 'ownedTrails';
     const equippedKey = type === 'hat' ? 'equippedHat' : 'equippedTrail';
@@ -180,7 +212,7 @@ export const useGameStore = create(persist((set, get) => ({
     ownedHats: state.ownedHats, equippedHat: state.equippedHat, ownedTrails: state.ownedTrails, equippedTrail: state.equippedTrail,
     achievements: state.achievements, lastDailyClaimDate: state.lastDailyClaimDate, lastDailyClaimAt: state.lastDailyClaimAt,
     dailyStreak: state.dailyStreak, bestTerritory: state.bestTerritory, roundsPlayed: state.roundsPlayed,
-    selectedMode: state.selectedMode, modeRecords: state.modeRecords
+    selectedMode: state.selectedMode, modeRecords: state.modeRecords, dailyQuestProgress: state.dailyQuestProgress, dailyQuestClaims: state.dailyQuestClaims, walletChecksum: state.walletChecksum, totalRoundCoins: state.totalRoundCoins
   }),
   migrate: saved => {
     saved = saved && typeof saved === 'object' ? saved : {};
