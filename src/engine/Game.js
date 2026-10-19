@@ -248,7 +248,6 @@ export class Game {
     this.renderEffects(ctx, cellSize);
     ctx.globalAlpha = 1;
     ctx.restore();
-    this.renderMinimap(width, height, skin);
     this.renderCountdown(width, height);
   }
 
