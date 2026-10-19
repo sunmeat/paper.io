@@ -42,7 +42,6 @@ export class Game {
     this.minimapCtx = this.minimapCanvas.getContext('2d');
     this.minimapVersion = -1;
     this.cachedSkinId = null;
-    this.minimapSkinId = null;
     this.cachedOwnerVersion = -1;
 
     this.unsubscribeEvents = [
@@ -73,11 +72,9 @@ export class Game {
 
   recordBotProgressAfterLoss() {
     try {
-      const winStreak = Math.max(0, Number(localStorage.getItem('paper-io-win-streak')) || 0);
       const lossStreak = Math.max(0, Number(localStorage.getItem('paper-io-loss-streak')) || 0);
       localStorage.setItem('paper-io-win-streak', '0');
       localStorage.setItem('paper-io-loss-streak', String(lossStreak + 1));
-      if (!Number.isFinite(winStreak)) localStorage.setItem('paper-io-win-streak', '0');
     } catch {
       // Storage can be unavailable in private browsing contexts.
     }
