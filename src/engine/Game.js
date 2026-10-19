@@ -387,7 +387,7 @@ export class Game {
     const territory = this.grid.territoryCount(1) / Math.max(1, this.grid.owners.length);
     const viewportRatio = Math.min(width, height) / Math.max(width, height);
     const viewportZoom = Math.max(0.9, Math.min(1.08, 0.9 + viewportRatio * 0.18));
-    const targetZoom = Math.max(0.82, Math.min(1.08, viewportZoom * (1 - territory * 0.18)));
+    const targetZoom = Math.max(0.9, Math.min(1.08, viewportZoom * (1 - territory * 0.18)));
     this.camera.x += (targetX - this.camera.x) * 0.16;
     this.camera.y += (targetY - this.camera.y) * 0.16;
     this.camera.zoom += (targetZoom - this.camera.zoom) * 0.045;
