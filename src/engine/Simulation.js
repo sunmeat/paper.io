@@ -131,7 +131,7 @@ export class Simulation {
 
   createPlayer(id, x, y, dx, dy, human = false) {
     const player = {
-      id, x, y, dx, dy, next: null, trailCells: [], alive: true, human,
+      id, x, y, prevX: x, prevY: y, dx, dy, next: null, turnQueue: [], trailCells: [], alive: true, human,
       turnTimer: 0, respawnTimer: 0, lifetime: 0, deaths: 0, kills: 0,
       lastHitBy: null, invulnerableTicks: 18, edgeTicks: 0
     };
@@ -152,11 +152,15 @@ export class Simulation {
   }
 
   queueDirection(dx, dy) {
-    if (this.paused || this.over || !this.player?.alive) return;
+    if (this.paused || this.over || !this.player?.alive) return false;
     const player = this.player;
-    if (isReverseDirection([player.dx, player.dy], [dx, dy])) return;
-    if (player.next && isReverseDirection(player.next, [dx, dy])) return;
-    player.next = [dx, dy];
+    const queue = player.turnQueue;
+    if (queue.length >= 2) return false;
+    const previous = queue.length ? queue[queue.length - 1] : [player.dx, player.dy];
+    if (isReverseDirection(previous, [dx, dy])) return false;
+    if (previous[0] === dx && previous[1] === dy) return false;
+    queue.push([dx, dy]);
+    return true;
   }
 
   setPaused(paused) {
@@ -192,6 +196,7 @@ export class Simulation {
           player.turnTimer = player.strategy.params.reactionTicks;
         }
       }
+      if (player.human && player.turnQueue.length) player.next = player.turnQueue.shift();
       if (player.next) {
         const [dx, dy] = player.next;
         if (!isReverseDirection([player.dx, player.dy], [dx, dy])) {
@@ -435,7 +440,7 @@ export class Simulation {
 
     const [dx, dy] = this.randomDirection(player);
     Object.assign(player, {
-      x: spawn.x, y: spawn.y, dx, dy, next: null, trailCells: [],
+      x: spawn.x, y: spawn.y, prevX: spawn.x, prevY: spawn.y, dx, dy, next: null, turnQueue: [], trailCells: [],
       alive: true, respawnTimer: 0, turnTimer: 0, invulnerableTicks: 18, edgeTicks: 0, lastHitBy: null
     });
     this.initializeTerritory(player, width, height);

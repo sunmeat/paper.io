@@ -24,7 +24,8 @@ function deterministicSnapshot(seed) {
 
 describe('Simulation', () => {
   it('provides ten built-in arena shapes', () => {
-    expect(MAPS).toHaveLength(10);
+    expect(MAPS).toHaveLength(8);
+    expect(MAPS.some(map => map.id === 'island' || map.id === 'archipelago')).toBe(false);
     for (const map of MAPS) {
       const mask = createMapMask(90, 90, map.id);
       expect(mask.length).toBe(8100);
@@ -63,6 +64,19 @@ describe('Simulation', () => {
     expect(first.deaths).toBe(1);
     expect(second.alive).toBe(true);
     expect([second.x, second.y]).toEqual([21, 20]);
+  });
+
+  it('buffers two fast turns and rejects a 180-degree reversal', () => {
+    const simulation = new Simulation({ config: { ...GAME_CONFIG, botCount: 0 } });
+    expect(simulation.queueDirection(0, -1)).toBe(true);
+    expect(simulation.queueDirection(-1, 0)).toBe(true);
+    expect(simulation.queueDirection(1, 0)).toBe(false);
+    expect(simulation.player.turnQueue).toEqual([[0, -1], [-1, 0]]);
+    simulation.step();
+    expect([simulation.player.dx, simulation.player.dy]).toEqual([0, -1]);
+    expect(simulation.player.turnQueue).toEqual([[-1, 0]]);
+    simulation.step();
+    expect([simulation.player.dx, simulation.player.dy]).toEqual([-1, 0]);
   });
 
   it('does not eliminate a player when they cross their own trail', () => {

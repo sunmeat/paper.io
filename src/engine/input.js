@@ -45,7 +45,11 @@ export function bindInput(canvas, game) {
     const touch = event.changedTouches[0];
     const dx = touch.clientX - lastTouch.x;
     const dy = touch.clientY - lastTouch.y;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) >= GAME_CONFIG.swipeThresholdPx) {
+    const storedThreshold = Number(localStorage.getItem('paper-io-swipe-threshold'));
+    const swipeThresholdPx = Number.isFinite(storedThreshold) && storedThreshold >= 8 && storedThreshold <= 48
+      ? storedThreshold
+      : GAME_CONFIG.swipeThresholdPx;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) >= swipeThresholdPx) {
       if (Math.abs(dx) > Math.abs(dy)) game.queueDirection(Math.sign(dx), 0);
       else game.queueDirection(0, Math.sign(dy));
       lastTouch = { x: touch.clientX, y: touch.clientY };

@@ -13,6 +13,7 @@ export class Grid {
     this.territoryCounts = new Uint32Array(256);
     this.walkableCount = this.walkable.reduce((sum, value) => sum + value, 0);
     this.version = 0;
+    this.ownerVersion = 0;
   }
 
   index(x, y) { return y * this.width + x; }
@@ -37,6 +38,7 @@ export class Grid {
     if (owner) this.territoryCounts[owner]++;
     this.owners[index] = owner;
     this.version++;
+    this.ownerVersion++;
   }
 
   setOwner(x, y, owner) {

@@ -6,8 +6,6 @@ export const MAPS = Object.freeze([
   { id: 'diamond', name: { ru: 'Алмаз', en: 'Diamond' } },
   { id: 'hexagon', name: { ru: 'Гексагон', en: 'Hexagon' } },
   { id: 'cross', name: { ru: 'Крест', en: 'Cross' } },
-  { id: 'island', name: { ru: 'Остров', en: 'Island' } },
-  { id: 'archipelago', name: { ru: 'Архипелаг', en: 'Archipelago' } },
   { id: 'clover', name: { ru: 'Клевер', en: 'Clover' } }
 ]);
 
@@ -46,10 +44,6 @@ function insideShape(kind, nx, ny) {
     const x = (nx - 0.5) * 2.6;
     const y = (0.38 - ny) * 2.6;
     return (x * x + y * y - 1) ** 3 - x * x * y ** 3 <= 0;
-  }
-  if (kind === 'island') return dx * dx / 0.22 + dy * dy / 0.18 <= 1;
-  if (kind === 'archipelago') {
-    return [[0.3,0.3,0.13],[0.62,0.26,0.12],[0.48,0.54,0.14],[0.72,0.68,0.16],[0.3,0.76,0.11]].some(([cx,cy,r]) => ((nx-cx)**2+(ny-cy)**2)/(r*r) <= 1);
   }
   if (kind === 'clover') {
     return [[0.36,0.36],[0.64,0.36],[0.36,0.64],[0.64,0.64]].some(([cx,cy]) => (nx-cx)**2+(ny-cy)**2 <= 0.16**2);
