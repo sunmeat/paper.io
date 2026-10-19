@@ -271,6 +271,7 @@ export class Game {
   renderPlayers(ctx, cellSize, skin) {
     for (const player of this.players.values()) {
       if (!player.alive) continue;
+      if (player.invulnerableTicks > 0 && Math.floor(performance.now() / 100) % 2 === 0) continue;
       const color = player.id === 1 ? skin.color : getPlayerColor(player.id);
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(player.x * cellSize + 1, player.y * cellSize + 1, Math.max(2, cellSize - 2), Math.max(2, cellSize - 2));

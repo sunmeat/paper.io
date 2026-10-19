@@ -182,18 +182,89 @@ export class Simulation {
       if (player.respawnTimer <= 0) this.respawnPlayer(player);
     }
 
-    if (this.player?.alive) this.movePlayer(this.player);
+    // Prepare all directions before checking collisions, so iteration order cannot decide a head-on race.
+    const active = [...this.players.values()].filter(player => player.alive);
+    for (const player of active) {
+      if (!player.human) {
+        player.turnTimer--;
+        if (player.turnTimer <= 0) {
+          player.next = player.strategy.nextDirection(player, this);
+          player.turnTimer = player.strategy.params.reactionTicks;
+        }
+      }
+      if (player.next) {
+        const [dx, dy] = player.next;
+        if (!isReverseDirection([player.dx, player.dy], [dx, dy])) {
+          player.dx = dx;
+          player.dy = dy;
+        }
+        player.next = null;
+      }
+    }
+
+    const plans = new Map();
+    for (const player of active) {
+      const x = player.x + player.dx, y = player.y + player.dy;
+      plans.set(player.id, { player, fromX: player.x, fromY: player.y, x, y, blocked: !this.grid.inside(x, y) });
+    }
+
+    const pendingDeaths = new Map();
+    const planList = [...plans.values()];
+    for (let i = 0; i < planList.length; i++) {
+      for (let j = i + 1; j < planList.length; j++) {
+        const first = planList[i], second = planList[j];
+        if (first.blocked || second.blocked || first.player.invulnerableTicks > 0 || second.player.invulnerableTicks > 0) continue;
+        const sameCell = first.x === second.x && first.y === second.y;
+        const crossing = first.x === second.fromX && first.y === second.fromY &&
+          second.x === first.fromX && second.y === first.fromY;
+        if (!sameCell && !crossing) continue;
+        const losers = resolveHeadCollision(first.player, second.player);
+        for (const loserId of losers) {
+          const loser = this.players.get(loserId);
+          if (loser?.alive) {
+            const winner = losers.length === 1 ? (loserId === first.player.id ? second.player : first.player) : null;
+            pendingDeaths.set(loserId, winner);
+          }
+        }
+      }
+    }
+
+    for (const plan of planList) {
+      if (plan.blocked || plan.player.invulnerableTicks > 0) continue;
+      const index = this.grid.index(plan.x, plan.y);
+      const trailOwnerId = this.grid.trail[index];
+      if (!trailOwnerId || trailOwnerId === plan.player.id || pendingDeaths.has(trailOwnerId)) continue;
+      const trailOwner = this.players.get(trailOwnerId);
+      if (trailOwner?.alive && trailOwner.invulnerableTicks <= 0) pendingDeaths.set(trailOwnerId, plan.player);
+    }
+
+    for (const [victimId, killer] of pendingDeaths) {
+      const victim = this.players.get(victimId);
+      if (victim?.alive) this.eliminatePlayer(victim, killer);
+    }
     if (this.over) return;
 
-    for (const bot of this.bots) {
-      if (!bot.alive) continue;
-      bot.turnTimer--;
-      if (bot.turnTimer <= 0) {
-        bot.next = bot.strategy.nextDirection(bot, this);
-        bot.turnTimer = bot.strategy.params.reactionTicks;
+    this.resolvingTick = true;
+    for (const player of active) {
+      if (!player.alive) continue;
+      const plan = plans.get(player.id);
+      if (plan?.blocked) {
+        player.edgeTicks = (player.edgeTicks || 0) + 1;
+        const tangents = player.dx !== 0 ? [[0, 1], [0, -1]] : [[1, 0], [-1, 0]];
+        const tangent = tangents.find(([dx, dy]) => this.grid.inside(player.x + dx, player.y + dy));
+        if (tangent) {
+          [player.dx, player.dy] = tangent;
+          player.edgeTicks++;
+          this.movePlayer(player);
+        }
+        continue;
       }
-      this.movePlayer(bot);
+      this.movePlayer(player);
+      const bonusMoves = Math.min(2, Math.floor((player.edgeTicks || 0) / 8));
+      for (let bonus = 0; bonus < bonusMoves && player.alive; bonus++) this.movePlayer(player);
     }
+    this.resolvingTick = false;
+    for (const player of this.players.values()) if (player.alive && player.invulnerableTicks > 0) player.invulnerableTicks--;
   }
 
   randomDirection(current) {
@@ -225,7 +296,7 @@ export class Simulation {
     }
 
     const nextIndex = this.grid.index(nx, ny);
-    const rivalHead = [...this.players.values()].find(candidate =>
+    const rivalHead = this.resolvingTick ? null : [...this.players.values()].find(candidate =>
       candidate.id !== player.id && candidate.alive && candidate.x === nx && candidate.y === ny &&
       candidate.invulnerableTicks <= 0 && player.invulnerableTicks <= 0
     );
@@ -242,7 +313,7 @@ export class Simulation {
     }
 
     const trailOwnerId = this.grid.trail[nextIndex];
-    if (trailOwnerId && trailOwnerId !== player.id && player.invulnerableTicks <= 0) {
+    if (!this.resolvingTick && trailOwnerId && trailOwnerId !== player.id && player.invulnerableTicks <= 0) {
       const trailOwner = findTrailCollision(nextIndex, player.id, this.players.values()) ?? this.players.get(trailOwnerId);
       if (trailOwner?.alive) {
         const loserId = resolveTrailCrossing(player.id, trailOwnerId);
