@@ -1,5 +1,6 @@
 import { captureArea } from './fill.js';
 import { Grid } from './Grid.js';
+import { createMapMask } from './engine-maps-placeholder.js';
 import { findTrailCollision } from './collisions.js';
 import { isReverseDirection } from './directions.js';
 import { mulberry32 } from './random.js';
@@ -37,17 +38,18 @@ export class EventBus {
 
 /** Deterministic, DOM-free game world. All gameplay rules live here. */
 export class Simulation {
-  constructor({ seed = GAME_CONFIG.seed, config = GAME_CONFIG, humanPlayer = true } = {}) {
+  constructor({ seed = GAME_CONFIG.seed, config = GAME_CONFIG, humanPlayer = true, mapId = 'circle' } = {}) {
     this.config = config;
     this.seed = seed >>> 0;
     this.humanPlayer = humanPlayer;
+    this.mapId = mapId;
     this.events = new EventBus();
     this.reset();
   }
 
   reset() {
     this.random = mulberry32(this.seed);
-    this.grid = new Grid(this.config.worldWidth, this.config.worldHeight);
+    this.grid = new Grid(this.config.worldWidth, this.config.worldHeight, createMapMask(this.config.worldWidth, this.config.worldHeight, this.mapId));
     this.cellsWide = this.config.worldWidth;
     this.cellsHigh = this.config.worldHeight;
     this.players = new Map();
@@ -59,31 +61,72 @@ export class Simulation {
     this.moveAccumulator = 0;
     this.tick = 0;
 
-    const safeX = Math.round(this.cellsWide * 0.18);
-    const safeY = Math.floor(this.cellsHigh / 2);
-    if (this.humanPlayer) this.player = this.createPlayer(1, safeX, safeY, 1, 0, true);
+    const reserved = [];
+    const playerWidth = this.config.playerStartWidth;
+    const playerHeight = this.config.playerStartHeight;
+    if (this.humanPlayer) {
+      const spawn = this.findSpawn(Math.round(this.cellsWide * 0.18), Math.floor(this.cellsHigh / 2), playerWidth, playerHeight, reserved);
+      this.player = this.createPlayer(1, spawn.x, spawn.y, 1, 0, true);
+      reserved.push(spawn);
+    }
 
     const botCount = this.config.botCount;
-    const ringRadius = Math.min(this.cellsWide, this.cellsHigh) * 0.38;
+    const ringRadius = Math.min(this.cellsWide, this.cellsHigh) * 0.32;
     for (let index = 0; index < botCount; index++) {
       const angle = (Math.PI * 2 * index) / botCount;
-      const x = Math.round(this.cellsWide / 2 + Math.cos(angle) * ringRadius);
-      const y = Math.round(this.cellsHigh / 2 + Math.sin(angle) * ringRadius);
+      const preferredX = Math.round(this.cellsWide / 2 + Math.cos(angle) * ringRadius);
+      const preferredY = Math.round(this.cellsHigh / 2 + Math.sin(angle) * ringRadius);
+      const width = this.config.botStartWidth;
+      const height = this.config.botStartHeight;
+      const spawn = this.findSpawn(preferredX, preferredY, width, height, reserved);
+      reserved.push(spawn);
       const horizontal = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle));
       const dx = horizontal ? -Math.sign(Math.cos(angle)) : 0;
       const dy = horizontal ? 0 : -Math.sign(Math.sin(angle));
-      const bot = this.createPlayer(index + (this.humanPlayer ? 2 : 1), x, y, dx || (dy ? 0 : 1), dy, false);
-      bot.homeX = x;
-      bot.homeY = y;
+      const bot = this.createPlayer(index + (this.humanPlayer ? 2 : 1), spawn.x, spawn.y, dx || (dy ? 0 : 1), dy, false);
+      bot.homeX = spawn.x;
+      bot.homeY = spawn.y;
       bot.strategy = new BasicBot({
         random: this.random,
         difficulty: DIFFICULTIES[index % DIFFICULTIES.length]
       });
       this.bots.push(bot);
     }
-
     if (this.player) this.initializeTerritory(this.player, this.config.playerStartWidth, this.config.playerStartHeight);
     for (const bot of this.bots) this.initializeTerritory(bot, this.config.botStartWidth, this.config.botStartHeight);
+  }
+
+  findSpawn(preferredX, preferredY, width, height, reserved = []) {
+    const halfWidth = Math.floor(width / 2);
+    const halfHeight = Math.floor(height / 2);
+    const candidates = [];
+    for (let y = halfHeight + 1; y < this.cellsHigh - halfHeight - 1; y++) {
+      for (let x = halfWidth + 1; x < this.cellsWide - halfWidth - 1; x++) {
+        let safe = true;
+        for (let yy = y - halfHeight; yy < y - halfHeight + height && safe; yy++) {
+          for (let xx = x - halfWidth; xx < x - halfWidth + width; xx++) {
+            if (!this.grid.inside(xx, yy) || this.grid.ownerAt(xx, yy) || this.grid.trailAt(xx, yy)) {
+              safe = false;
+              break;
+            }
+          }
+        }
+        if (!safe) continue;
+        const separation = Math.max(width, height) + 2;
+        if (reserved.some(point => Math.abs(point.x - x) < separation && Math.abs(point.y - y) < separation)) continue;
+        const distance = (x - preferredX) ** 2 + (y - preferredY) ** 2;
+        candidates.push({ x, y, distance });
+      }
+    }
+    if (!candidates.length && reserved.length) return this.findSpawn(preferredX, preferredY, width, height, []);
+    candidates.sort((a, b) => a.distance - b.distance);
+    if (candidates.length) return candidates[0];
+    for (let y = 1; y < this.cellsHigh - 1; y++) {
+      for (let x = 1; x < this.cellsWide - 1; x++) {
+        if (this.grid.inside(x, y)) return { x, y };
+      }
+    }
+    throw new Error(`Map "${this.mapId}" has no safe spawn cells.`);
   }
 
   createPlayer(id, x, y, dx, dy, human = false) {
@@ -181,11 +224,6 @@ export class Simulation {
     }
 
     const nextIndex = this.grid.index(nx, ny);
-    if (this.grid.trail[nextIndex] === player.id) {
-      this.eliminatePlayer(player);
-      return;
-    }
-
     const rivalHead = [...this.players.values()].find(candidate =>
       candidate.id !== player.id && candidate.alive && candidate.x === nx && candidate.y === ny
     );
@@ -224,7 +262,7 @@ export class Simulation {
         this.events.emit('capture', { playerId: player.id, human: player.human, captured, x: player.x, y: player.y });
         this.checkTerritoryLoss();
       }
-    } else {
+    } else if (this.grid.trail[nextIndex] !== player.id) {
       this.grid.setTrail(nx, ny, player.id);
       player.trailCells.push(nextIndex);
     }
@@ -309,7 +347,7 @@ export class Simulation {
       .sort((a, b) => b.score - a.score || a.id - b.id)
       .slice(0, 5);
     const score = this.player ? this.grid.territoryCount(this.player.id) : 0;
-    const total = this.grid.owners.length;
+    const total = this.grid.walkableCount;
     return {
       territory: total ? Math.round(score / total * 100) : 0,
       score,
