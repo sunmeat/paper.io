@@ -33,6 +33,7 @@ export class Game {
     this.camera = { x: this.player?.x ?? 0, y: this.player?.y ?? 0, zoom: 1 };
     this.effects = [];
     this.effectPool = [];
+    this.particlePool = [];
     this.cameraShake = 0;
     this.qualityLevel = 2;
     this.fpsWindowStarted = performance.now();
@@ -64,9 +65,7 @@ export class Game {
         this.addEffect({
           type: 'death', x: this.players.get(event.playerId)?.x ?? 0, y: this.players.get(event.playerId)?.y ?? 0,
           started: performance.now(), duration: 480,
-          particles: Array.from({ length: 18 }, (_, i) => ({
-            angle: Math.PI * 2 * i / 18, speed: 0.6 + (i % 5) * 0.32
-          }))
+          particles: this.createParticles(18)
         });
       }),
     ];
@@ -545,6 +544,17 @@ export class Game {
     ctx.restore();
   }
 
+  createParticles(count) {
+    const particles = [];
+    for (let i = 0; i < count; i++) {
+      const particle = this.particlePool.pop() || {};
+      particle.angle = Math.PI * 2 * i / count;
+      particle.speed = 0.6 + (i % 5) * 0.32;
+      particles.push(particle);
+    }
+    return particles;
+  }
+
   addEffect(effect) {
     const pooled = this.effectPool.pop();
     if (pooled) Object.assign(pooled, effect);
@@ -576,6 +586,8 @@ export class Game {
       const progress = (now - effect.started) / effect.duration;
       if (progress >= 1) {
         this.effects.splice(index, 1);
+        for (const particle of effect.particles || []) this.particlePool.push(particle);
+        effect.particles = null;
         this.effectPool.push(effect);
         continue;
       }
