@@ -32,7 +32,7 @@ describe('Simulation', () => {
     expect(Object.keys(BOT_PERSONALITIES)).toEqual(['greedy', 'cautious', 'hunter']);
   });
 
-  it('provides ten built-in arena shapes', () => {
+  it('provides eight built-in arena shapes', () => {
     expect(MAPS).toHaveLength(8);
     expect(MAPS.some(map => map.id === 'island' || map.id === 'archipelago')).toBe(false);
     for (const map of MAPS) {
