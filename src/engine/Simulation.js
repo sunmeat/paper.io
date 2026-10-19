@@ -9,7 +9,6 @@ import { BasicBot, BOT_PERSONALITY_IDS, getBotDifficulty } from './bots/index.js
 import { GAME_CONFIG } from './config.js';
 
 const DIRECTIONS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-const DIFFICULTIES = ['easy', 'normal', 'hard'];
 
 /** Small event bus shared by gameplay, UI adapters and headless simulations. */
 export class EventBus {
