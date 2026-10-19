@@ -292,13 +292,14 @@ export class Game {
         layer.globalAlpha = 0.72;
         layer.fillRect(px, py, cellSize + 1, cellSize + 1);
       }
-      layer.globalAlpha = 1; this.terrainDirty = false;
+      layer.globalAlpha = 1;
+      this.renderSkinPattern(layer, cellSize, skin);
+      this.renderTerritoryEdges(layer, cellSize);
+      this.terrainDirty = false;
       this.cachedOwnerVersion = this.grid.ownerVersion; this.cachedSkinId = this.callbacks.getSkin?.() || 'classic';
     }
     this.ctx.drawImage(this.maskCanvas, 0, 0);
     this.ctx.drawImage(this.terrainCanvas, 0, 0);
-    this.renderSkinPattern(this.ctx, cellSize, skin);
-    this.renderTerritoryEdges(this.ctx, cellSize);
   }
 
   renderSkinPattern(ctx, cellSize, skin) {
