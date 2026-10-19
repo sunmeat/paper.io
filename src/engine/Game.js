@@ -1,6 +1,6 @@
 import { bindInput } from './input.js';
 import { GAME_CONFIG } from './config.js';
-import { getSkinById } from './skins.js';
+import { getSkinById, getHatById, getTrailById } from './skins.js';
 import { getPlayerColor } from './playerPalette.js';
 import { Simulation } from './Simulation.js';
 
@@ -288,21 +288,73 @@ export class Game {
         if (!owner || !this.grid.walkable[index]) continue;
         const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
         const px = x * cellSize, py = y * cellSize;
-        layer.fillStyle = owner === 1 ? skin.color : getPlayerColor(owner);
+        layer.fillStyle = owner === 1 ? skin.color : getPlayerColor(owner, skin.color);
         layer.globalAlpha = 0.72;
         layer.fillRect(px, py, cellSize + 1, cellSize + 1);
       }
       layer.globalAlpha = 1; this.terrainDirty = false;
       this.cachedOwnerVersion = this.grid.ownerVersion; this.cachedSkinId = this.callbacks.getSkin?.() || 'classic';
     }
-    this.ctx.drawImage(this.maskCanvas, 0, 0); this.ctx.drawImage(this.terrainCanvas, 0, 0);
+    this.ctx.drawImage(this.maskCanvas, 0, 0);
+    this.ctx.drawImage(this.terrainCanvas, 0, 0);
+    this.renderSkinPattern(this.ctx, cellSize, skin);
+    this.renderTerritoryEdges(this.ctx, cellSize);
+  }
+
+  renderSkinPattern(ctx, cellSize, skin) {
+    if (skin.pattern === 'solid' || cellSize < 5) return;
+    ctx.save();
+    ctx.globalAlpha = 0.16;
+    ctx.strokeStyle = skin.color;
+    ctx.fillStyle = skin.color;
+    ctx.lineWidth = Math.max(0.6, cellSize * 0.045);
+    for (let index = 0; index < this.grid.owners.length; index++) {
+      if (this.grid.owners[index] !== 1 || !this.grid.walkable[index]) continue;
+      const x = (index % this.cellsWide) * cellSize;
+      const y = Math.floor(index / this.cellsWide) * cellSize;
+      const inset = cellSize * 0.24;
+      if (skin.pattern === 'dots' || skin.pattern === 'stars') {
+        ctx.beginPath(); ctx.arc(x + cellSize / 2, y + cellSize / 2, Math.max(0.5, cellSize * 0.055), 0, Math.PI * 2); ctx.fill();
+      } else if (skin.pattern === 'grid') {
+        ctx.strokeRect(x + inset, y + inset, cellSize - inset * 2, cellSize - inset * 2);
+      } else if (skin.pattern === 'rings') {
+        ctx.beginPath(); ctx.arc(x + cellSize / 2, y + cellSize / 2, cellSize * 0.18, 0, Math.PI * 2); ctx.stroke();
+      } else if (skin.pattern === 'pixels') {
+        ctx.fillRect(x + cellSize * 0.58, y + cellSize * 0.24, cellSize * 0.16, cellSize * 0.16);
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(x + inset, y + cellSize - inset);
+        ctx.lineTo(x + cellSize - inset, y + inset);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  renderTerritoryEdges(ctx, cellSize) {
+    ctx.save();
+    ctx.strokeStyle = '#10131c';
+    ctx.lineWidth = Math.max(0.7, cellSize * 0.055);
+    ctx.beginPath();
+    for (let y = 0; y < this.cellsHigh; y++) for (let x = 0; x < this.cellsWide; x++) {
+      const index = this.grid.index(x, y);
+      if (!this.grid.walkable[index]) continue;
+      const owner = this.grid.owners[index];
+      const px = x * cellSize, py = y * cellSize;
+      if (x === 0 || this.grid.owners[index - 1] !== owner || !this.grid.walkable[index - 1]) { ctx.moveTo(px, py); ctx.lineTo(px, py + cellSize); }
+      if (x === this.cellsWide - 1 || this.grid.owners[index + 1] !== owner || !this.grid.walkable[index + 1]) { ctx.moveTo(px + cellSize, py); ctx.lineTo(px + cellSize, py + cellSize); }
+      if (y === 0 || this.grid.owners[index - this.cellsWide] !== owner || !this.grid.walkable[index - this.cellsWide]) { ctx.moveTo(px, py); ctx.lineTo(px + cellSize, py); }
+      if (y === this.cellsHigh - 1 || this.grid.owners[index + this.cellsWide] !== owner || !this.grid.walkable[index + this.cellsWide]) { ctx.moveTo(px, py + cellSize); ctx.lineTo(px + cellSize, py + cellSize); }
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
   renderMinimap(width, height, skin) {
     if (this.minimapVersion !== this.grid.version) {
       const image = this.minimapCtx.createImageData(this.cellsWide, this.cellsHigh);
       const toRgb = id => {
-        const hex = (id === 1 ? skin.color : getPlayerColor(id)).replace('#', '');
+        const hex = (id === 1 ? skin.color : getPlayerColor(id, skin.color)).replace('#', '');
         return [parseInt(hex.slice(0, 2), 16) || 0, parseInt(hex.slice(2, 4), 16) || 0, parseInt(hex.slice(4, 6), 16) || 0];
       };
       const palette = new Map();
@@ -324,7 +376,7 @@ export class Game {
     for (const player of this.players.values()) {
       if (!player.alive) continue;
       const px = x + (player.x + 0.5) * size / this.cellsWide, py = y + (player.y + 0.5) * mapHeight / this.cellsHigh;
-      ctx.fillStyle = player.id === 1 ? skin.color : getPlayerColor(player.id);
+      ctx.fillStyle = player.id === 1 ? skin.color : getPlayerColor(player.id, skin.color);
       ctx.beginPath(); ctx.arc(px, py, player.id === 1 ? 3.2 : 2.1, 0, Math.PI * 2); ctx.fill();
       if (player.id !== 1) { ctx.fillStyle = '#f3f4fa'; ctx.fillText(player.x + ',' + player.y, Math.min(x + size - 26, px + 3), py - 4); }
     }
@@ -332,6 +384,7 @@ export class Game {
   }
 
   renderTrail(ctx, cellSize, interpolation, skin) {
+    const trailEffect = getTrailById(this.callbacks.getTrail?.() || 'none');
     ctx.save();
     ctx.lineCap = 'butt';
     ctx.lineJoin = 'round';
@@ -360,20 +413,25 @@ export class Game {
           y: points[0].y - player.dy * cellSize * 0.5
         };
       }
-      ctx.strokeStyle = player.id === 1 ? skin.color : getPlayerColor(player.id);
+      ctx.strokeStyle = player.id === 1 ? skin.color : getPlayerColor(player.id, skin.color);
       ctx.fillStyle = ctx.strokeStyle;
+      if (player.human && trailEffect.id === 'glow') { ctx.shadowColor = trailEffect.color; ctx.shadowBlur = cellSize * 0.7; }
+      else if (player.human && trailEffect.id === 'comet') { ctx.shadowColor = trailEffect.color; ctx.shadowBlur = cellSize * 1.2; }
+      else { ctx.shadowBlur = 0; }
       ctx.beginPath();
       ctx.moveTo(points[0].x, points[0].y);
       for (let index = 1; index < points.length; index++) ctx.lineTo(points[index].x, points[index].y);
       if (points.length === 1) {
         ctx.arc(points[0].x, points[0].y, ctx.lineWidth / 2, 0, Math.PI * 2);
         ctx.fill();
+        if (player.human && trailEffect.id === 'spark') { ctx.shadowBlur = 0; ctx.fillStyle = trailEffect.color; ctx.fillRect(points[0].x - cellSize * 0.14, points[0].y - cellSize * 0.14, cellSize * 0.28, cellSize * 0.28); }
       } else {
         ctx.stroke();
         const head = points[points.length - 1];
         ctx.beginPath();
         ctx.arc(head.x, head.y, ctx.lineWidth / 2, 0, Math.PI * 2);
         ctx.fill();
+        if (player.human && trailEffect.id === 'spark') { ctx.shadowBlur = 0; ctx.fillStyle = trailEffect.color; ctx.fillRect(head.x - cellSize * 0.14, head.y - cellSize * 0.14, cellSize * 0.28, cellSize * 0.28); }
       }
     }
     ctx.restore();
@@ -387,7 +445,8 @@ export class Game {
       const x = player.prevX + (player.x - player.prevX) * interpolation;
       const y = player.prevY + (player.y - player.prevY) * interpolation;
       const px = x * cellSize, py = y * cellSize;
-      const color = player.id === 1 ? skin.color : getPlayerColor(player.id);
+      const color = player.id === 1 ? skin.color : getPlayerColor(player.id, skin.color);
+      const hat = player.human ? getHatById(this.callbacks.getHat?.() || 'none') : getHatById('none');
       const inset = cellSize * 0.08;
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
@@ -397,6 +456,13 @@ export class Game {
       ctx.beginPath();
       ctx.roundRect(px + cellSize * 0.16, py + cellSize * 0.16, cellSize * 0.68, cellSize * 0.68, cellSize * 0.18);
       ctx.fill();
+      if (hat.id !== 'none' && player.human) {
+        ctx.save(); ctx.fillStyle = hat.id === 'halo' ? '#ffe8a6' : '#f5f2ff'; ctx.strokeStyle = '#111522'; ctx.lineWidth = Math.max(0.6, cellSize * 0.05);
+        if (hat.id === 'halo') { ctx.beginPath(); ctx.ellipse(px + cellSize / 2, py + cellSize * 0.12, cellSize * 0.24, cellSize * 0.07, 0, 0, Math.PI * 2); ctx.stroke(); }
+        else if (hat.id === 'crown' || hat.id === 'party') { ctx.beginPath(); ctx.moveTo(px + cellSize * 0.28, py + cellSize * 0.23); ctx.lineTo(px + cellSize * 0.36, py + (hat.id === 'crown' ? cellSize * 0.05 : cellSize * 0.02)); ctx.lineTo(px + cellSize * 0.5, py + cellSize * 0.2); ctx.lineTo(px + cellSize * 0.65, py + (hat.id === 'crown' ? cellSize * 0.05 : cellSize * 0.02)); ctx.lineTo(px + cellSize * 0.73, py + cellSize * 0.23); ctx.closePath(); ctx.fill(); }
+        else { ctx.fillRect(px + cellSize * 0.22, py + cellSize * 0.1, cellSize * 0.56, cellSize * 0.12); ctx.fillRect(px + cellSize * 0.32, py + cellSize * 0.02, cellSize * 0.36, cellSize * 0.12); }
+        ctx.restore();
+      }
       if (player.human && now - this.startedAt < 5000) {
         const cx = px + cellSize / 2, cy = py + cellSize / 2;
         const tipX = cx + player.dx * cellSize * 0.43, tipY = cy + player.dy * cellSize * 0.43;
