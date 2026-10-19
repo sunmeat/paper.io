@@ -314,3 +314,38 @@ kbd {
 .meta-wallet,.coin-pill,.shop-wallet{display:flex;align-items:center;justify-content:center;gap:8px;color:#ffcf70}.meta-wallet{width:max-content;margin:-14px auto 18px;padding:9px 14px;border:1px solid #ffcf7026;border-radius:999px;background:#ffcf700c}.meta-wallet span{color:#a4abc0;font-size:11px}.menu-content .reward-notice{margin:9px 0 0;color:#ffcf70;font-size:12px}.menu-content button:disabled,.skin-action:disabled{opacity:.55;cursor:default}.coin-pill{flex:0 0 auto;gap:4px;padding:0 5px;font:11px 'DM Mono',monospace}.shop-overlay{z-index:20}.shop-card{width:min(100%,520px);max-height:min(88dvh,780px);overflow:auto;padding:26px}.shop-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 16px}.shop-tabs button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:42px;border:1px solid #ffffff17;border-radius:10px;background:#ffffff05;color:#a4abc0}.shop-tabs .selected{border-color:#9b7bff66;background:#9b7bff18}.skin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.skin-card{display:grid;gap:9px;padding:10px;border:1px solid #ffffff13;border-radius:14px}.skin-preview{display:grid;min-height:75px;place-items:center;border-radius:9px;background:color-mix(in srgb,var(--skin-color) 22%,#10131c)}.pattern-dots{background-image:radial-gradient(var(--skin-color) 2px,transparent 2px);background-size:12px 12px}.pattern-stripes{background-image:repeating-linear-gradient(135deg,var(--skin-color) 0 3px,transparent 3px 12px)}.pattern-grid{background-image:linear-gradient(var(--skin-color) 1px,transparent 1px),linear-gradient(90deg,var(--skin-color) 1px,transparent 1px);background-size:12px 12px}.pattern-rings{background-image:radial-gradient(transparent 4px,var(--skin-color) 5px,transparent 6px);background-size:18px 18px}.trail-preview{width:28px;height:28px;background:var(--skin-color);box-shadow:0 0 20px var(--skin-color)}.shape-circle{border-radius:50%}.shape-diamond{transform:rotate(45deg)}.skin-price{display:flex;align-items:center;gap:5px;color:#ffcf70;font-size:11px}.skin-action{min-height:35px;border-radius:9px;border:1px solid #ffffff16;background:#9b7bff;color:#151120;font-weight:800}.achievement-list{display:grid;gap:8px}.achievement-row{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #ffffff10;border-radius:10px;opacity:.55}.achievement-row.unlocked{opacity:1;border-color:#9b7bff55}.achievement-icon{font-size:20px}.achievement-row>div{display:grid;gap:4px;flex:1}.achievement-row small{color:#959cb1;font-size:10px}.shop-close{margin-top:14px}
 
 .swipe-setting{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;margin-top:16px;color:#d7d9e6;font-size:12px}.swipe-setting>span{display:flex;align-items:center;gap:8px}.swipe-setting strong{color:#b9a8ff;font:12px 'DM Mono',monospace}.swipe-setting input{grid-column:1/-1;width:100%;accent-color:#9b7bff;touch-action:pan-y}.swipe-setting small{grid-column:1/-1;color:#959cb1;font-size:10px;line-height:1.5}.game-canvas{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+
+
+/* Block 10: cosmetic workshop */
+.shop-card{width:min(100%,560px);max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 20px);padding:22px;overflow-y:auto;overscroll-behavior:contain}
+.shop-tabs{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.shop-tabs button{min-width:0;gap:4px;padding:5px;font-size:10px}
+.shop-tabs button svg{width:13px;height:13px;flex:0 0 auto}
+.skin-card{border-color:var(--rarity-color,#ffffff20);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--rarity-color,#ffffff) 10%,transparent)}
+.skin-card.rarity-rare{background:linear-gradient(155deg,#59a8ff0c,#171b29 60%)}
+.skin-card.rarity-epic{background:linear-gradient(155deg,#c084fc15,#171b29 60%)}
+.skin-rarity{width:max-content;max-width:100%;color:var(--rarity-color,#9ca3b8);font-size:9px;font-weight:800;letter-spacing:.7px;text-transform:uppercase}
+.skin-preview{position:relative;width:100%;min-height:70px;overflow:hidden;border:1px solid color-mix(in srgb,var(--rarity-color,#ffffff) 38%,transparent);cursor:pointer}
+.skin-preview-selected{outline:2px solid #f5f2ff;outline-offset:1px}
+.pattern-diagonal{background-image:repeating-linear-gradient(135deg,color-mix(in srgb,var(--skin-color) 24%,transparent) 0 2px,transparent 2px 10px)}
+.pattern-pixels{background-image:linear-gradient(90deg,color-mix(in srgb,var(--skin-color) 32%,transparent) 50%,transparent 50%),linear-gradient(color-mix(in srgb,var(--skin-color) 32%,transparent) 50%,transparent 50%);background-size:12px 12px}
+.pattern-stars{background-image:radial-gradient(circle at 20% 25%,var(--skin-color) 1px,transparent 2px),radial-gradient(circle at 70% 70%,var(--skin-color) 1px,transparent 2px);background-size:22px 22px}
+.cosmetic-preview{background:linear-gradient(135deg,color-mix(in srgb,var(--skin-color) 23%,#10131c),#10131c)}
+.cosmetic-symbol{display:grid;place-items:center;width:34px;height:34px;color:var(--skin-color);font-size:27px;font-weight:900;text-shadow:0 2px 9px #000}
+.shop-preview-stage{display:grid;grid-template-columns:minmax(110px,145px) 1fr;align-items:center;gap:14px;margin:16px 0 12px;padding:12px;border:1px solid #ffffff16;border-radius:15px;background:#0f121d}
+.shop-mini-arena{position:relative;aspect-ratio:1.1;overflow:hidden;border:1px solid #77809b;border-radius:8px;background-color:#171b28;background-size:12px 12px}
+.mini-territory{position:absolute;left:8%;top:10%;width:50%;height:57%;background:color-mix(in srgb,var(--skin-color) 68%,#10131c);border:2px solid #e7eaf8;clip-path:polygon(0 0,100% 0,100% 72%,68% 72%,68% 100%,0 100%)}
+.mini-trail{position:absolute;left:42%;top:51%;width:37%;height:7px;border-radius:5px;background:var(--skin-color);box-shadow:0 0 8px var(--skin-color);transform:rotate(-32deg);border:1px solid #fff}
+.mini-player{position:absolute;left:68%;top:38%;width:15px;height:15px;border:2px solid #fff;border-radius:4px;background:var(--skin-color);box-shadow:0 0 0 1px #121522}
+.mini-hat{position:absolute;left:71%;top:29%;z-index:2;color:#ffe8a6;font-size:16px;font-weight:900;text-shadow:0 2px 3px #000}
+.shop-preview-copy{display:grid;gap:7px;min-width:0}
+.shop-preview-copy .eyebrow{display:flex;align-items:center;gap:5px;font-size:8px}
+.shop-preview-copy strong{font-size:15px}
+.shop-preview-copy small{color:#a4abc0;font-size:10px;line-height:1.5}
+.shop-progress{display:flex;justify-content:space-between;gap:10px;margin:10px 0;color:#959cb1;font-size:10px}
+.shop-progress strong{color:#f2f3fa;font-family:'DM Mono',monospace}
+.skin-price{min-height:16px}
+.skin-action{min-height:38px;display:flex;align-items:center;justify-content:center;gap:5px;padding:5px;font-size:10px}
+.cosmetic-card .skin-preview{min-height:64px}
+.shop-notice{margin:12px 0 0!important;padding:10px;border-radius:9px;background:#ffffff08;color:#d9d2ff!important;font-size:11px!important}
+@media(max-width:390px){.shop-card{padding:16px}.shop-tabs button{font-size:9px}.shop-tabs button svg{display:none}.skin-grid{gap:7px}.skin-card{padding:7px;gap:7px}.skin-preview{min-height:58px}.shop-preview-stage{grid-template-columns:105px 1fr;gap:10px;padding:9px}.shop-progress{font-size:9px}}
