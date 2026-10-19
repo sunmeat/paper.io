@@ -3,6 +3,33 @@ import { captureArea } from './fill.js';
 import { Grid } from './Grid.js';
 
 describe('Grid', () => {
+  it('treats non-walkable mask cells as outside', () => {
+    const grid = new Grid(3, 3, [0,0,0,0,1,0,0,0,0]);
+    grid.setOwner(0, 0, 1);
+    grid.setTrail(2, 2, 1);
+    grid.setOwner(1, 1, 1);
+    expect(grid.inside(0, 0)).toBe(false);
+    expect(grid.ownerAt(0, 0)).toBe(0);
+    expect(grid.trailAt(2, 2)).toBe(0);
+    expect(grid.territoryCount(1)).toBe(1);
+    expect(grid.walkableCount).toBe(1);
+  });
+
+  it('recognizes narrow isthmuses and separate islands', () => {
+    const mask = new Uint8Array(9 * 7);
+    for (let y = 1; y <= 5; y++) {
+      for (let x = 1; x <= 3; x++) mask[y * 9 + x] = 1;
+      for (let x = 5; x <= 7; x++) mask[y * 9 + x] = 1;
+    }
+    mask[3 * 9 + 4] = 1;
+    const grid = new Grid(9, 7, mask);
+    expect(grid.inside(4, 3)).toBe(true);
+    expect(grid.inside(4, 2)).toBe(false);
+    expect(grid.isEdge(4, 3)).toBe(true);
+    expect(grid.inside(2, 3)).toBe(true);
+    expect(grid.inside(6, 3)).toBe(true);
+  });
+
   it('stores ownership and trails in typed arrays', () => {
     const grid = new Grid(4, 3);
     grid.setOwner(2, 1, 3);
@@ -74,6 +101,29 @@ describe('captureArea', () => {
 
     expect(grid.trailAt(2, 2)).toBe(0);
     expect(grid.trailAt(3, 2)).toBe(2);
+  });
+
+  it('flood-fills from mask edges and leaves disconnected islands exposed', () => {
+    const mask = new Uint8Array(9 * 7);
+    for (let y = 1; y <= 5; y++) {
+      for (let x = 1; x <= 3; x++) mask[y * 9 + x] = 1;
+      for (let x = 5; x <= 7; x++) mask[y * 9 + x] = 1;
+    }
+    const grid = new Grid(9, 7, mask);
+    for (let x = 1; x <= 3; x++) {
+      grid.setOwner(x, 1, 1);
+      grid.setOwner(x, 5, 1);
+    }
+    for (let y = 2; y <= 4; y++) {
+      grid.setOwner(1, y, 1);
+      grid.setOwner(3, y, 1);
+    }
+
+    captureArea(grid, 1, []);
+
+    expect(grid.ownerAt(2, 3)).toBe(1);
+    expect(grid.ownerAt(6, 3)).toBe(0);
+    expect(grid.walkableCount).toBe(30);
   });
 
   it('does not capture open cells connected to the edge', () => {
