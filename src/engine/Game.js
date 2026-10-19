@@ -300,7 +300,7 @@ export class Game {
         y: (Math.floor(index / this.cellsWide) + 0.5) * cellSize
       }));
       if (!points.length) continue;
-      if (points.length > 1) {
+      if (points.length > 0) {
         const last = points.length - 1;
         points[last] = {
           x: (player.prevX + (player.x - player.prevX) * interpolation + 0.5) * cellSize,
