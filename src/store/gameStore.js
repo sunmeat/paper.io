@@ -176,19 +176,6 @@ export const useGameStore = create(persist((set, get) => ({
     const state = get();
     const today = dateKey();
     const quest = getDailyQuests().find(item => item.id === id);
-    const progress = state.dailyQuestProgress?.[today]?.[id] || 0;
-    const claims = { ...(state.dailyQuestClaims || {}) };
-    const todayClaims = [...(claims[today] || [])];
-    if (!quest || progress < quest.target || todayClaims.includes(id)) return { ok: false };
-    todayClaims.push(id); claims[today] = todayClaims;
-    const coins = state.coins + quest.reward;
-    set({ coins, walletChecksum: walletChecksum(coins), dailyQuestClaims: claims });
-    return { ok: true, reward: quest.reward };
-  },
-  claimDailyQuest: id => {
-    const state = get();
-    const today = dateKey();
-    const quest = getDailyQuests().find(item => item.id === id);
     const progress = Number(state.dailyQuestProgress?.[today]?.[id]) || 0;
     const claims = { ...(state.dailyQuestClaims || {}) };
     const todayClaims = [...(claims[today] || [])];
