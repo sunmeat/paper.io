@@ -42,6 +42,13 @@ describe('Simulation', () => {
     }
   });
 
+  it('gives bots distinct names and data-driven personalities', () => {
+    const simulation = new Simulation({ config: { ...GAME_CONFIG, botCount: 6 } });
+    expect(new Set(simulation.bots.map(bot => bot.name)).size).toBe(6);
+    expect(simulation.bots.every(bot => ['greedy', 'cautious', 'hunter'].includes(bot.personality))).toBe(true);
+    expect(simulation.bots.every(bot => ['easy', 'normal', 'hard'].includes(bot.strategy.difficulty))).toBe(true);
+  });
+
   it('spawns every player and starting territory inside the selected mask', () => {
     const simulation = new Simulation({ mapId: 'star' });
     for (const player of simulation.players.values()) {
