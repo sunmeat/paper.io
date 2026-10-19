@@ -147,11 +147,11 @@ export default function Shop({ onClose }) {
         {tab === 'trails' && <div className="skin-grid">{TRAIL_EFFECTS.map(renderCosmeticCard)}</div>}
         {tab === 'ach' && <div className="quest-workspace">
           <section className="daily-calendar">
-            <div className="quest-section-heading"><div><span className="eyebrow">{t('dailyCalendar')}</span><strong>{t('streak')}: {dailyStreak}/7</strong></div><Gift size={20} /></div>
+            <div className="quest-section-heading"><div><span className="eyebrow">{t('dailyCalendar')}</span><strong>{t('streak')}: {Math.min(7, dailyStreak)}/7</strong></div><Gift size={20} /></div>
             <div className="calendar-days">{Array.from({ length: 7 }, (_, index) => {
               const dayNumber = index + 1;
               const complete = dayNumber <= Math.min(7, dailyStreak);
-              return <div className={'calendar-day' + (complete ? ' calendar-day-complete' : '')} key={dayNumber}><small>{t('day')} {dayNumber}</small><strong>{[100,125,150,175,200,250,350][index]}</strong><span>{complete ? <Check size={13}/> : <Coins size={12}/>}</span></div>;
+              return <div className={'calendar-day' + (complete ? ' calendar-day-complete' : '')} key={dayNumber}><small>{t('day')} {dayNumber}</small><strong>{[100,125,150,175,200,225,250][index]}</strong><span>{complete ? <Check size={13}/> : <Coins size={12}/>}</span></div>;
             })}</div>
             <button className="primary-button calendar-claim" disabled={calendarClaimed} onClick={() => { const result = claimDailyReward(); setNotice(result.ok ? (language === 'ru' ? 'Получено +' : 'Claimed +') + result.reward + ' 🪙' : t(result.reason === 'wait' ? 'dailyWait' : 'dailyClaimed')); }}>{calendarClaimed ? t('claimed') : t('claim') + ' · ' + (100 + Math.min(6, dailyStreak) * 25) + ' 🪙'}</button>
           </section>
