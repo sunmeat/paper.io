@@ -44,6 +44,8 @@ export default function Shop({ onClose }) {
   const [tab, setTab] = useState('skins');
   const [notice, setNotice] = useState('');
   const [previewId, setPreviewId] = useState(equipped);
+  const [previewHatId, setPreviewHatId] = useState(equippedHat);
+  const [previewTrailId, setPreviewTrailId] = useState(equippedTrail);
   const progress = useMemo(readProgress, []);
   const previewSkin = getSkinById(previewId);
   const rarityName = rarity => RARITY[rarity]?.[language] || RARITY.common[language];
@@ -63,9 +65,9 @@ export default function Shop({ onClose }) {
     const active = equippedForTab === item.id;
     return (
       <article className="skin-card cosmetic-card" key={item.id} style={{ '--rarity-color': RARITY[item.rarity]?.color || RARITY.common.color }}>
-        <div className="skin-preview cosmetic-preview" style={{ '--skin-color': item.color || previewSkin.color }}>
+        <button type="button" className="skin-preview cosmetic-preview" style={{ '--skin-color': item.color || previewSkin.color }} onClick={() => tab === 'hats' ? setPreviewHatId(item.id) : setPreviewTrailId(item.id)} aria-label={(language === 'ru' ? 'Предпросмотр ' : 'Preview ') + item.name[language]}>
           <span className={tab === 'hats' ? 'cosmetic-symbol' : 'trail-preview shape-circle'}>{tab === 'hats' ? item.icon : (item.id === 'comet' ? '✦' : item.id === 'spark' ? '✧' : item.id === 'glow' ? '●' : '·')}</span>
-        </div>
+        </button>
         <strong>{item.name[language] || item.name.ru}</strong>
         <span className="skin-rarity">{rarityName(item.rarity)}</span>
         <span className="skin-price">{has ? <><Check size={13} />{active ? (language === 'ru' ? 'Выбрано' : 'Equipped') : (language === 'ru' ? 'Получено' : 'Owned')}</> : <><Coins size={13} />{item.price}</>}</span>
@@ -86,9 +88,9 @@ export default function Shop({ onClose }) {
         <div className="shop-preview-stage">
           <div className={'shop-mini-arena pattern-' + previewSkin.pattern} style={{ '--skin-color': previewSkin.color }}>
             <i className="mini-territory" />
-            <i className="mini-trail" style={{ '--skin-color': previewSkin.color }} />
+            <i className={'mini-trail ' + (previewTrailId === 'glow' ? 'mini-trail-glow' : previewTrailId === 'comet' ? 'mini-trail-comet' : '')} style={{ '--skin-color': previewTrailId === 'none' ? previewSkin.color : TRAIL_EFFECTS.find(effect => effect.id === previewTrailId)?.color || previewSkin.color }} />
             <i className="mini-player" style={{ '--skin-color': previewSkin.color }} />
-            {equippedHat !== 'none' && <span className="mini-hat">{HATS.find(hat => hat.id === equippedHat)?.icon}</span>}
+            {previewHatId !== 'none' && <span className="mini-hat">{HATS.find(hat => hat.id === previewHatId)?.icon}</span>}
           </div>
           <div className="shop-preview-copy">
             <span className="eyebrow"><Eye size={12} /> {language === 'ru' ? 'ПРЕДПРОСМОТР НА АРЕНЕ' : 'ARENA PREVIEW'}</span>
