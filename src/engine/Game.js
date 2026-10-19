@@ -342,6 +342,16 @@ export class Game {
           y: (player.prevY + (player.y - player.prevY) * interpolation + 0.5) * cellSize
         };
       }
+      if (points.length > 1) {
+        const dx = (points[1].x - points[0].x) * 0.5;
+        const dy = (points[1].y - points[0].y) * 0.5;
+        points[0] = { x: points[0].x - dx, y: points[0].y - dy };
+      } else {
+        points[0] = {
+          x: points[0].x - player.dx * cellSize * 0.5,
+          y: points[0].y - player.dy * cellSize * 0.5
+        };
+      }
       ctx.strokeStyle = player.id === 1 ? skin.color : getPlayerColor(player.id);
       ctx.fillStyle = ctx.strokeStyle;
       ctx.beginPath();
