@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { HATS, SKINS, TRAIL_EFFECTS } from '../engine/skins.js';
+import { DEFAULT_WORLD_PROGRESS, advanceWorldProgress, isCountryUnlocked, WORLD_COUNTRIES } from '../engine/world.js';
 
 const walletChecksum = coins => {
   const value = Math.max(0, Math.floor(Number(coins) || 0));
@@ -39,7 +40,8 @@ const base = {
   dailyQuestProgress: {},
   dailyQuestClaims: {},
   walletChecksum: walletChecksum(0),
-  totalRoundCoins: 0
+  totalRoundCoins: 0,
+  ...DEFAULT_WORLD_PROGRESS
 };
 
 const dateKey = (date = new Date()) =>
@@ -69,6 +71,7 @@ export const useGameStore = create(persist((set, get) => ({
   selectedMode: 'classic',
   setSelectedMode: modeId => set({ selectedMode: modeId === 'sprint' ? 'sprint' : 'classic' }),
   setSelectedMap: selectedMap => set({ selectedMap }),
+  setSelectedCountry: countryId => set(state => isCountryUnlocked(countryId, state.completedCountries, WORLD_COUNTRIES) ? { selectedCountryId: countryId, selectedMap: WORLD_COUNTRIES.find(country => country.id === countryId)?.mapId || 'circle' } : {}),
   language: localStorage.getItem('paper-io-language') || 'ru',
   settingsOpen: false,
   snapshot,
@@ -110,6 +113,9 @@ export const useGameStore = create(persist((set, get) => ({
       'play-1': Math.max(Number(previous['play-1']) || 0, 1)
     };
     const modeId = round.modeId || state.selectedMode || 'classic';
+    const countryId = round.countryId || state.selectedCountryId || 'ukraine';
+    const xpGained = Math.max(10, Math.floor(territory * 2) + kills * 15 + (victory ? 50 : 0));
+    const worldProgress = advanceWorldProgress({ completed: state.completedCountries || [], selectedCountryId: state.selectedCountryId || 'ukraine', prestige: state.prestige || 0, experience: state.experience || 0, level: state.level || 1, gamesPlayed: state.gamesPlayed || 0, totalTerritory: state.totalTerritory || 0, bestTerritory: state.bestTerritory || 0, countryRecords: state.countryRecords || {}, rank: state.rank || 'recruit' }, { countryId, territory, experience: xpGained });
     const modeRecords = { ...(state.modeRecords || {}) };
     if (!achievements.includes('first-round')) achievements.push('first-round');
     if (roundsPlayed >= 10 && !achievements.includes('rounds-10')) achievements.push('rounds-10');
@@ -120,6 +126,7 @@ export const useGameStore = create(persist((set, get) => ({
     modeRecords[modeId] = Math.max(Number(modeRecords[modeId]) || 0, territory);
     return {
       roundsPlayed, coins, walletChecksum: walletChecksum(coins), totalRoundCoins, dailyQuestProgress,
+      completedCountries: worldProgress.completed, selectedCountryId: worldProgress.selectedCountryId, prestige: worldProgress.prestige, experience: worldProgress.experience, level: worldProgress.level, gamesPlayed: worldProgress.gamesPlayed, totalTerritory: worldProgress.totalTerritory, bestTerritory: worldProgress.bestTerritory, countryRecords: worldProgress.countryRecords, rank: worldProgress.rank, lastExperienceGained: xpGained, selectedMap: WORLD_COUNTRIES.find(country => country.id === worldProgress.selectedCountryId)?.mapId || state.selectedMap,
       snapshot: { ...round, roundCoinsEarned },
       bestTerritory: Math.max(state.bestTerritory, territory), modeRecords, achievements
     };
@@ -192,14 +199,15 @@ export const useGameStore = create(persist((set, get) => ({
   }
 }), {
   name: 'paper-io-meta',
-  version: 3,
+  version: 4,
   storage: createJSONStorage(() => localStorage),
   partialize: state => ({
     selectedMap: state.selectedMap, coins: state.coins, ownedSkins: state.ownedSkins, equippedSkin: state.equippedSkin,
     ownedHats: state.ownedHats, equippedHat: state.equippedHat, ownedTrails: state.ownedTrails, equippedTrail: state.equippedTrail,
     achievements: state.achievements, lastDailyClaimDate: state.lastDailyClaimDate, lastDailyClaimAt: state.lastDailyClaimAt,
     dailyStreak: state.dailyStreak, bestTerritory: state.bestTerritory, roundsPlayed: state.roundsPlayed,
-    selectedMode: state.selectedMode, modeRecords: state.modeRecords, dailyQuestProgress: state.dailyQuestProgress, dailyQuestClaims: state.dailyQuestClaims, walletChecksum: state.walletChecksum, totalRoundCoins: state.totalRoundCoins
+    selectedMode: state.selectedMode, modeRecords: state.modeRecords, dailyQuestProgress: state.dailyQuestProgress, dailyQuestClaims: state.dailyQuestClaims, walletChecksum: state.walletChecksum, totalRoundCoins: state.totalRoundCoins,
+    completedCountries: state.completedCountries, selectedCountryId: state.selectedCountryId, prestige: state.prestige, experience: state.experience, level: state.level, gamesPlayed: state.gamesPlayed, totalTerritory: state.totalTerritory, bestTerritory: state.bestTerritory, countryRecords: state.countryRecords, rank: state.rank, lastExperienceGained: state.lastExperienceGained
   }),
   migrate: saved => {
     saved = saved && typeof saved === 'object' ? saved : {};
@@ -219,7 +227,12 @@ export const useGameStore = create(persist((set, get) => ({
       equippedTrail: TRAIL_EFFECTS.some(item => item.id === saved.equippedTrail) && valid(saved.ownedTrails, TRAIL_EFFECTS, 'none').includes(saved.equippedTrail) ? saved.equippedTrail : 'none',
       achievements: Array.isArray(saved.achievements) ? [...new Set(saved.achievements)] : [],
       modeRecords: saved.modeRecords && typeof saved.modeRecords === 'object' ? saved.modeRecords : {},
-      selectedMode: saved.selectedMode === 'sprint' ? 'sprint' : 'classic'
+      selectedMode: saved.selectedMode === 'sprint' ? 'sprint' : 'classic',
+      completedCountries: Array.isArray(saved.completedCountries) ? [...new Set(saved.completedCountries.filter(id => WORLD_COUNTRIES.some(country => country.id === id)))] : [...DEFAULT_WORLD_PROGRESS.completed],
+      selectedCountryId: WORLD_COUNTRIES.some(country => country.id === saved.selectedCountryId) ? saved.selectedCountryId : 'ukraine',
+      prestige: Math.max(0, Math.floor(Number(saved.prestige) || 0)), experience: Math.max(0, Math.floor(Number(saved.experience) || 0)), level: Math.max(1, Math.floor(Number(saved.level) || 1)),
+      gamesPlayed: Math.max(0, Math.floor(Number(saved.gamesPlayed) || 0)), totalTerritory: Math.max(0, Number(saved.totalTerritory) || 0), bestTerritory: Math.max(0, Number(saved.bestTerritory) || 0),
+      countryRecords: saved.countryRecords && typeof saved.countryRecords === 'object' ? saved.countryRecords : {}, rank: saved.rank || 'recruit', lastExperienceGained: Math.max(0, Number(saved.lastExperienceGained) || 0)
     };
   },
   merge: (saved, current) => { const valid = Boolean(saved && saved.walletChecksum && saved.walletChecksum === walletChecksum(saved.coins)); const coins = valid ? Math.max(0, Math.floor(Number(saved.coins) || 0)) : 0; return { ...current, ...saved, coins, walletChecksum: walletChecksum(coins) }; }
