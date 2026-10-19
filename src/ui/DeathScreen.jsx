@@ -37,13 +37,7 @@ export default function DeathScreen({ onAgain, onMenu }) {
   const place = Math.max(1, ranking.findIndex(player => player.id === 1) + 1);
   const [newRecord, setNewRecord] = useState(false);
 
-  useEffect(() => {
-    const key = 'paper-io-block8-best';
-    const previous = Number(localStorage.getItem(key)) || 0;
-    const current = Number(stats.territory) || 0;
-    setNewRecord(current > previous);
-    if (current > previous) localStorage.setItem(key, String(current));
-  }, [stats.territory]);
+  useEffect(() => { setNewRecord(Boolean(stats.isNewRecord)); }, [stats.isNewRecord]);
 
   return (
     <div className="screen-overlay">
