@@ -43,6 +43,15 @@ describe('Simulation', () => {
     }
   });
 
+  it('gives players spawn protection and kill attribution fields', () => {
+    const simulation = new Simulation();
+    for (const player of simulation.players.values()) {
+      expect(player.invulnerableTicks).toBe(18);
+      expect(player.kills).toBe(0);
+      expect(player.lastHitBy).toBe(null);
+    }
+  });
+
   it('does not eliminate a player when they cross their own trail', () => {
     const config = { ...GAME_CONFIG, worldWidth: 30, worldHeight: 30, botCount: 0 };
     const simulation = new Simulation({ config });
@@ -61,6 +70,24 @@ describe('Simulation', () => {
     expect(player.y).toBe(15);
     expect(player.trailCells).toEqual([simulation.grid.index(13, 15)]);
     expect(simulation.over).toBe(false);
+  });
+
+  it('does not kill a player when they hit a wall', () => {
+    const config = { ...GAME_CONFIG, worldWidth: 30, worldHeight: 30, botCount: 0 };
+    const simulation = new Simulation({ config });
+    const player = simulation.player;
+    player.x = 1; player.y = 15; player.dx = -1; player.dy = 0;
+    simulation.movePlayer(player);
+    expect(player.alive).toBe(true);
+  });
+
+  it('reports kills and approximate bot coordinates in round stats', () => {
+    const simulation = new Simulation();
+    const stats = simulation.getStats();
+    expect(stats.kills).toBe(0);
+    expect(stats.playerStats).toHaveLength(simulation.players.size);
+    expect(stats.playerStats[0]).toHaveProperty('x');
+    expect(stats.playerStats[0]).toHaveProperty('y');
   });
 
   it('uses the configured fixed world dimensions', () => {

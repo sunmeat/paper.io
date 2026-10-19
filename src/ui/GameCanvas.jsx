@@ -30,6 +30,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       getSkin: () => useGameStore.getState().equippedSkin
     });
     const events = game.simulation.events;
+    let gameOverTimer = null;
     const unsubscribe = [
       events.on('capture', event => {
         if (!event.human) return;
@@ -46,12 +47,13 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         playDeath();
         vibrate([35, 30, 60]);
       }),
-      events.on('gameOver', snapshot => onGameOver?.(snapshot))
+      events.on('gameOver', snapshot => { gameOverTimer = window.setTimeout(() => onGameOver?.(snapshot), 900); })
     ];
 
     gameRef.current = game;
     return () => {
       for (const off of unsubscribe) off();
+      if (gameOverTimer !== null) window.clearTimeout(gameOverTimer);
       game.destroy();
       if (gameRef.current === game) gameRef.current = null;
     };

@@ -10,6 +10,7 @@ export function captureArea(grid, owner, trailCells) {
   }
 
   const { width, height, owners, walkable } = grid;
+  const capturedTrailOwners = new Set();
   let workspace = workspaces.get(owners.length);
   if (!workspace) {
     workspace = { visited: new Uint8Array(owners.length), queue: new Int32Array(owners.length) };
@@ -46,9 +47,12 @@ export function captureArea(grid, owner, trailCells) {
   for (let i = 0; i < owners.length; i++) {
     if (walkable[i] && !visited[i] && owners[i] !== owner) {
       grid.setOwnerAt(i, owner);
+      if (grid.trail[i] && grid.trail[i] !== owner) capturedTrailOwners.add(grid.trail[i]);
+      if (grid.trail[i] !== 0) { grid.trail[i] = 0; grid.version++; }
       captured++;
     }
   }
+  grid.capturedTrailOwners = capturedTrailOwners;
   grid.clearTrail(owner);
   return captured;
 }

@@ -126,6 +126,17 @@ describe('captureArea', () => {
     expect(grid.walkableCount).toBe(30);
   });
 
+  it('clears an opponent trail enclosed by a successful capture', () => {
+    const grid = new Grid(7, 7);
+    for (let x = 1; x <= 5; x++) { grid.setOwner(x, 1, 1); grid.setOwner(x, 5, 1); }
+    for (let y = 2; y <= 4; y++) { grid.setOwner(1, y, 1); grid.setOwner(5, y, 1); }
+    grid.setTrail(3, 3, 2);
+    captureArea(grid, 1, []);
+    expect(grid.ownerAt(3, 3)).toBe(1);
+    expect(grid.trailAt(3, 3)).toBe(0);
+    expect(grid.capturedTrailOwners.has(2)).toBe(true);
+  });
+
   it('does not capture open cells connected to the edge', () => {
     const grid = new Grid(5, 5);
     grid.setOwner(2, 2, 1);

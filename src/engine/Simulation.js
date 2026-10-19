@@ -132,7 +132,8 @@ export class Simulation {
   createPlayer(id, x, y, dx, dy, human = false) {
     const player = {
       id, x, y, dx, dy, next: null, trailCells: [], alive: true, human,
-      turnTimer: 0, respawnTimer: 0, lifetime: 0, deaths: 0
+      turnTimer: 0, respawnTimer: 0, lifetime: 0, deaths: 0, kills: 0,
+      lastHitBy: null, invulnerableTicks: 18, edgeTicks: 0
     };
     this.players.set(id, player);
     return player;
@@ -214,18 +215,19 @@ export class Simulation {
     const nx = player.x + player.dx;
     const ny = player.y + player.dy;
     if (!this.grid.inside(nx, ny)) {
-      if (player.human) this.eliminatePlayer(player);
-      else {
-        player.dx *= -1;
-        player.dy *= -1;
-        player.next = null;
-      }
-      return;
+      player.edgeTicks = (player.edgeTicks || 0) + 1;
+      const tangents = player.dx !== 0 ? [[0, 1], [0, -1]] : [[1, 0], [-1, 0]];
+      const tangent = tangents.find(([dx, dy]) => this.grid.inside(player.x + dx, player.y + dy));
+      if (!tangent) return;
+      [player.dx, player.dy] = tangent;
+      player.next = null;
+      return this.movePlayer(player);
     }
 
     const nextIndex = this.grid.index(nx, ny);
     const rivalHead = [...this.players.values()].find(candidate =>
-      candidate.id !== player.id && candidate.alive && candidate.x === nx && candidate.y === ny
+      candidate.id !== player.id && candidate.alive && candidate.x === nx && candidate.y === ny &&
+      candidate.invulnerableTicks <= 0 && player.invulnerableTicks <= 0
     );
     if (rivalHead) {
       const losers = resolveHeadCollision(player, rivalHead);
@@ -240,7 +242,7 @@ export class Simulation {
     }
 
     const trailOwnerId = this.grid.trail[nextIndex];
-    if (trailOwnerId && trailOwnerId !== player.id) {
+    if (trailOwnerId && trailOwnerId !== player.id && player.invulnerableTicks <= 0) {
       const trailOwner = findTrailCollision(nextIndex, player.id, this.players.values()) ?? this.players.get(trailOwnerId);
       if (trailOwner?.alive) {
         const loserId = resolveTrailCrossing(player.id, trailOwnerId);
@@ -253,11 +255,16 @@ export class Simulation {
     player.x = nx;
     player.y = ny;
     player.lifetime++;
+    player.edgeTicks = this.grid.isEdge(nx, ny) ? (player.edgeTicks || 0) + 1 : 0;
 
     if (this.grid.ownerAt(nx, ny) === player.id) {
       if (player.trailCells.length) {
         const captured = captureArea(this.grid, player.id, player.trailCells);
         player.trailCells = [];
+        for (const victimId of this.grid.capturedTrailOwners ?? []) {
+          const victim = this.players.get(victimId);
+          if (victim?.alive && victim.id !== player.id) this.eliminatePlayer(victim, player);
+        }
         if (player.human) this.sessionScore += captured;
         this.events.emit('capture', { playerId: player.id, human: player.human, captured, x: player.x, y: player.y });
         this.checkTerritoryLoss();
@@ -278,10 +285,15 @@ export class Simulation {
     player.trailCells = [];
     player.next = null;
 
-    const death = { playerId: player.id, human: player.human, killerId: killer?.id ?? null };
+    const attributedKiller = killer ?? (player.lastHitBy ? this.players.get(player.lastHitBy) : null);
+    if (attributedKiller && attributedKiller.id !== player.id) {
+      player.lastHitBy = attributedKiller.id;
+      attributedKiller.kills = (attributedKiller.kills || 0) + 1;
+    }
+    const death = { playerId: player.id, human: player.human, killerId: attributedKiller?.id ?? null };
     this.events.emit('death', death);
-    if (killer) this.events.emit('kill', { killerId: killer.id, victimId: player.id, killerHuman: killer.human, victimHuman: player.human });
-    if (killer?.human && !player.human) this.sessionScore += 100;
+    if (attributedKiller) this.events.emit('kill', { killerId: attributedKiller.id, victimId: player.id, killerHuman: attributedKiller.human, victimHuman: player.human });
+    if (attributedKiller?.human && !player.human) this.sessionScore += 100;
 
     if (player.human) {
       this.over = true;
@@ -327,7 +339,7 @@ export class Simulation {
     const [dx, dy] = this.randomDirection(player);
     Object.assign(player, {
       x: spawn.x, y: spawn.y, dx, dy, next: null, trailCells: [],
-      alive: true, respawnTimer: 0, turnTimer: 0
+      alive: true, respawnTimer: 0, turnTimer: 0, invulnerableTicks: 18, edgeTicks: 0, lastHitBy: null
     });
     this.initializeTerritory(player, width, height);
   }
@@ -356,7 +368,9 @@ export class Simulation {
       respawning: Boolean(this.player && !this.player.alive),
       over: this.over,
       paused: this.paused,
-      top5
+      top5,
+      kills: this.player?.kills || 0,
+      playerStats: players.map(player => ({ id: player.id, kills: player.kills || 0, deaths: player.deaths, alive: player.alive, territory: this.grid.territoryCount(player.id), x: player.x, y: player.y }))
     };
   }
 }
