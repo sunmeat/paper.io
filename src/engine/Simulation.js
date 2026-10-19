@@ -1,5 +1,6 @@
 import { captureArea } from './fill.js';
 import { Grid } from './Grid.js';
+import { findTrailCollision } from './collisions.js';
 import { isReverseDirection } from './directions.js';
 import { mulberry32 } from './random.js';
 import { resolveHeadCollision, resolveTrailCrossing } from './rules.js';
@@ -202,7 +203,7 @@ export class Simulation {
 
     const trailOwnerId = this.grid.trail[nextIndex];
     if (trailOwnerId && trailOwnerId !== player.id) {
-      const trailOwner = this.players.get(trailOwnerId);
+      const trailOwner = findTrailCollision(nextIndex, player.id, this.players.values()) ?? this.players.get(trailOwnerId);
       if (trailOwner?.alive) {
         const loserId = resolveTrailCrossing(player.id, trailOwnerId);
         const loser = this.players.get(loserId);
