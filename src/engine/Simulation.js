@@ -90,7 +90,8 @@ export class Simulation {
       bot.homeY = spawn.y;
       const personality = BOT_PERSONALITY_IDS[Math.floor(this.random() * BOT_PERSONALITY_IDS.length)];
       bot.strategy = new BasicBot({ random: this.random, difficulty, personality });
-      bot.name = bot.strategy.name;
+      bot.name = `${bot.strategy.name} ${index + 1}`;
+      bot.strategy.name = bot.name;
       bot.personality = personality;
       this.bots.push(bot);
     }
