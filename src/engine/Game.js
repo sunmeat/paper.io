@@ -36,8 +36,8 @@ export class Game {
     this.moveAccumulator = 0;
     this.lastStatsAt = 0;
     this.dpr = 1;
-    this.cellsWide = 0;
-    this.cellsHigh = 0;
+    this.cellsWide = GAME_CONFIG.worldWidth;
+    this.cellsHigh = GAME_CONFIG.worldHeight;
     this.sessionScore = 0;
     this.camera = { x: 0, y: 0, zoom: 1 };
     this.effects = [];
@@ -57,7 +57,7 @@ export class Game {
     this.frame = requestAnimationFrame(time => this.loop(time));
   }
 
-  /** Resizes the drawing buffer and recreates the grid only when dimensions change. */
+  /** Resizes the drawing buffer without changing the fixed world or game state. */
   resize() {
     if (!this.running) return;
     const rect = this.canvas.getBoundingClientRect();
@@ -67,13 +67,6 @@ export class Game {
     this.canvas.height = Math.round(rect.height * this.dpr);
     this.terrainDirty = true;
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    const width = Math.max(GAME_CONFIG.minColumns, Math.floor(rect.width / GAME_CONFIG.cellSize));
-    const height = Math.max(GAME_CONFIG.minRows, Math.floor(rect.height / GAME_CONFIG.cellSize));
-    if (width !== this.cellsWide || height !== this.cellsHigh) {
-      this.cellsWide = width;
-      this.cellsHigh = height;
-      this.reset();
-    }
     this.draw();
   }
 
@@ -83,16 +76,17 @@ export class Game {
     this.random = mulberry32(this.seed);
     this.effects = [];
     this.camera = { x: 0, y: 0, zoom: 1 };
-    this.grid = new Grid(this.cellsWide, this.cellsHigh);
+    this.grid = new Grid(GAME_CONFIG.worldWidth, GAME_CONFIG.worldHeight);
     this.terrainDirty = true;
     this.sessionScore = 0;
-    const cx = Math.floor(this.cellsWide / 2);
-    const cy = Math.floor(this.cellsHigh / 2);
-    this.player = this.createPlayer(1, cx, cy, 1, 0, true);
+    const safeX = Math.round(this.cellsWide * 0.18);
+    const safeY = Math.floor(this.cellsHigh / 2);
+    this.player = this.createPlayer(1, safeX, safeY, 1, 0, true);
+    const ringRadius = Math.min(this.cellsWide, this.cellsHigh) * 0.38;
     const spawns = Array.from({ length: GAME_CONFIG.botCount }, (_, index) => {
       const angle = (Math.PI * 2 * index) / GAME_CONFIG.botCount;
-      const x = Math.round(this.cellsWide / 2 + Math.cos(angle) * this.cellsWide * .34);
-      const y = Math.round(this.cellsHigh / 2 + Math.sin(angle) * this.cellsHigh * .34);
+      const x = Math.round(this.cellsWide / 2 + Math.cos(angle) * ringRadius);
+      const y = Math.round(this.cellsHigh / 2 + Math.sin(angle) * ringRadius);
       const horizontal = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle));
       const dx = horizontal ? -Math.sign(Math.cos(angle)) : 0;
       const dy = horizontal ? 0 : -Math.sign(Math.sin(angle));
@@ -113,6 +107,7 @@ export class Game {
     this.accumulator = 0;
     this.moveAccumulator = 0;
     this.lastTime = 0;
+    this.camera = { x: this.player.x, y: this.player.y, zoom: 1 };
     this.initializeTerritory(this.player, GAME_CONFIG.playerStartWidth, GAME_CONFIG.playerStartHeight);
     for (const bot of this.bots) this.initializeTerritory(bot, GAME_CONFIG.botStartWidth, GAME_CONFIG.botStartHeight);
     this.emitStats();
@@ -378,31 +373,43 @@ export class Game {
     this.callbacks.onStats?.(this.getStats());
   }
 
-  /** Draws the world with a smooth player camera and short-lived feedback effects. */
+  /** Draws a viewport into the fixed world with a camera clamped to world bounds. */
   draw() {
     if (!this.ctx || !this.grid) return;
-    const {width,height}=this.canvas.getBoundingClientRect();
-    if(!width||!height)return;
-    const ctx=this.ctx,cellW=width/this.cellsWide,cellH=height/this.cellsHigh;
-    const targetX=this.player?.alive?this.player.x*cellW:width/2;
-    const targetY=this.player?.alive?this.player.y*cellH:height/2;
-    const territory=this.grid.territoryCount(1)/Math.max(1,this.grid.owners.length);
-    const targetZoom=Math.max(.84,Math.min(1.12,1.08-territory*.9));
-    if(!this.camera.x&&!this.camera.y){this.camera.x=targetX;this.camera.y=targetY;}
-    this.camera.x+=(targetX-this.camera.x)*.16;
-    this.camera.y+=(targetY-this.camera.y)*.16;
-    this.camera.zoom+=(targetZoom-this.camera.zoom)*.045;
+    const { width, height } = this.canvas.getBoundingClientRect();
+    if (!width || !height) return;
+    const ctx = this.ctx;
+    const cellSize = Math.min(width, height) / 27;
+    const cellW = cellSize;
+    const cellH = cellSize;
+    const targetX = this.player?.alive ? this.player.x : this.cellsWide / 2;
+    const targetY = this.player?.alive ? this.player.y : this.cellsHigh / 2;
+    const territory = this.grid.territoryCount(1) / Math.max(1, this.grid.owners.length);
+    const viewportRatio = Math.min(width, height) / Math.max(width, height);
+    const viewportZoom = Math.max(0.9, Math.min(1.08, 0.9 + viewportRatio * 0.18));
+    const targetZoom = Math.max(0.82, Math.min(1.08, viewportZoom * (1 - territory * 0.18)));
+    this.camera.x += (targetX - this.camera.x) * 0.16;
+    this.camera.y += (targetY - this.camera.y) * 0.16;
+    this.camera.zoom += (targetZoom - this.camera.zoom) * 0.045;
+    const visibleWidth = width / (cellSize * this.camera.zoom);
+    const visibleHeight = height / (cellSize * this.camera.zoom);
+    this.camera.x = visibleWidth >= this.cellsWide
+      ? this.cellsWide / 2
+      : Math.max(visibleWidth / 2, Math.min(this.cellsWide - visibleWidth / 2, this.camera.x));
+    this.camera.y = visibleHeight >= this.cellsHigh
+      ? this.cellsHigh / 2
+      : Math.max(visibleHeight / 2, Math.min(this.cellsHigh - visibleHeight / 2, this.camera.y));
     ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
     ctx.fillStyle='#10131c';ctx.fillRect(0,0,width,height);
     ctx.save();
-    ctx.translate(width/2-this.camera.x*this.camera.zoom,height/2-this.camera.y*this.camera.zoom);
-    ctx.scale(this.camera.zoom,this.camera.zoom);
+    ctx.translate(width / 2 - this.camera.x * cellSize * this.camera.zoom, height / 2 - this.camera.y * cellSize * this.camera.zoom);
+    ctx.scale(this.camera.zoom, this.camera.zoom);
     const skinId=this.callbacks.getSkin?.()||'classic';
     const skin=getSkinById(skinId);
     if(this.cachedSkinId!==skinId){this.cachedSkinId=skinId;this.terrainDirty=true;}
-    if(this.terrainCanvas.width!==Math.ceil(this.cellsWide*cellW)||this.terrainCanvas.height!==Math.ceil(this.cellsHigh*cellH)){
-      this.terrainCanvas.width=Math.ceil(this.cellsWide*cellW);
-      this.terrainCanvas.height=Math.ceil(this.cellsHigh*cellH);
+    if(this.terrainCanvas.width!==Math.ceil(this.cellsWide*cellSize)||this.terrainCanvas.height!==Math.ceil(this.cellsHigh*cellSize)){
+      this.terrainCanvas.width=Math.ceil(this.cellsWide*cellSize);
+      this.terrainCanvas.height=Math.ceil(this.cellsHigh*cellSize);
       this.terrainDirty=true;
     }
     if(this.terrainDirty){
