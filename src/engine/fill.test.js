@@ -44,6 +44,25 @@ describe('Grid', () => {
 });
 
 describe('captureArea', () => {
+  it('fills every cell in a closed rectangular capture without a one-cell gap', () => {
+    const grid = new Grid(9, 9);
+    const trail = [];
+    for (let x = 2; x <= 6; x++) {
+      grid.setTrail(x, 2, 1); trail.push(grid.index(x, 2));
+      grid.setTrail(x, 6, 1); trail.push(grid.index(x, 6));
+    }
+    for (let y = 3; y <= 5; y++) {
+      grid.setTrail(2, y, 1); trail.push(grid.index(2, y));
+      grid.setTrail(6, y, 1); trail.push(grid.index(6, y));
+    }
+    const captured = captureArea(grid, 1, trail);
+    for (let y = 2; y <= 6; y++) for (let x = 2; x <= 6; x++) {
+      expect(grid.ownerAt(x, y)).toBe(1);
+    }
+    expect(captured).toBe(9);
+    expect(grid.territoryCount(1)).toBe(25);
+  });
+
   it('captures a simple enclosed square', () => {
     const grid = new Grid(7, 7);
     for (let x = 2; x <= 4; x++) {
