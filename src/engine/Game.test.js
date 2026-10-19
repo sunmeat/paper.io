@@ -3,6 +3,7 @@ import { Game } from './Game.js';
 import { Simulation } from './Simulation.js';
 import { GAME_CONFIG } from './config.js';
 import { createMapMask, MAPS } from './maps.js';
+import { BOT_PERSONALITIES, getBotDifficulty } from './bots/difficulty.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -23,6 +24,14 @@ function deterministicSnapshot(seed) {
 }
 
 describe('Simulation', () => {
+  it('scales bot difficulty using player level and win/loss streaks', () => {
+    expect(getBotDifficulty({ playerLevel: 1 })).toBe('easy');
+    expect(getBotDifficulty({ playerLevel: 3 })).toBe('normal');
+    expect(getBotDifficulty({ playerLevel: 5, winStreak: 2 })).toBe('hard');
+    expect(getBotDifficulty({ playerLevel: 5, lossStreak: 2 })).toBe('normal');
+    expect(Object.keys(BOT_PERSONALITIES)).toEqual(['greedy', 'cautious', 'hunter']);
+  });
+
   it('provides ten built-in arena shapes', () => {
     expect(MAPS).toHaveLength(8);
     expect(MAPS.some(map => map.id === 'island' || map.id === 'archipelago')).toBe(false);
