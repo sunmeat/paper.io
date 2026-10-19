@@ -49,6 +49,12 @@ export default function Shop({ onClose }) {
   const progress = useMemo(readProgress, []);
   const previewSkin = getSkinById(previewId);
   const rarityName = rarity => RARITY[rarity]?.[language] || RARITY.common[language];
+  const unlockLabel = skin => {
+    if (skin.unlock?.type === 'level') return language === 'ru' ? `Уровень ${skin.unlock.level}` : `Level ${skin.unlock.level}`;
+    if (skin.unlock?.type === 'quest') return language === 'ru' ? `${skin.unlock.captured} клеток захвата` : `${skin.unlock.captured} cells captured`;
+    if (skin.unlock?.type === 'achievement') return language === 'ru' ? 'Первый захват' : 'First capture';
+    return language === 'ru' ? 'Бесплатно' : 'Free';
+  };
   const report = result => {
     if (result.ok) setNotice(language === 'ru' ? 'Получено! Предмет экипирован.' : 'Unlocked! Item equipped.');
     else if (result.reason === 'coins') setNotice(language === 'ru' ? 'Не хватает монет.' : 'Not enough coins.');
@@ -123,7 +129,7 @@ export default function Shop({ onClose }) {
               <button className={'skin-preview pattern-' + skin.pattern} style={{ '--skin-color': skin.color }} onClick={() => setPreviewId(skin.id)} aria-label={(language === 'ru' ? 'Предпросмотр ' : 'Preview ') + skin.name[language]}><span className={'trail-preview shape-' + skin.trailShape} /></button>
               <strong>{skin.name[language] || skin.name.ru}</strong>
               <span className="skin-rarity">{rarityName(skin.rarity)}</span>
-              <span className="skin-price">{has ? <><Check size={13} />{active ? (language === 'ru' ? 'Выбран' : 'Equipped') : (language === 'ru' ? 'Куплен' : 'Owned')}</> : unlockable ? <><Sparkles size={13} />{language === 'ru' ? 'За прогресс' : 'Earn free'}</> : <><Coins size={13} />{skin.price}</>}</span>
+              <span className="skin-price">{has ? <><Check size={13} />{active ? (language === 'ru' ? 'Выбран' : 'Equipped') : (language === 'ru' ? 'Куплен' : 'Owned')}</> : unlockable ? <><Sparkles size={13} />{unlockLabel(skin)}</> : <><Coins size={13} />{skin.price}</>}</span>
               <button className="skin-action" disabled={active} onClick={() => {
                 if (has) { equip(skin.id); setNotice(language === 'ru' ? 'Скин выбран.' : 'Skin equipped.'); setPreviewId(skin.id); }
                 else if (canClaim) { report(claimSkinReward(skin.id)); setPreviewId(skin.id); }
