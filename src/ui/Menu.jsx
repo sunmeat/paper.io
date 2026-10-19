@@ -32,7 +32,7 @@ export default function Menu({
         <span className="eyebrow">CLAIM YOUR SPACE</span>
         <h1>{t('title')}</h1>
         <p>{t('subtitle')}</p>
-        <div className="meta-wallet"><Coins size={17} /><strong>{coins}</strong><span>{language === 'ru' ? 'монет' : 'coins'}</span></div>
+        <div className="meta-wallet"><Coins size={17} /><strong key={coins} className="coin-count-pop">{coins}</strong><span>{language === 'ru' ? 'монет' : 'coins'}</span></div>
         <button className="primary-button menu-play" onClick={onPlay}><Zap size={18} />{t('play')}</button>
         <button className="secondary-button" onClick={onDaily} disabled={dailyClaimed}><Gift size={17} />{dailyClaimed ? t('dailyClaimed') : t('dailyReward')}</button>
         {rewardNotice && <p className="reward-notice" role="status">{rewardNotice}</p>}
