@@ -71,7 +71,7 @@ describe('Simulation', () => {
   it('reports territory as a percentage of world cells', () => {
     const simulation = new Simulation({ config: { ...GAME_CONFIG, botCount: 0 } });
     simulation.grid.territoryCounts[1] = 81;
-    expect(simulation.getStats().territory).toBe(1);
+    expect(simulation.getStats().territory).toBe(Math.round(81 / simulation.grid.walkableCount * 100));
   });
 
   it('produces the same complete match state for the same seed', () => {
