@@ -2,20 +2,22 @@ import { Grid } from '../src/engine/Grid.js';
 import { captureArea } from '../src/engine/fill.js';
 import { mulberry32 } from '../src/engine/random.js';
 import { BasicBot } from '../src/engine/bots/BasicBot.js';
+import { GAME_CONFIG } from '../src/engine/config.js';
 
 const gameCount = Math.max(1, Number(process.argv[2]) || 200);
 const maxTicks = Math.max(500, Number(process.argv[3]) || 3000);
-const botCount = 10;
-const width = 72;
-const height = 48;
+const botCount = GAME_CONFIG.botCount;
+const width = GAME_CONFIG.worldWidth;
+const height = GAME_CONFIG.worldHeight;
+const ringRadius = Math.min(width, height) * 0.38;
 
 function simulate(seed) {
   const random = mulberry32(seed);
   const grid = new Grid(width, height);
   const players = Array.from({ length: botCount }, (_, i) => {
     const angle = 2 * Math.PI * i / botCount;
-    const x = Math.round(width / 2 + Math.cos(angle) * width * 0.34);
-    const y = Math.round(height / 2 + Math.sin(angle) * height * 0.34);
+    const x = Math.round(width / 2 + Math.cos(angle) * ringRadius);
+    const y = Math.round(height / 2 + Math.sin(angle) * ringRadius);
     const horizontal = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle));
     const dx = horizontal ? -Math.sign(Math.cos(angle)) : 0;
     const dy = horizontal ? 0 : -Math.sign(Math.sin(angle));
