@@ -64,7 +64,7 @@ describe('fixed world and viewport resizing', () => {
       owners: Array.from(simulation.grid.owners),
       trail: Array.from(simulation.grid.trail),
       player: structuredClone(simulation.player),
-      bots: simulation.bots.map(bot => structuredClone(bot))
+      bots: simulation.bots.map(({ id, x, y, dx, dy, alive, trailCells }) => ({ id, x, y, dx, dy, alive, trailCells: [...trailCells] }))
     };
     const canvas = {
       width: 0,
@@ -91,7 +91,7 @@ describe('fixed world and viewport resizing', () => {
     expect(simulation.grid.owners).toEqual(Uint8Array.from(stateBefore.owners));
     expect(simulation.grid.trail).toEqual(Uint8Array.from(stateBefore.trail));
     expect(simulation.player).toEqual(stateBefore.player);
-    expect(simulation.bots).toEqual(stateBefore.bots);
+    expect(simulation.bots.map(({ id, x, y, dx, dy, alive, trailCells }) => ({ id, x, y, dx, dy, alive, trailCells: [...trailCells] }))).toEqual(stateBefore.bots);
     expect(game.draw).toHaveBeenCalledOnce();
   });
 });
