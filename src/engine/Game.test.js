@@ -94,6 +94,16 @@ describe('Simulation', () => {
     expect(player.alive).toBe(true);
   });
 
+  it('attributes each elimination once and increments the killer total', () => {
+    const simulation = new Simulation();
+    const killer = simulation.player;
+    const victim = simulation.bots[0];
+    simulation.eliminatePlayer(victim, killer);
+    simulation.eliminatePlayer(victim, killer);
+    expect(killer.kills).toBe(1);
+    expect(victim.lastHitBy).toBe(killer.id);
+  });
+
   it('reports kills and approximate bot coordinates in round stats', () => {
     const simulation = new Simulation();
     const stats = simulation.getStats();
