@@ -1,1 +1,62 @@
-import {forwardRef,useEffect,useImperativeHandle,useRef} from 'react';import {playCapture,playDeath,unlockAudio} from '../engine/audio.js';import {vibrate} from '../engine/haptics.js';import {Game} from '../engine/Game.js';import {useGameStore} from '../store/gameStore.js';const GameCanvas=forwardRef(function GameCanvas({onStats,onGameOver},ref){const canvasRef=useRef(null),gameRef=useRef(null);useEffect(()=>{const unlock=()=>unlockAudio();window.addEventListener('pointerdown',unlock,{once:true});return()=>window.removeEventListener('pointerdown',unlock);},[]);useImperativeHandle(ref,()=>({pause(){gameRef.current?.setPaused(true);},resume(){gameRef.current?.setPaused(false);},restart(){gameRef.current?.restart();}}),[]);useEffect(()=>{const canvas=canvasRef.current;if(!canvas)return;const game=new Game(canvas,{onStats,onGameOver,getSkin:()=>useGameStore.getState().equippedSkin,onCapture:captured=>{playCapture();vibrate(18);useGameStore.getState().addCoins(Math.max(1,captured));useGameStore.getState().awardAchievement('first-capture');},onBotDown:(_id,killedByHuman)=>{if(killedByHuman)useGameStore.getState().addCoins(25);},onDeath:(id,human)=>{if(human){playDeath();vibrate([35,30,60]);}}});gameRef.current=game;return()=>{game.destroy();if(gameRef.current===game)gameRef.current=null;};},[onStats,onGameOver]);return <canvas ref={canvasRef} className="game-canvas" aria-label="Paper.io game arena"/>});export default GameCanvas;
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { playCapture, playDeath, unlockAudio } from '../engine/audio.js';
+import { vibrate } from '../engine/haptics.js';
+import { Game } from '../engine/Game.js';
+import { useGameStore } from '../store/gameStore.js';
+
+const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver }, ref) {
+  const canvasRef = useRef(null);
+  const gameRef = useRef(null);
+
+  useEffect(() => {
+    const unlock = () => unlockAudio();
+    window.addEventListener('pointerdown', unlock, { once: true });
+    return () => window.removeEventListener('pointerdown', unlock);
+  }, []);
+
+  useImperativeHandle(ref, () => ({
+    pause() { gameRef.current?.setPaused(true); },
+    resume() { gameRef.current?.setPaused(false); },
+    restart() { gameRef.current?.restart(); }
+  }), []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+
+    const game = new Game(canvas, {
+      onStats,
+      getSkin: () => useGameStore.getState().equippedSkin
+    });
+    const events = game.simulation.events;
+    const unsubscribe = [
+      events.on('capture', event => {
+        if (!event.human) return;
+        playCapture();
+        vibrate(18);
+        useGameStore.getState().addCoins(Math.max(1, event.captured));
+        useGameStore.getState().awardAchievement('first-capture');
+      }),
+      events.on('kill', event => {
+        if (event.victimId !== 1 && event.killerHuman) useGameStore.getState().addCoins(25);
+      }),
+      events.on('death', event => {
+        if (!event.human) return;
+        playDeath();
+        vibrate([35, 30, 60]);
+      }),
+      events.on('gameOver', snapshot => onGameOver?.(snapshot))
+    ];
+
+    gameRef.current = game;
+    return () => {
+      for (const off of unsubscribe) off();
+      game.destroy();
+      if (gameRef.current === game) gameRef.current = null;
+    };
+  }, [onStats, onGameOver]);
+
+  return <canvas ref={canvasRef} className="game-canvas" aria-label="Paper.io game arena" />;
+});
+
+export default GameCanvas;
