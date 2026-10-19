@@ -15,6 +15,7 @@ export class Game {
       seed: callbacks.seed ?? GAME_CONFIG.seed,
       mapId: callbacks.mapId ?? 'circle',
       modeId: callbacks.modeId ?? 'classic',
+      config: callbacks.countryLevel ? { botCount: Math.min(18, 9 + callbacks.countryLevel - 1), moveIntervalMs: Math.max(55, 100 - (callbacks.countryLevel - 1) * 4) } : null,
       humanPlayer: !callbacks.observer,
       playerLevel: progress.playerLevel,
       winStreak: progress.winStreak,
