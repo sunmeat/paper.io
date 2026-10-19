@@ -4,7 +4,7 @@ import { vibrate } from '../engine/haptics.js';
 import { Game } from '../engine/Game.js';
 import { useGameStore } from '../store/gameStore.js';
 
-const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver }, ref) {
+const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId = 'circle' }, ref) {
   const canvasRef = useRef(null);
   const gameRef = useRef(null);
 
@@ -25,6 +25,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver }, ref) 
     if (!canvas) return undefined;
 
     const game = new Game(canvas, {
+      mapId,
       onStats,
       getSkin: () => useGameStore.getState().equippedSkin
     });
@@ -54,7 +55,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver }, ref) 
       game.destroy();
       if (gameRef.current === game) gameRef.current = null;
     };
-  }, [onStats, onGameOver]);
+  }, [onStats, onGameOver, mapId]);
 
   return <canvas ref={canvasRef} className="game-canvas" aria-label="Paper.io game arena" />;
 });
