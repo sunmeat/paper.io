@@ -10,7 +10,7 @@ const formatTime = ms => {
   return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
 };
 
-function useCountUp(target) {
+function useCountUp(target, decimals = false) {
   const [value, setValue] = useState(0);
   useEffect(() => {
     let frame;
@@ -18,7 +18,8 @@ function useCountUp(target) {
     const duration = 850;
     const animate = now => {
       const progress = Math.min(1, (now - start) / duration);
-      setValue(Math.round(Math.max(0, Number(target) || 0) * (1 - (1 - progress) ** 3)));
+      const current = Math.max(0, Number(target) || 0) * (1 - (1 - progress) ** 3);
+      setValue(decimals ? Number(current.toFixed(3)) : Math.round(current));
       if (progress < 1) frame = requestAnimationFrame(animate);
     };
     frame = requestAnimationFrame(animate);
@@ -31,7 +32,7 @@ export default function DeathScreen({ onAgain, onMenu }) {
   const t = useT();
   const stats = useGameStore(state => state.snapshot);
   const language = useGameStore(state => state.language);
-  const territory = useCountUp(stats.territory);
+  const territory = useCountUp(stats.territory, true);
   const score = useCountUp(stats.sessionScore || 0);
   const kills = useCountUp(stats.kills || 0);
   const coins = useCountUp(stats.roundCoinsEarned || 0);
@@ -44,9 +45,10 @@ export default function DeathScreen({ onAgain, onMenu }) {
   return (
     <div className="screen-overlay">
       <section className="dialog-card result-card">
-        <span className="eyebrow">ROUND OVER</span>
-        <h1>{t('deadTitle')}</h1>
-        <p>{t('deadText')}</p>
+        <span className="eyebrow">{stats.outcome === 'victory' ? (language === 'ru' ? 'РАУНД ВЫИГРАН' : 'ROUND WON') : (language === 'ru' ? 'РАУНД ЗАВЕРШЁН' : 'ROUND OVER')}</span>
+        <h1>{stats.outcome === 'victory' ? (language === 'ru' ? 'ПОБЕДА!' : 'VICTORY!') : t('deadTitle')}</h1>
+        <p>{stats.outcome === 'victory' ? (language === 'ru' ? 'Арена твоя. Награда за победу начислена.' : 'The arena is yours. Your victory reward has been added.') : t('deadText')}</p>
+        {stats.secretConquered && stats.outcome === 'victory' && <div className="new-record secret-conquest">{language === 'ru' ? 'СЕКРЕТ: КАРТА ЗАХВАЧЕНА · +500 МОНЕТ' : 'SECRET: FULL MAP CONQUERED · +500 COINS'}</div>}
         {newRecord && <div className="new-record"><Crown size={16}/>{language === 'ru' ? 'НОВЫЙ РЕКОРД' : 'NEW RECORD'}</div>}
         <div className="result-grid block8-results">
           <div><span>{t('territory')}</span><strong>{formatPercent(territory)}%</strong></div>
