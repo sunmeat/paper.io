@@ -487,7 +487,7 @@ export class Simulation {
     const score = this.player ? this.grid.territoryCount(this.player.id) : 0;
     const total = this.grid.walkableCount;
     return {
-      territory: total ? Math.round(score / total * 100) : 0,
+      territory: total ? Number((score / total * 100).toFixed(3)) : 0,
       score,
       sessionScore: this.sessionScore,
       bots: this.bots.filter(bot => bot.alive).length,
