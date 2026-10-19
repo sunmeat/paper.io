@@ -1,5 +1,5 @@
 export const BOT_DIFFICULTIES = Object.freeze({
-  easy: Object.freeze({ reactionTicks: 4, vision: 2, risk: 0.08, expedition: 5, attack: false, mistakeChance: 0.12, attackCooldownTicks: 18 }),
+  easy: Object.freeze({ reactionTicks: 4, vision: 2, risk: 0.08, expedition: 5, attack: true, mistakeChance: 0.12, attackCooldownTicks: 18 }),
   normal: Object.freeze({ reactionTicks: 3, vision: 4, risk: 0.22, expedition: 9, attack: true, mistakeChance: 0.07, attackCooldownTicks: 14 }),
   hard: Object.freeze({ reactionTicks: 2, vision: 7, risk: 0.38, expedition: 14, attack: true, mistakeChance: 0.035, attackCooldownTicks: 12 })
 });
