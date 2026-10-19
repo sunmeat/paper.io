@@ -6,7 +6,7 @@ import { getPlayerColor } from '../engine/playerPalette.js';
 import { getSkinById } from '../engine/skins.js';
 import { useGameStore } from '../store/gameStore.js';
 
-const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId = 'circle', modeId = 'classic', countryId = 'ukraine', countryLevel = 1 }, ref) {
+const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId = 'circle', modeId = 'classic', countryId = 'ukraine', countryLevel = 1, playerLevel = 1 }, ref) {
   const canvasRef = useRef(null);
   const minimapRef = useRef(null);
   const gameRef = useRef(null);
@@ -33,6 +33,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       mapId,
       modeId,
       countryLevel,
+      playerLevel,
       observer: new URLSearchParams(window.location.search).get('observer') === '1',
       onStats: stats => {
         if (roundFinished) return;
@@ -130,7 +131,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       game.destroy();
       if (gameRef.current === game) gameRef.current = null;
     };
-  }, [onStats, onGameOver, mapId, modeId, countryId, countryLevel]);
+  }, [onStats, onGameOver, mapId, modeId, countryId, countryLevel, playerLevel]);
 
   return <><canvas ref={canvasRef} className="game-canvas" aria-label="Paper.io game arena" /><canvas ref={minimapRef} className="game-minimap" aria-label="Minimap" /></>;
 });
