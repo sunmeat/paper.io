@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "sim": "node scripts/sim.js",
+    "benchmark": "node scripts/benchmark.js",
     "lint": "eslint .",
     "format:check": "prettier --check .prettierrc.json package.json eslint.config.js .github/workflows/ci.yml src/engine/playerPalette.js",
     "format": "prettier --write .",
