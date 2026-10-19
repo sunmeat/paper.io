@@ -238,12 +238,6 @@ export class Simulation {
       if (trailOwner?.alive && trailOwner.invulnerableTicks <= 0) pendingDeaths.set(trailOwnerId, plan.player);
     }
 
-    for (const [victimId, killer] of pendingDeaths) {
-      const victim = this.players.get(victimId);
-      if (victim?.alive) this.eliminatePlayer(victim, killer);
-    }
-    if (this.over) return;
-
     this.resolvingTick = true;
     for (const player of active) {
       if (!player.alive) continue;
@@ -264,6 +258,24 @@ export class Simulation {
       for (let bonus = 0; bonus < bonusMoves && player.alive; bonus++) this.movePlayer(player);
     }
     this.resolvingTick = false;
+
+    // Resolve every completed loop only after all participants have moved.
+    for (const player of active) {
+      if (!player.alive || !player.trailCells.length || this.grid.ownerAt(player.x, player.y) !== player.id) continue;
+      const captured = captureArea(this.grid, player.id, player.trailCells);
+      player.trailCells = [];
+      if (player.human) this.sessionScore += captured;
+      this.events.emit('capture', { playerId: player.id, human: player.human, captured, x: player.x, y: player.y });
+      for (const victimId of this.grid.capturedTrailOwners ?? []) {
+        if (victimId !== player.id && this.players.get(victimId)?.alive) pendingDeaths.set(victimId, player);
+      }
+    }
+
+    for (const [victimId, killer] of pendingDeaths) {
+      const victim = this.players.get(victimId);
+      if (victim?.alive) this.eliminatePlayer(victim, killer);
+    }
+    if (!this.over) this.checkTerritoryLoss();
     for (const player of this.players.values()) if (player.alive && player.invulnerableTicks > 0) player.invulnerableTicks--;
   }
 
@@ -327,6 +339,14 @@ export class Simulation {
     player.y = ny;
     player.lifetime++;
     player.edgeTicks = this.grid.isEdge(nx, ny) ? (player.edgeTicks || 0) + 1 : 0;
+
+    if (this.resolvingTick) {
+      if (this.grid.ownerAt(nx, ny) !== player.id && this.grid.trail[nextIndex] === 0) {
+        this.grid.setTrail(nx, ny, player.id);
+        player.trailCells.push(nextIndex);
+      }
+      return;
+    }
 
     if (this.grid.ownerAt(nx, ny) === player.id) {
       if (player.trailCells.length) {
