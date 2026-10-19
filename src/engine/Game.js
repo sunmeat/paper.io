@@ -353,10 +353,10 @@ export class Game {
       .map(player => ({ id: player.id, score: this.grid.territoryCount(player.id) }))
       .sort((a, b) => b.score - a.score || a.id - b.id)
       .slice(0, 5);
-    const total = this.grid?.owners.length || 0;
+    const passableCells = this.grid?.owners.length || 0;
     const score = this.grid?.territoryCount(1) || 0;
     return {
-      territory: total ? Math.round(score / total * 100) : 0,
+      territory: passableCells ? Math.round(score / passableCells * 100) : 0,
       score,
       sessionScore: this.sessionScore,
       bots: this.bots.filter(bot => bot.alive).length,
