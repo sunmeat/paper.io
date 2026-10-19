@@ -191,6 +191,7 @@ export class Game {
       }
     }
     this.draw();
+    this.measureRenderPerformance(time);
     if (time - this.lastStatsAt >= GAME_CONFIG.statsIntervalMs) this.emitStats();
     this.frame = requestAnimationFrame(next => this.loop(next));
   }
@@ -357,7 +358,7 @@ export class Game {
   }
 
   renderSkinPattern(ctx, cellSize, skin, indices = null) {
-    if (skin.pattern === 'solid' || cellSize < 5) return;
+    if (skin.pattern === 'solid' || cellSize < 5 || this.qualityLevel === 0) return;
     ctx.save();
     ctx.globalAlpha = 0.16;
     ctx.strokeStyle = skin.color;
@@ -555,8 +556,10 @@ export class Game {
     const elapsed = time - this.fpsWindowStarted;
     if (elapsed < 1000) return;
     this.measuredFps = this.fpsFrames * 1000 / elapsed;
+    const previousQuality = this.qualityLevel;
     if (this.measuredFps < 45) this.qualityLevel = Math.max(0, this.qualityLevel - 1);
     else if (this.measuredFps > 57) this.qualityLevel = Math.min(2, this.qualityLevel + 1);
+    if (previousQuality !== this.qualityLevel) this.terrainDirty = true;
     this.fpsFrames = 0;
     this.fpsWindowStarted = time;
     this.callbacks.onPerformance?.({
