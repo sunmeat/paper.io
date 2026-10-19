@@ -354,3 +354,31 @@ kbd {
 .mini-trail-glow{box-shadow:0 0 10px 3px var(--skin-color)}
 .mini-trail-comet{box-shadow:0 0 14px 5px var(--skin-color)}
 .shop-mini-arena .mini-territory,.shop-mini-arena .mini-trail,.shop-mini-arena .mini-player{pointer-events:none}
+
+
+/* Block 11: economy, rotating quests and reward calendar */
+.coin-count-pop{display:inline-block;animation:coin-count-pop .38s cubic-bezier(.2,.8,.2,1)}
+@keyframes coin-count-pop{0%{transform:translateY(4px) scale(.82);opacity:.45}65%{transform:translateY(-2px) scale(1.12);opacity:1}100%{transform:translateY(0) scale(1);opacity:1}}
+.quest-workspace{display:grid;gap:16px}
+.daily-calendar,.daily-quests{display:grid;gap:11px;padding:13px;border:1px solid #ffffff14;border-radius:14px;background:#10131c}
+.quest-section-heading{display:flex;align-items:center;justify-content:space-between;color:#ffcf70}
+.quest-section-heading>div{display:grid;gap:6px}
+.quest-section-heading strong{font-size:12px;color:#f5f6ff}
+.calendar-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.calendar-day{display:grid;justify-items:center;gap:5px;min-width:0;padding:8px 2px;border:1px solid #ffffff12;border-radius:9px;background:#ffffff04}
+.calendar-day small{font-size:8px;color:#959cb1}
+.calendar-day strong{font:10px 'DM Mono',monospace;color:#ffcf70}
+.calendar-day span{display:grid;place-items:center;color:#737b91}
+.calendar-day-complete{border-color:#9b7bff77;background:#9b7bff18}
+.calendar-day-complete span{color:#b9a8ff}
+.calendar-claim{min-height:40px;font-size:10px}
+.daily-quest-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:11px;border:1px solid #ffffff12;border-radius:11px;background:#ffffff04}
+.daily-quest-copy{display:grid;gap:5px;min-width:0}
+.daily-quest-copy strong{font-size:11px}
+.daily-quest-copy small{font-size:10px;color:#959cb1}
+.quest-reward{display:flex;align-items:center;gap:4px;color:#ffcf70;font:11px 'DM Mono',monospace}
+.quest-progress-track{grid-column:1/-1;height:5px;overflow:hidden;border-radius:999px;background:#ffffff12}
+.quest-progress-track i{display:block;height:100%;border-radius:inherit;background:#9b7bff;transition:width .45s ease}
+.daily-quest-card .skin-action{grid-column:1/-1}
+.quest-claimed{border-color:#58e6ad44}
+@media(max-width:390px){.daily-calendar,.daily-quests{padding:10px}.calendar-days{gap:3px}.calendar-day{padding:7px 1px}.calendar-day small{font-size:7px}.calendar-day strong{font-size:9px}}
