@@ -7,6 +7,7 @@ import { mulberry32 } from './random.js';
 import { resolveHeadCollision, resolveTrailCrossing } from './rules.js';
 import { BasicBot, BOT_PERSONALITY_IDS, getBotDifficulty } from './bots/index.js';
 import { GAME_CONFIG } from './config.js';
+import { evaluateRoundOutcome, GAME_MODES } from './modes.js';
 
 const DIRECTIONS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
@@ -37,8 +38,10 @@ export class EventBus {
 
 /** Deterministic, DOM-free game world. All gameplay rules live here. */
 export class Simulation {
-  constructor({ seed = GAME_CONFIG.seed, config = GAME_CONFIG, humanPlayer = true, mapId = 'circle', playerLevel = 1, winStreak = 0, lossStreak = 0 } = {}) {
-    this.config = config;
+  constructor({ seed = GAME_CONFIG.seed, config = null, humanPlayer = true, mapId = 'circle', playerLevel = 1, winStreak = 0, lossStreak = 0, modeId = 'classic' } = {}) {
+    this.modeId = GAME_MODES[modeId] ? modeId : 'classic';
+    this.mode = GAME_MODES[this.modeId];
+    this.config = { ...GAME_CONFIG, ...this.mode.config, ...(config || {}) };
     this.seed = seed >>> 0;
     this.humanPlayer = humanPlayer;
     this.mapId = mapId;
@@ -61,6 +64,10 @@ export class Simulation {
     this.paused = false;
     this.moveAccumulator = 0;
     this.tick = 0;
+    this.elapsedMs = 0;
+    this.outcome = null;
+    this.winnerId = null;
+    this.secretConquered = false;
 
     const reserved = [];
     const playerWidth = this.config.playerStartWidth;
@@ -172,6 +179,9 @@ export class Simulation {
 
   update(deltaMs) {
     if (this.paused || this.over) return;
+    this.elapsedMs += Math.max(0, deltaMs || 0);
+    this.checkRoundOutcome();
+    if (this.over) return;
     this.moveAccumulator += deltaMs;
     while (this.moveAccumulator >= this.config.moveIntervalMs) {
       this.moveAccumulator -= this.config.moveIntervalMs;
@@ -296,6 +306,35 @@ export class Simulation {
     }
     if (!this.over) this.checkTerritoryLoss();
     for (const player of this.players.values()) if (player.alive && player.invulnerableTicks > 0) player.invulnerableTicks--;
+    if (!this.over) this.checkRoundOutcome();
+  }
+
+  checkRoundOutcome() {
+    if (this.over || !this.humanPlayer) return;
+    const total = this.grid.walkableCount || 1;
+    const territoryPercent = player => this.grid.territoryCount(player.id) / total * 100;
+    const playerTerritory = this.player ? territoryPercent(this.player) : 0;
+    const topTerritory = Math.max(0, ...[...this.players.values()].filter(player => player.id !== 1).map(territoryPercent));
+    const outcome = evaluateRoundOutcome({
+      modeId: this.modeId,
+      elapsedMs: this.elapsedMs,
+      playerAlive: Boolean(this.player?.alive),
+      playerTerritory,
+      topTerritory,
+      aliveBots: this.bots.filter(bot => bot.alive).length
+    });
+    if (outcome) this.finishRound(outcome);
+  }
+
+  finishRound(outcome) {
+    if (this.over) return;
+    this.outcome = outcome;
+    this.winnerId = outcome === 'victory' ? 1 : null;
+    const total = this.grid.walkableCount || 1;
+    this.secretConquered = Boolean(this.player && this.grid.territoryCount(this.player.id) >= total);
+    this.over = true;
+    this.paused = true;
+    this.events.emit('gameOver', this.getStats());
   }
 
   randomDirection(current) {
@@ -410,6 +449,8 @@ export class Simulation {
     if (attributedKiller?.human && !player.human) this.sessionScore += 100;
 
     if (player.human) {
+      this.outcome = 'defeat';
+      this.winnerId = null;
       this.over = true;
       this.paused = true;
       this.events.emit('gameOver', this.getStats());
@@ -488,6 +529,11 @@ export class Simulation {
     const total = this.grid.walkableCount;
     return {
       territory: total ? Number((score / total * 100).toFixed(3)) : 0,
+      modeId: this.modeId,
+      elapsedMs: this.elapsedMs,
+      outcome: this.outcome,
+      winnerId: this.winnerId,
+      secretConquered: this.secretConquered,
       score,
       sessionScore: this.sessionScore,
       bots: this.bots.filter(bot => bot.alive).length,
