@@ -43,7 +43,9 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
           }))
         });
       },
-      getSkin: () => useGameStore.getState().equippedSkin
+      getSkin: () => useGameStore.getState().equippedSkin,
+      getHat: () => useGameStore.getState().equippedHat,
+      getTrail: () => useGameStore.getState().equippedTrail
     });
     const events = game.simulation.events;
     let gameOverTimer = null;
@@ -58,7 +60,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       if (minimapCanvas.width !== width || minimapCanvas.height !== height) { minimapCanvas.width = width; minimapCanvas.height = height; }
       const image = minimapCtx.createImageData(width, height);
       const rgb = hex => [parseInt(hex.slice(1, 3), 16) || 0, parseInt(hex.slice(3, 5), 16) || 0, parseInt(hex.slice(5, 7), 16) || 0];
-      const palette = new Map([...game.players.values()].map(player => [player.id, rgb(player.id === 1 ? getSkinById(useGameStore.getState().equippedSkin).color : getPlayerColor(player.id))]));
+      const palette = new Map([...game.players.values()].map(player => [player.id, rgb(player.id === 1 ? getSkinById(useGameStore.getState().equippedSkin).color : getPlayerColor(player.id, getSkinById(useGameStore.getState().equippedSkin).color))]));
       for (let i = 0; i < grid.owners.length; i++) {
         const offset = i * 4;
         if (!grid.walkable[i]) { image.data[offset + 3] = 0; continue; }
@@ -68,7 +70,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       }
       minimapCtx.putImageData(image, 0, 0);
       minimapCtx.fillStyle = '#fff';
-      for (const player of game.players.values()) if (player.alive) { minimapCtx.fillStyle = player.id === 1 ? getSkinById(useGameStore.getState().equippedSkin).color : getPlayerColor(player.id); minimapCtx.fillRect(player.x, player.y, 1, 1); }
+      for (const player of game.players.values()) if (player.alive) { minimapCtx.fillStyle = player.id === 1 ? getSkinById(useGameStore.getState().equippedSkin).color : getPlayerColor(player.id, getSkinById(useGameStore.getState().equippedSkin).color); minimapCtx.fillRect(player.x, player.y, 1, 1); }
     };
     const minimapTimer = window.setInterval(drawMinimap, 200);
     const unsubscribe = [
