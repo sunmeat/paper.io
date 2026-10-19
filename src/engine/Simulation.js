@@ -207,6 +207,11 @@ export class Simulation {
       }
     }
 
+    for (const player of active) {
+      player.prevX = player.x;
+      player.prevY = player.y;
+    }
+
     const plans = new Map();
     for (const player of active) {
       const x = player.x + player.dx, y = player.y + player.dy;

@@ -45,7 +45,7 @@ export function bindInput(canvas, game) {
     const touch = event.changedTouches[0];
     const dx = touch.clientX - lastTouch.x;
     const dy = touch.clientY - lastTouch.y;
-    const storedThreshold = Number(localStorage.getItem('paper-io-swipe-threshold'));
+    const storedThreshold = typeof localStorage === 'undefined' ? NaN : Number(localStorage.getItem('paper-io-swipe-threshold'));
     const swipeThresholdPx = Number.isFinite(storedThreshold) && storedThreshold >= 8 && storedThreshold <= 48
       ? storedThreshold
       : GAME_CONFIG.swipeThresholdPx;
