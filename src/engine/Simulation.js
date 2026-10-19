@@ -308,12 +308,12 @@ export class Simulation {
       const index = (start + offset) % this.grid.owners.length;
       const x = index % this.cellsWide;
       const y = Math.floor(index / this.cellsWide);
-      if (x < marginX || y < marginY || x >= this.cellsWide - marginX || y >= this.cellsHigh - marginY) continue;
+      if (x < marginX || y < marginY || x >= this.cellsWide - marginX || y >= this.cellsHigh - marginY || !this.grid.inside(x, y)) continue;
       let free = true;
       for (let yy = y - Math.floor(height / 2); yy < y - Math.floor(height / 2) + height && free; yy++) {
         for (let xx = x - Math.floor(width / 2); xx < x - Math.floor(width / 2) + width; xx++) {
           const cell = this.grid.index(xx, yy);
-          if (this.grid.owners[cell] || this.grid.trail[cell]) { free = false; break; }
+          if (!this.grid.inside(xx, yy) || this.grid.owners[cell] || this.grid.trail[cell]) { free = false; break; }
         }
       }
       if (free) { spawn = { x, y }; break; }
