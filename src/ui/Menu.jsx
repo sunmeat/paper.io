@@ -134,7 +134,7 @@ export default function Menu({
               </button>
             ))}
           </div>
-        </section>
+        </section>}
         {worldView === 'arena' && <div className="menu-meta">10 RIVALS <span>•</span> ONE ARENA</div>}
       </div>
     </main>
