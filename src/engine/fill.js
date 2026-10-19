@@ -46,10 +46,12 @@ export function captureArea(grid, owner, trailCells) {
   let captured = 0;
   for (let i = 0; i < owners.length; i++) {
     if (walkable[i] && !visited[i] && owners[i] !== owner) {
-      grid.setOwnerAt(i, owner);
-      if (grid.trail[i] && grid.trail[i] !== owner) capturedTrailOwners.add(grid.trail[i]);
+      if (owners[i] !== owner) {
+        grid.setOwnerAt(i, owner);
+        if (grid.trail[i] && grid.trail[i] !== owner) capturedTrailOwners.add(grid.trail[i]);
+        captured++;
+      }
       if (grid.trail[i] !== 0) { grid.trail[i] = 0; grid.version++; }
-      captured++;
     }
   }
   grid.capturedTrailOwners = capturedTrailOwners;
