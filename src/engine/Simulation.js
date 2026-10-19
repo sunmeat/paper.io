@@ -5,7 +5,7 @@ import { findTrailCollision } from './collisions.js';
 import { isReverseDirection } from './directions.js';
 import { mulberry32 } from './random.js';
 import { resolveHeadCollision, resolveTrailCrossing } from './rules.js';
-import { BasicBot } from './bots/index.js';
+import { BasicBot, BOT_PERSONALITY_IDS, getBotDifficulty } from './bots/index.js';
 import { GAME_CONFIG } from './config.js';
 
 const DIRECTIONS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
@@ -38,11 +38,13 @@ export class EventBus {
 
 /** Deterministic, DOM-free game world. All gameplay rules live here. */
 export class Simulation {
-  constructor({ seed = GAME_CONFIG.seed, config = GAME_CONFIG, humanPlayer = true, mapId = 'circle' } = {}) {
+  constructor({ seed = GAME_CONFIG.seed, config = GAME_CONFIG, humanPlayer = true, mapId = 'circle', playerLevel = 1, winStreak = 0, lossStreak = 0 } = {}) {
     this.config = config;
     this.seed = seed >>> 0;
     this.humanPlayer = humanPlayer;
     this.mapId = mapId;
+    this.playerProgress = { playerLevel, winStreak, lossStreak };
+    this.observer = !humanPlayer;
     this.events = new EventBus();
     this.reset();
   }
@@ -71,6 +73,7 @@ export class Simulation {
     }
 
     const botCount = this.config.botCount;
+    const difficulty = getBotDifficulty(this.playerProgress);
     const ringRadius = Math.min(this.cellsWide, this.cellsHigh) * 0.32;
     for (let index = 0; index < botCount; index++) {
       const angle = (Math.PI * 2 * index) / botCount;
@@ -86,10 +89,10 @@ export class Simulation {
       const bot = this.createPlayer(index + (this.humanPlayer ? 2 : 1), spawn.x, spawn.y, dx || (dy ? 0 : 1), dy, false);
       bot.homeX = spawn.x;
       bot.homeY = spawn.y;
-      bot.strategy = new BasicBot({
-        random: this.random,
-        difficulty: DIFFICULTIES[index % DIFFICULTIES.length]
-      });
+      const personality = BOT_PERSONALITY_IDS[Math.floor(this.random() * BOT_PERSONALITY_IDS.length)];
+      bot.strategy = new BasicBot({ random: this.random, difficulty, personality });
+      bot.name = bot.strategy.name;
+      bot.personality = personality;
       this.bots.push(bot);
     }
     if (this.player) this.initializeTerritory(this.player, this.config.playerStartWidth, this.config.playerStartHeight);
@@ -421,7 +424,9 @@ export class Simulation {
     const marginX = Math.ceil(width / 2) + 1;
     const marginY = Math.ceil(height / 2) + 1;
     let spawn = null;
+    const safeCandidates = [];
     const start = Math.floor(this.random() * this.grid.owners.length);
+    const minDistance = player.human ? 0 : Math.max(12, Math.floor(Math.min(this.cellsWide, this.cellsHigh) * 0.18));
 
     for (let offset = 0; offset < this.grid.owners.length; offset++) {
       const index = (start + offset) % this.grid.owners.length;
@@ -435,7 +440,17 @@ export class Simulation {
           if (!this.grid.inside(xx, yy) || this.grid.owners[cell] || this.grid.trail[cell]) { free = false; break; }
         }
       }
-      if (free) { spawn = { x, y }; break; }
+      if (free) {
+        const nearest = [...this.players.values()]
+          .filter(other => other.id !== player.id && other.alive)
+          .reduce((distance, other) => Math.min(distance, Math.hypot(other.x - x, other.y - y)), Infinity);
+        safeCandidates.push({ x, y, nearest });
+        if (nearest >= minDistance) { spawn = { x, y }; break; }
+      }
+    }
+    if (!spawn && safeCandidates.length) {
+      safeCandidates.sort((a, b) => b.nearest - a.nearest);
+      spawn = safeCandidates[0];
     }
 
     if (!spawn) {
