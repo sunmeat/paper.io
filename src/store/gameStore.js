@@ -129,7 +129,7 @@ export const useGameStore = create(persist((set, get) => ({
       roundsPlayed, coins, walletChecksum: walletChecksum(coins), totalRoundCoins, dailyQuestProgress,
       completedCountries: worldProgress.completed, selectedCountryId: worldProgress.selectedCountryId, prestige: worldProgress.prestige, experience: worldProgress.experience, level: worldProgress.level, gamesPlayed: worldProgress.gamesPlayed, totalTerritory: worldProgress.totalTerritory, bestTerritory: worldProgress.bestTerritory, countryRecords: worldProgress.countryRecords, rank: worldProgress.rank, lastExperienceGained: xpGained, selectedMap: WORLD_COUNTRIES.find(country => country.id === worldProgress.selectedCountryId)?.mapId || state.selectedMap,
       snapshot: { ...round, roundCoinsEarned, experienceGained: xpGained },
-      bestTerritory: Math.max(state.bestTerritory, territory), modeRecords, achievements
+      modeRecords, achievements
     };
   }),
   claimDailyReward: () => {
