@@ -13,7 +13,7 @@ export default function Hud({onPause,onRestart,onShop}){
   useEffect(()=>{const started=Date.now();const id=window.setInterval(()=>setElapsed(Math.floor((Date.now()-started)/1000)),250);return()=>window.clearInterval(id)},[]);
   useEffect(()=>{
     const onKill=e=>{const event=e.detail||{};setFeed(items=>[{id:Date.now()+Math.random(),text:`${event.killerName||'Игрок'} убил ${event.victimName||'соперника'}`},...items].slice(0,4));};
-    const onCapture=e=>{const amount=Math.max(0,Number(e.detail?.percent)||0);if(!amount)return;setBonus({id:Date.now(),amount});window.setTimeout(()=>setBonus(current=>current?.id===Date.now()?null:current),1600);};
+    const onCapture=e=>{const amount=Math.max(0,Number(e.detail?.percent)||0);if(!amount)return;setBonus({id:Date.now(),amount});window.setTimeout(()=>setBonus(null),1600);};
     window.addEventListener('paperio:kill',onKill);window.addEventListener('paperio:capture',onCapture);
     return()=>{window.removeEventListener('paperio:kill',onKill);window.removeEventListener('paperio:capture',onCapture)};
   },[]);
