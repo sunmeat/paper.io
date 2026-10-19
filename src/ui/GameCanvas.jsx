@@ -103,7 +103,12 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         vibrate([35, 30, 60]);
       }),
       events.on('gameOver', snapshot => {
-        const finalSnapshot = { ...snapshot, roundTimeMs: game.simulation.elapsedMs, roundCoinsEarned: earnedCoins };
+        const victoryReward = snapshot.outcome === 'victory' ? 150 : 0;
+        const secretReward = snapshot.outcome === 'victory' && snapshot.secretConquered ? 500 : 0;
+        const roundReward = victoryReward + secretReward;
+        if (roundReward) { earnedCoins += roundReward; useGameStore.getState().addCoins(roundReward); }
+        if (secretReward) window.dispatchEvent(new CustomEvent('paperio:fullmap'));
+        const finalSnapshot = { ...snapshot, roundTimeMs: game.simulation.elapsedMs, roundCoinsEarned: earnedCoins, victoryReward, secretReward };
         gameOverTimer = window.setTimeout(() => onGameOver?.(finalSnapshot), 900);
       })
     ];
