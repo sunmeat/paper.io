@@ -1,5 +1,6 @@
 import { Coins, Gift, Settings2, ShoppingBag, Zap } from 'lucide-react';
 import { MAPS, getMapPreview } from '../engine/maps.js';
+import { GAME_MODES } from '../engine/modes.js';
 import { useGameStore } from '../store/gameStore.js';
 import { useT } from '../i18n.js';
 
@@ -16,6 +17,9 @@ export default function Menu({
   const language = useGameStore(state => state.language);
   const selectedMap = useGameStore(state => state.selectedMap);
   const setSelectedMap = useGameStore(state => state.setSelectedMap);
+  const selectedMode = useGameStore(state => state.selectedMode);
+  const setSelectedMode = useGameStore(state => state.setSelectedMode);
+  const modeRecords = useGameStore(state => state.modeRecords);
 
   return (
     <main className="screen-shell menu-screen">
@@ -35,6 +39,18 @@ export default function Menu({
         <button className="secondary-button" onClick={onShop}><ShoppingBag size={17} />{t('shop')}</button>
         <button className="secondary-button" onClick={toggle}><Settings2 size={17} />{t('settings')}</button>
 
+        <section className="mode-picker" aria-label={language === 'ru' ? 'Режим игры' : 'Game mode'} style={{ width: '100%', maxWidth: 380, margin: '10px auto', textAlign: 'left' }}>
+          <span className="eyebrow">{language === 'ru' ? 'РЕЖИМ ИГРЫ' : 'GAME MODE'}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 8 }}>
+            {Object.values(GAME_MODES).map(mode => (
+              <button key={mode.id} type="button" aria-pressed={selectedMode === mode.id} onClick={() => setSelectedMode(mode.id)} style={{ padding: 12, borderRadius: 12, textAlign: 'left', border: selectedMode === mode.id ? '1px solid #9b7bff' : '1px solid #34394a', background: selectedMode === mode.id ? '#25243b' : '#151823', color: '#f5f5fb' }}>
+                <strong style={{ display: 'block', fontSize: 12 }}>{mode.title[language] || mode.title.en}</strong>
+                <span style={{ display: 'block', marginTop: 6, color: '#a4abc0', fontSize: 10, lineHeight: 1.45 }}>{mode.description[language] || mode.description.en}</span>
+                <span style={{ display: 'block', marginTop: 8, color: '#b9a8ff', font: '10px "DM Mono", monospace' }}>{language === 'ru' ? 'Рекорд' : 'Record'}: {(Number(modeRecords?.[mode.id]) || 0).toFixed(3)}%</span>
+              </button>
+            ))}
+          </div>
+        </section>
         <section className="map-picker" aria-label={language === 'ru' ? 'Выбор карты' : 'Choose a map'} style={{ width: '100%', maxWidth: 380, margin: '10px auto', textAlign: 'left' }}>
           <span className="eyebrow">{language === 'ru' ? 'ФОРМА АРЕНЫ' : 'ARENA SHAPE'}</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6, marginTop: 8 }}>
