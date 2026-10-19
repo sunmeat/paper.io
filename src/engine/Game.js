@@ -46,6 +46,7 @@ export class Game {
 
     this.unsubscribeEvents = [
       this.simulation.events.on('capture', event => {
+        if (event.human) this.recordBotProgressAfterCapture(event.captured);
         this.effects.push({ type: 'capture', x: event.x, y: event.y, started: performance.now(), duration: 420 });
       }),
       this.simulation.events.on('death', event => {
@@ -68,6 +69,16 @@ export class Game {
     this.resize();
     this.emitStats();
     this.frame = requestAnimationFrame(time => this.loop(time));
+  }
+
+  recordBotProgressAfterCapture(captured) {
+    try {
+      const total = Math.max(0, Number(localStorage.getItem('paper-io-total-captured')) || 0) + Math.max(0, captured || 0);
+      localStorage.setItem('paper-io-total-captured', String(total));
+      localStorage.setItem('paper-io-player-level', String(Math.max(1, 1 + Math.floor(total / 100))));
+    } catch {
+      // Storage can be unavailable in private browsing contexts.
+    }
   }
 
   recordBotProgressAfterLoss() {
