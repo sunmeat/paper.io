@@ -1,6 +1,6 @@
 import { captureArea } from './fill.js';
 import { Grid } from './Grid.js';
-import { createMapMask } from './engine-maps-placeholder.js';
+import { createMapMask } from './maps.js';
 import { findTrailCollision } from './collisions.js';
 import { isReverseDirection } from './directions.js';
 import { mulberry32 } from './random.js';
