@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Check, Coins, Lock, ShoppingBag, X, Trophy, Sparkles, Crown, Footprints, Eye } from 'lucide-react';
 import { useGameStore } from '../store/gameStore.js';
-import { HATS, RARITY, SKINS, TRAIL_EFFECTS, getSkinById } from '../engine/skins.js';
+import { HATS, RARITY, SKINS, TRAIL_EFFECTS, getSkinById } from '../engine/skins.js';\nimport { ACHIEVEMENTS } from '../engine/achievements.js';\nimport { getDailyQuests } from '../store/gameStore.js';
 import { useT } from '../i18n.js';
 
 const ACH = [
@@ -35,7 +35,7 @@ export default function Shop({ onClose }) {
   const equippedHat = useGameStore(state => state.equippedHat);
   const ownedTrails = useGameStore(state => state.ownedTrails);
   const equippedTrail = useGameStore(state => state.equippedTrail);
-  const achievements = useGameStore(state => state.achievements);
+  const achievements = useGameStore(state => state.achievements);\n  const dailyStreak = useGameStore(state => state.dailyStreak);\n  const lastDailyClaimDate = useGameStore(state => state.lastDailyClaimDate);\n  const dailyQuestProgress = useGameStore(state => state.dailyQuestProgress);\n  const dailyQuestClaims = useGameStore(state => state.dailyQuestClaims);\n  const claimDailyQuest = useGameStore(state => state.claimDailyQuest);\n  const claimDailyReward = useGameStore(state => state.claimDailyReward);
   const buy = useGameStore(state => state.buySkin);
   const claimSkinReward = useGameStore(state => state.claimSkinReward);
   const equip = useGameStore(state => state.equipSkin);
@@ -46,7 +46,7 @@ export default function Shop({ onClose }) {
   const [previewId, setPreviewId] = useState(equipped);
   const [previewHatId, setPreviewHatId] = useState(equippedHat);
   const [previewTrailId, setPreviewTrailId] = useState(equippedTrail);
-  const progress = useMemo(readProgress, []);
+  const progress = useMemo(readProgress, []);\n  const todayKey = new Date().toLocaleDateString('en-CA');\n  const todaysQuests = getDailyQuests();\n  const questProgress = dailyQuestProgress?.[todayKey] || {};\n  const claimedQuests = dailyQuestClaims?.[todayKey] || [];\n  const calendarClaimed = lastDailyClaimDate === todayKey;
   const previewSkin = getSkinById(previewId);
   const rarityName = rarity => RARITY[rarity]?.[language] || RARITY.common[language];
   const unlockLabel = skin => {
