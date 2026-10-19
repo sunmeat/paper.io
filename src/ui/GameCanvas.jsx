@@ -39,12 +39,15 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
     });
     const events = game.simulation.events;
     let gameOverTimer = null;
+    let earnedCoins = 0;
     const unsubscribe = [
       events.on('capture', event => {
         if (!event.human) return;
         playCapture();
         vibrate(18);
-        useGameStore.getState().addCoins(Math.max(1, event.captured));
+        const reward = Math.max(1, event.captured);
+        earnedCoins += reward;
+        useGameStore.getState().addCoins(reward);
         useGameStore.getState().awardAchievement('first-capture');
         const total = Math.max(1, game.grid.walkableCount || game.grid.owners.length);
         window.dispatchEvent(new CustomEvent('paperio:capture', {
@@ -62,7 +65,10 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
             victimId: event.victimId
           }
         }));
-        if (event.victimId !== 1 && event.killerHuman) useGameStore.getState().addCoins(25);
+        if (event.victimId !== 1 && event.killerHuman) {
+          earnedCoins += 25;
+          useGameStore.getState().addCoins(25);
+        }
       }),
       events.on('death', event => {
         if (!event.human) return;
@@ -70,7 +76,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         vibrate([35, 30, 60]);
       }),
       events.on('gameOver', snapshot => {
-        const finalSnapshot = { ...snapshot, roundTimeMs: Math.max(0, performance.now() - game.startedAt) };
+        const finalSnapshot = { ...snapshot, roundTimeMs: Math.max(0, performance.now() - game.startedAt), roundCoinsEarned: earnedCoins };
         gameOverTimer = window.setTimeout(() => onGameOver?.(finalSnapshot), 900);
       })
     ];
