@@ -50,6 +50,7 @@ export class Game {
         this.effects.push({ type: 'capture', x: event.x, y: event.y, started: performance.now(), duration: 420 });
       }),
       this.simulation.events.on('death', event => {
+        if (event.human) this.recordBotProgressAfterLoss();
         this.effects.push({
           type: 'death', x: this.players.get(event.playerId)?.x ?? 0, y: this.players.get(event.playerId)?.y ?? 0,
           started: performance.now(), duration: 480,
@@ -68,6 +69,18 @@ export class Game {
     this.resize();
     this.emitStats();
     this.frame = requestAnimationFrame(time => this.loop(time));
+  }
+
+  recordBotProgressAfterLoss() {
+    try {
+      const winStreak = Math.max(0, Number(localStorage.getItem('paper-io-win-streak')) || 0);
+      const lossStreak = Math.max(0, Number(localStorage.getItem('paper-io-loss-streak')) || 0);
+      localStorage.setItem('paper-io-win-streak', '0');
+      localStorage.setItem('paper-io-loss-streak', String(lossStreak + 1));
+      if (!Number.isFinite(winStreak)) localStorage.setItem('paper-io-win-streak', '0');
+    } catch {
+      // Storage can be unavailable in private browsing contexts.
+    }
   }
 
   readBotProgress() {
