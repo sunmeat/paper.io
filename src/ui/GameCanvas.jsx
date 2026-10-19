@@ -130,7 +130,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       game.destroy();
       if (gameRef.current === game) gameRef.current = null;
     };
-  }, [onStats, onGameOver, mapId, modeId]);
+  }, [onStats, onGameOver, mapId, modeId, countryId, countryLevel]);
 
   return <><canvas ref={canvasRef} className="game-canvas" aria-label="Paper.io game arena" /><canvas ref={minimapRef} className="game-minimap" aria-label="Minimap" /></>;
 });
