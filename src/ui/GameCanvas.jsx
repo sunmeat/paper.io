@@ -26,6 +26,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
 
     const game = new Game(canvas, {
       mapId,
+      observer: new URLSearchParams(window.location.search).get('observer') === '1',
       onStats,
       getSkin: () => useGameStore.getState().equippedSkin
     });
