@@ -231,6 +231,7 @@ export const useGameStore = create(persist((set, get) => ({
       selectedMode: saved.selectedMode === 'sprint' ? 'sprint' : 'classic',
       completedCountries: Array.isArray(saved.completedCountries) ? [...new Set(saved.completedCountries.filter(id => WORLD_COUNTRIES.some(country => country.id === id)))] : [...DEFAULT_WORLD_PROGRESS.completed],
       selectedCountryId: WORLD_COUNTRIES.some(country => country.id === saved.selectedCountryId) ? saved.selectedCountryId : 'ukraine',
+      selectedMap: WORLD_COUNTRIES.find(country => country.id === (WORLD_COUNTRIES.some(item => item.id === saved.selectedCountryId) ? saved.selectedCountryId : 'ukraine'))?.mapId || 'circle',
       prestige: Math.max(0, Math.floor(Number(saved.prestige) || 0)), experience: Math.max(0, Math.floor(Number(saved.experience) || 0)), level: Math.max(1, Math.floor(Number(saved.level) || 1)),
       gamesPlayed: Math.max(0, Math.floor(Number(saved.gamesPlayed) || 0)), totalTerritory: Math.max(0, Number(saved.totalTerritory) || 0), bestTerritory: Math.max(0, Number(saved.bestTerritory) || 0),
       countryRecords: saved.countryRecords && typeof saved.countryRecords === 'object' ? saved.countryRecords : {}, rank: saved.rank || 'recruit', lastExperienceGained: Math.max(0, Number(saved.lastExperienceGained) || 0)
