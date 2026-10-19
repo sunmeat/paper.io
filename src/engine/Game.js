@@ -304,7 +304,7 @@ export class Game {
       layer.clearRect(0, 0, width, height);
       const all = this.grid.owners.keys();
       this.paintOwnerCells(layer, cellSize, skin, all);
-      const cells = this.grid.owners.keys();
+      const cells = Array.from(this.grid.owners.keys());
       this.renderSkinPattern(layer, cellSize, skin, cells);
       this.renderTerritoryEdges(layer, cellSize, cells);
       this.terrainDirty = false;
