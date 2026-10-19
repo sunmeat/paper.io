@@ -1,63 +1,70 @@
-import { captureArea } from './fill.js';
 import { bindInput } from './input.js';
-import { Grid } from './Grid.js';
-import { isReverseDirection } from './directions.js';
-import { findTrailCollision } from './collisions.js';
 import { GAME_CONFIG } from './config.js';
-import { mulberry32 } from './random.js';
-import { resolveHeadCollision, resolveTrailCrossing } from './rules.js';
-import { BasicBot } from './bots/index.js';
 import { getSkinById } from './skins.js';
+import { getPlayerColor } from './playerPalette.js';
+import { Simulation } from './Simulation.js';
 
-const COLORS = {
-  1: '#9b7bff', 2: '#ff6685', 3: '#ffbd59',
-  4: '#42d9c0', 5: '#65a8ff', 6: '#f58bdf'
-};
-const DIRECTIONS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-
-/** Canvas game engine with fixed-step simulation and incremental territory scores. */
+/** Browser adapter: animation loop, input, camera and canvas rendering only. */
 export class Game {
-  /**
-   * @param {HTMLCanvasElement} canvas Rendering and touch-input surface.
-   * @param {{onStats?:(snapshot:object)=>void,onGameOver?:(snapshot:object)=>void,onBotDown?:(id:number)=>void,seed?:number}} callbacks HUD callbacks and optional deterministic seed.
-   */
   constructor(canvas, callbacks = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.callbacks = callbacks;
-    this.seed = callbacks.seed ?? GAME_CONFIG.seed;
-    this.random = mulberry32(this.seed);
+    this.simulation = new Simulation({ seed: callbacks.seed ?? GAME_CONFIG.seed });
     this.running = true;
-    this.paused = false;
-    this.over = false;
     this.frame = 0;
     this.lastTime = 0;
     this.accumulator = 0;
-    this.moveAccumulator = 0;
     this.lastStatsAt = 0;
     this.dpr = 1;
-    this.cellsWide = GAME_CONFIG.worldWidth;
-    this.cellsHigh = GAME_CONFIG.worldHeight;
-    this.sessionScore = 0;
-    this.camera = { x: 0, y: 0, zoom: 1 };
+    this.camera = { x: this.player?.x ?? 0, y: this.player?.y ?? 0, zoom: 1 };
     this.effects = [];
     this.terrainCanvas = document.createElement('canvas');
     this.terrainCtx = this.terrainCanvas.getContext('2d');
     this.terrainDirty = true;
-    this.grid = null;
-    this.player = null;
-    this.bots = [];
+    this.cachedSkinId = null;
+
+    this.unsubscribeEvents = [
+      this.simulation.events.on('capture', event => {
+        this.effects.push({ type: 'capture', x: event.x, y: event.y, started: performance.now(), duration: 420 });
+        this.callbacks.onCapture?.(event.captured);
+      }),
+      this.simulation.events.on('death', event => {
+        this.effects.push({
+          type: 'death', x: this.players.get(event.playerId)?.x ?? 0, y: this.players.get(event.playerId)?.y ?? 0,
+          started: performance.now(), duration: 480,
+          particles: Array.from({ length: 18 }, (_, i) => ({
+            angle: Math.PI * 2 * i / 18, speed: 0.6 + (i % 5) * 0.32
+          }))
+        });
+        this.callbacks.onDeath?.(event.playerId, event.human);
+      }),
+      this.simulation.events.on('kill', event => {
+        if (event.victimId !== 1) this.callbacks.onBotDown?.(event.victimId, event.killerHuman);
+      }),
+      this.simulation.events.on('gameOver', snapshot => this.callbacks.onGameOver?.(snapshot))
+    ];
+
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(canvas);
     this.unbindInput = bindInput(canvas, this);
     this.onVisibility = () => { this.lastTime = 0; };
     document.addEventListener('visibilitychange', this.onVisibility);
     this.resize();
-    this.reset();
+    this.emitStats();
     this.frame = requestAnimationFrame(time => this.loop(time));
   }
 
-  /** Resizes the drawing buffer without changing the fixed world or game state. */
+  get grid() { return this.simulation.grid; }
+  get players() { return this.simulation.players; }
+  get player() { return this.simulation.player; }
+  get bots() { return this.simulation.bots; }
+  get cellsWide() { return this.simulation.cellsWide; }
+  get cellsHigh() { return this.simulation.cellsHigh; }
+  get sessionScore() { return this.simulation.sessionScore; }
+  get over() { return this.simulation.over; }
+  get paused() { return this.simulation.paused; }
+
   resize() {
     if (!this.running) return;
     const rect = this.canvas.getBoundingClientRect();
@@ -70,90 +77,28 @@ export class Game {
     this.draw();
   }
 
-  /** Starts a fresh round and resets session points. */
-  reset() {
-    if (!this.cellsWide || !this.cellsHigh) return;
-    this.random = mulberry32(this.seed);
-    this.effects = [];
-    this.camera = { x: 0, y: 0, zoom: 1 };
-    this.grid = new Grid(GAME_CONFIG.worldWidth, GAME_CONFIG.worldHeight);
-    this.terrainDirty = true;
-    this.sessionScore = 0;
-    const safeX = Math.round(this.cellsWide * 0.18);
-    const safeY = Math.floor(this.cellsHigh / 2);
-    this.player = this.createPlayer(1, safeX, safeY, 1, 0, true);
-    const ringRadius = Math.min(this.cellsWide, this.cellsHigh) * 0.38;
-    const spawns = Array.from({ length: GAME_CONFIG.botCount }, (_, index) => {
-      const angle = (Math.PI * 2 * index) / GAME_CONFIG.botCount;
-      const x = Math.round(this.cellsWide / 2 + Math.cos(angle) * ringRadius);
-      const y = Math.round(this.cellsHigh / 2 + Math.sin(angle) * ringRadius);
-      const horizontal = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle));
-      const dx = horizontal ? -Math.sign(Math.cos(angle)) : 0;
-      const dy = horizontal ? 0 : -Math.sign(Math.sin(angle));
-      return [x, y, dx || (dy ? 0 : 1), dy];
-    });
-    this.bots = spawns.map((spawn, index) => {
-      const bot = this.createPlayer(index + 2, spawn[0], spawn[1], spawn[2], spawn[3]);
-      bot.homeX = bot.x;
-      bot.homeY = bot.y;
-      bot.strategy = new BasicBot({
-        random: this.random,
-        difficulty: ['easy', 'normal', 'hard'][index % 3]
-      });
-      return bot;
-    });
-    this.over = false;
-    this.paused = false;
-    this.accumulator = 0;
-    this.moveAccumulator = 0;
-    this.lastTime = 0;
-    this.camera = { x: this.player.x, y: this.player.y, zoom: 1 };
-    this.initializeTerritory(this.player, GAME_CONFIG.playerStartWidth, GAME_CONFIG.playerStartHeight);
-    for (const bot of this.bots) this.initializeTerritory(bot, GAME_CONFIG.botStartWidth, GAME_CONFIG.botStartHeight);
-    this.emitStats();
-  }
-
-  /** @returns {object} Mutable simulation state for one player. */
-  createPlayer(id, x, y, dx, dy, human = false) {
-    return {
-      id, x, y, dx, dy, next: null, trailCells: [], alive: true,
-      human, turnTimer: 0, respawnTimer: 0
-    };
-  }
-
-  /** Paints a player's initial rectangle without stealing existing cells. */
-  initializeTerritory(player, width, height) {
-    const left = player.x - Math.floor(width / 2);
-    const top = player.y - Math.floor(height / 2);
-    for (let y = top; y < top + height; y++) {
-      for (let x = left; x < left + width; x++) {
-        if (this.grid.inside(x, y) && !this.grid.ownerAt(x, y)) {
-          this.grid.setOwner(x, y, player.id);
-        }
-      }
-    }
-  }
-
-  /** Queues one legal turn for the next movement step. */
   queueDirection(dx, dy) {
-    if (!this.running || this.paused || this.over || !this.player?.alive) return;
-    const current = this.player;
-    if (isReverseDirection([current.dx, current.dy], [dx, dy])) return;
-    if (current.next && isReverseDirection(current.next, [dx, dy])) return;
-    current.next = [dx, dy];
+    this.simulation.queueDirection(dx, dy);
   }
 
-  /** Pauses or resumes simulation without stopping rendering. */
   setPaused(paused) {
-    this.paused = Boolean(paused);
+    this.simulation.setPaused(paused);
     this.lastTime = 0;
     this.emitStats();
   }
 
-  /** Restarts the round and clears session points. */
-  restart() { this.reset(); }
+  restart() {
+    this.simulation.reset();
+    this.effects = [];
+    this.camera = { x: this.player?.x ?? 0, y: this.player?.y ?? 0, zoom: 1 };
+    this.terrainDirty = true;
+    this.accumulator = 0;
+    this.lastTime = 0;
+    this.emitStats();
+  }
 
-  /** Accumulator loop: fixed updates and render on every animation frame. */
+  reset() { this.restart(); }
+
   loop(time) {
     if (!this.running) return;
     if (!this.lastTime) this.lastTime = time;
@@ -162,7 +107,7 @@ export class Game {
     if (!this.paused && !this.over) {
       this.accumulator += delta;
       while (this.accumulator >= GAME_CONFIG.fixedStepMs) {
-        this.update(GAME_CONFIG.fixedStepMs);
+        this.simulation.update(GAME_CONFIG.fixedStepMs);
         this.accumulator -= GAME_CONFIG.fixedStepMs;
         if (this.over) break;
       }
@@ -172,225 +117,32 @@ export class Game {
     this.frame = requestAnimationFrame(next => this.loop(next));
   }
 
-  /** Advances simulation by a fixed duration. */
-  update(deltaMs) {
-    this.moveAccumulator += deltaMs;
-    while (this.moveAccumulator >= GAME_CONFIG.moveIntervalMs) {
-      this.moveAccumulator -= GAME_CONFIG.moveIntervalMs;
-      this.step();
-      if (this.over) break;
-    }
-  }
+  update(deltaMs) { this.simulation.update(deltaMs); }
+  step() { this.simulation.step(); }
+  getStats() { return this.simulation.getStats(); }
 
-  /** Advances respawn timers, then processes each active player. */
-  step() {
-    for (const player of [this.player, ...this.bots]) {
-      if (player.alive) continue;
-      player.respawnTimer--;
-      if (player.respawnTimer <= 0) this.respawnPlayer(player);
-    }
-    this.movePlayer(this.player);
-    if (this.over) return;
-    for (const bot of this.bots) {
-      if (!bot.alive) continue;
-      bot.turnTimer--;
-      if (bot.turnTimer <= 0) {
-        bot.next = bot.strategy.nextDirection(bot, this);
-        bot.turnTimer = bot.strategy.params.reactionTicks;
-      }
-      this.movePlayer(bot);
-    }
-  }
-
-  /** Chooses a seeded direction other than a direct reversal. */
-  randomDirection(current) {
-    const options = DIRECTIONS.filter(([x, y]) => !(x === -current.dx && y === -current.dy));
-    return options[Math.floor(this.random() * options.length)];
-  }
-
-  /** Resolves movement, trail crossings, head collisions, capture and territory loss. */
-  movePlayer(player) {
-    if (!player.alive) return;
-    if (player.next) {
-      const [dx, dy] = player.next;
-      if (!isReverseDirection([player.dx, player.dy], [dx, dy])) {
-        player.dx = dx;
-        player.dy = dy;
-      }
-      player.next = null;
-    }
-    const nx = player.x + player.dx;
-    const ny = player.y + player.dy;
-    if (!this.grid.inside(nx, ny)) {
-      if (player.human) this.eliminatePlayer(player);
-      else {
-        player.dx *= -1;
-        player.dy *= -1;
-        player.next = null;
-      }
-      return;
-    }
-
-    const nextIndex = this.grid.index(nx, ny);
-    if (this.grid.trail[nextIndex] === player.id) {
-      this.eliminatePlayer(player);
-      return;
-    }
-
-    const rivalHead = [this.player, ...this.bots].find(candidate =>
-      candidate.id !== player.id && candidate.alive && candidate.x === nx && candidate.y === ny
-    );
-    if (rivalHead) {
-      const losers = resolveHeadCollision(player, rivalHead);
-      for (const loserId of losers) {
-        const loser = [this.player, ...this.bots].find(candidate => candidate.id === loserId);
-        if (loser?.alive) this.eliminatePlayer(loser, losers.length === 1 ? (loser.id === player.id ? rivalHead : player) : null);
-      }
-      if (!player.alive) return;
-    }
-
-    const trailOwnerId = this.grid.trail[nextIndex];
-    if (trailOwnerId && trailOwnerId !== player.id) {
-      const trailOwner = [this.player, ...this.bots].find(candidate => candidate.id === trailOwnerId);
-      if (trailOwner?.alive) {
-        const loserId = resolveTrailCrossing(player.id, trailOwnerId);
-        const loser = [this.player, ...this.bots].find(candidate => candidate.id === loserId);
-        if (loser) this.eliminatePlayer(loser, player);
-      }
-      if (!player.alive) return;
-    }
-
-    player.x = nx;
-    player.y = ny;
-    if (this.grid.ownerAt(nx, ny) === player.id) {
-      if (player.trailCells.length) {
-        this.terrainDirty = true;
-        const captured = captureArea(this.grid, player.id, player.trailCells);
-        player.trailCells = [];
-        if (player.human) this.sessionScore += captured;
-        this.effects.push({type:'capture',x:player.x,y:player.y,started:performance.now(),duration:420});
-        if(player.human)this.callbacks.onCapture?.(captured);
-        this.checkTerritoryLoss();
-      }
-    } else {
-      this.terrainDirty = true;
-      this.grid.trail[nextIndex] = player.id;
-      player.trailCells.push(nextIndex);
-    }
-  }
-
-  /** Eliminates a player, removes their territory, and schedules a respawn. */
-  eliminatePlayer(player, killer = null) {
-    if (!player.alive) return;
-    player.alive = false;
-    this.terrainDirty = true;
-    player.respawnTimer = player.human ? 0 : GAME_CONFIG.respawnSteps;
-    this.effects.push({type:'death',x:player.x,y:player.y,started:performance.now(),duration:480,particles:Array.from({length:18},(_,i)=>({angle:Math.PI*2*i/18,speed:.6+(i%5)*.32}))});
-    this.callbacks.onDeath?.(player.id,player.human);
-    this.grid.clearTerritory(player.id);
-    for (const index of player.trailCells) this.grid.trail[index] = 0;
-    player.trailCells = [];
-    player.next = null;
-    if (killer?.human && !player.human) this.sessionScore += 100;
-    if (!player.human) this.callbacks.onBotDown?.(player.id, Boolean(killer?.human));
-    if (player.human) {
-      this.over = true;
-      this.paused = true;
-      const snapshot = this.getStats();
-      this.callbacks.onGameOver?.(snapshot);
-    }
-    this.emitStats();
-  }
-
-  /** Checks the invariant that every live player owns at least one cell. */
-  checkTerritoryLoss() {
-    for (const player of [this.player, ...this.bots]) {
-      if (player.alive && this.grid.territoryCount(player.id) === 0) {
-        this.eliminatePlayer(player);
-      }
-    }
-  }
-
-  /** Respawns at the first free rectangle and grants a small safe territory. */
-  respawnPlayer(player) {
-    const width = player.human ? GAME_CONFIG.playerStartWidth : GAME_CONFIG.botStartWidth;
-    const height = player.human ? GAME_CONFIG.playerStartHeight : GAME_CONFIG.botStartHeight;
-    const marginX = Math.ceil(width / 2) + 1;
-    const marginY = Math.ceil(height / 2) + 1;
-    let spawn = null;
-    const start = Math.floor(this.random() * this.grid.owners.length);
-    for (let offset = 0; offset < this.grid.owners.length; offset++) {
-      const index = (start + offset) % this.grid.owners.length;
-      const x = index % this.cellsWide;
-      const y = Math.floor(index / this.cellsWide);
-      if (x < marginX || y < marginY || x >= this.cellsWide - marginX || y >= this.cellsHigh - marginY) continue;
-      let free = true;
-      for (let yy = y - Math.floor(height / 2); yy < y - Math.floor(height / 2) + height && free; yy++) {
-        for (let xx = x - Math.floor(width / 2); xx < x - Math.floor(width / 2) + width; xx++) {
-          const cell = this.grid.index(xx, yy);
-          if (this.grid.owners[cell] || this.grid.trail[cell]) { free = false; break; }
-        }
-      }
-      if (free) { spawn = { x, y }; break; }
-    }
-    if (!spawn) {
-      player.respawnTimer = 1;
-      return;
-    }
-    const [dx, dy] = this.randomDirection({ dx: player.dx, dy: player.dy });
-    Object.assign(player, {
-      x: spawn.x, y: spawn.y, dx, dy, next: null, trailCells: [],
-      alive: true, respawnTimer: 0, turnTimer: 0
-    });
-    this.initializeTerritory(player, width, height);
-    this.terrainDirty = true;
-  }
-
-  /** Builds a HUD snapshot from incremental counters without scanning the map. */
-  getStats() {
-    const players = [this.player, ...this.bots];
-    const top5 = players
-      .map(player => ({ id: player.id, score: this.grid.territoryCount(player.id) }))
-      .sort((a, b) => b.score - a.score || a.id - b.id)
-      .slice(0, 5);
-    const passableCells = this.grid?.owners.length || 0;
-    const score = this.grid?.territoryCount(1) || 0;
-    return {
-      territory: passableCells ? Math.round(score / passableCells * 100) : 0,
-      score,
-      sessionScore: this.sessionScore,
-      bots: this.bots.filter(bot => bot.alive).length,
-      respawning: !this.player?.alive,
-      over: this.over,
-      paused: this.paused,
-      top5
-    };
-  }
-
-  /** Publishes a compact snapshot at the configured HUD cadence. */
   emitStats() {
     this.lastStatsAt = performance.now();
     this.callbacks.onStats?.(this.getStats());
   }
 
-  /** Draws a viewport into the fixed world with a camera clamped to world bounds. */
   draw() {
     if (!this.ctx || !this.grid) return;
     const { width, height } = this.canvas.getBoundingClientRect();
     if (!width || !height) return;
-    const ctx = this.ctx;
+
     const cellSize = Math.min(width, height) / 27;
-    const cellW = cellSize;
-    const cellH = cellSize;
     const targetX = this.player?.alive ? this.player.x : this.cellsWide / 2;
     const targetY = this.player?.alive ? this.player.y : this.cellsHigh / 2;
     const territory = this.grid.territoryCount(1) / Math.max(1, this.grid.owners.length);
     const viewportRatio = Math.min(width, height) / Math.max(width, height);
     const viewportZoom = Math.max(0.9, Math.min(1.08, 0.9 + viewportRatio * 0.18));
     const targetZoom = Math.max(0.9, Math.min(1.08, viewportZoom * (1 - territory * 0.18)));
+
     this.camera.x += (targetX - this.camera.x) * 0.16;
     this.camera.y += (targetY - this.camera.y) * 0.16;
     this.camera.zoom += (targetZoom - this.camera.zoom) * 0.045;
+
     const visibleWidth = width / (cellSize * this.camera.zoom);
     const visibleHeight = height / (cellSize * this.camera.zoom);
     this.camera.x = visibleWidth >= this.cellsWide
@@ -399,65 +151,166 @@ export class Game {
     this.camera.y = visibleHeight >= this.cellsHigh
       ? this.cellsHigh / 2
       : Math.max(visibleHeight / 2, Math.min(this.cellsHigh - visibleHeight / 2, this.camera.y));
-    ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
-    ctx.fillStyle='#10131c';ctx.fillRect(0,0,width,height);
+
+    const ctx = this.ctx;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.fillStyle = '#10131c';
+    ctx.fillRect(0, 0, width, height);
     ctx.save();
-    ctx.translate(width / 2 - this.camera.x * cellSize * this.camera.zoom, height / 2 - this.camera.y * cellSize * this.camera.zoom);
+    ctx.translate(
+      width / 2 - this.camera.x * cellSize * this.camera.zoom,
+      height / 2 - this.camera.y * cellSize * this.camera.zoom
+    );
     ctx.scale(this.camera.zoom, this.camera.zoom);
-    const skinId=this.callbacks.getSkin?.()||'classic';
-    const skin=getSkinById(skinId);
-    if(this.cachedSkinId!==skinId){this.cachedSkinId=skinId;this.terrainDirty=true;}
-    if(this.terrainCanvas.width!==Math.ceil(this.cellsWide*cellSize)||this.terrainCanvas.height!==Math.ceil(this.cellsHigh*cellSize)){
-      this.terrainCanvas.width=Math.ceil(this.cellsWide*cellSize);
-      this.terrainCanvas.height=Math.ceil(this.cellsHigh*cellSize);
-      this.terrainDirty=true;
+
+    const skinId = this.callbacks.getSkin?.() || 'classic';
+    const skin = getSkinById(skinId);
+    if (this.cachedSkinId !== skinId) {
+      this.cachedSkinId = skinId;
+      this.terrainDirty = true;
     }
-    if(this.terrainDirty){
-      const layer=this.terrainCtx;
-      layer.clearRect(0,0,this.terrainCanvas.width,this.terrainCanvas.height);
-      const palette=['#9b7bff','#ff6685','#ffbd59','#42d9c0','#65a8ff','#f58bdf','#a6e36f','#ff8d5e','#7de0ff','#e4dc6a','#c4a1ff'];
-      for(let y=0;y<this.cellsHigh;y++)for(let x=0;x<this.cellsWide;x++){
-        const index=this.grid.index(x,y),owner=this.grid.owners[index],trail=this.grid.trail[index];
-        if(!owner&&!trail)continue;
-        const id=trail||owner,px=x*cellW,py=y*cellH;
-        layer.fillStyle=id===1?skin.color:(COLORS[id]||palette[(id-1)%palette.length]);layer.globalAlpha=trail?.98:.72;
-        if(id===1&&trail&&skin.trailShape==='circle'){layer.beginPath();layer.arc(px+cellW/2,py+cellH/2,cellW*.43,0,Math.PI*2);layer.fill();}
-        else if(id===1&&trail&&skin.trailShape==='diamond'){layer.beginPath();layer.moveTo(px+cellW/2,py+1);layer.lineTo(px+cellW-1,py+cellH/2);layer.lineTo(px+cellW/2,py+cellH-1);layer.lineTo(px+1,py+cellH/2);layer.closePath();layer.fill();}
-        else layer.fillRect(px+.6,py+.6,Math.max(1,cellW-1.2),Math.max(1,cellH-1.2));
-        if(id===1&&skin.pattern!=='solid'){layer.globalAlpha=.35;layer.strokeStyle='#fff';layer.lineWidth=1;if(skin.pattern==='dots'){layer.beginPath();layer.arc(px+cellW/2,py+cellH/2,Math.max(1,cellW*.15),0,Math.PI*2);layer.stroke();}else if(skin.pattern==='stripes'){layer.beginPath();layer.moveTo(px+1,py+cellH-1);layer.lineTo(px+cellW-1,py+1);layer.stroke();}else if(skin.pattern==='grid'){layer.strokeRect(px+2,py+2,cellW-4,cellH-4);}else if(skin.pattern==='rings'){layer.beginPath();layer.arc(px+cellW/2,py+cellH/2,cellW*.25,0,Math.PI*2);layer.stroke();}}
-        if(id!==1&&!trail){layer.globalAlpha=.25;layer.strokeStyle='#10131c';layer.lineWidth=1;
-          if(id%3===0){layer.beginPath();layer.moveTo(px+2,py+2);layer.lineTo(px+cellW-2,py+cellH-2);layer.stroke();}
-          else if(id%3===1){layer.beginPath();layer.arc(px+cellW/2,py+cellH/2,Math.max(1,cellW*.18),0,Math.PI*2);layer.stroke();}
-          else layer.strokeRect(px+cellW*.28,py+cellH*.28,cellW*.44,cellH*.44);
+
+    this.renderTerrain(cellSize, skin);
+    this.renderPlayers(ctx, cellSize, skin);
+    this.renderEffects(ctx, cellSize);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  renderTerrain(cellSize, skin) {
+    const width = Math.ceil(this.cellsWide * cellSize);
+    const height = Math.ceil(this.cellsHigh * cellSize);
+    if (this.terrainCanvas.width !== width || this.terrainCanvas.height !== height) {
+      this.terrainCanvas.width = width;
+      this.terrainCanvas.height = height;
+      this.terrainDirty = true;
+    }
+    if (!this.terrainDirty) {
+      this.ctx.drawImage(this.terrainCanvas, 0, 0);
+      return;
+    }
+
+    const layer = this.terrainCtx;
+    layer.clearRect(0, 0, width, height);
+    for (let y = 0; y < this.cellsHigh; y++) {
+      for (let x = 0; x < this.cellsWide; x++) {
+        const index = this.grid.index(x, y);
+        const owner = this.grid.owners[index];
+        const trail = this.grid.trail[index];
+        if (!owner && !trail) continue;
+
+        const id = trail || owner;
+        const px = x * cellSize;
+        const py = y * cellSize;
+        layer.fillStyle = id === 1 ? skin.color : getPlayerColor(id);
+        layer.globalAlpha = trail ? 0.98 : 0.72;
+
+        if (id === 1 && trail && skin.trailShape === 'circle') {
+          layer.beginPath();
+          layer.arc(px + cellSize / 2, py + cellSize / 2, cellSize * 0.43, 0, Math.PI * 2);
+          layer.fill();
+        } else if (id === 1 && trail && skin.trailShape === 'diamond') {
+          layer.beginPath();
+          layer.moveTo(px + cellSize / 2, py + 1);
+          layer.lineTo(px + cellSize - 1, py + cellSize / 2);
+          layer.lineTo(px + cellSize / 2, py + cellSize - 1);
+          layer.lineTo(px + 1, py + cellSize / 2);
+          layer.closePath();
+          layer.fill();
+        } else {
+          layer.fillRect(px + 0.6, py + 0.6, Math.max(1, cellSize - 1.2), Math.max(1, cellSize - 1.2));
+        }
+
+        if (id === 1 && skin.pattern !== 'solid') {
+          layer.globalAlpha = 0.35;
+          layer.strokeStyle = '#fff';
+          layer.lineWidth = 1;
+          if (skin.pattern === 'dots') {
+            layer.beginPath();
+            layer.arc(px + cellSize / 2, py + cellSize / 2, Math.max(1, cellSize * 0.15), 0, Math.PI * 2);
+            layer.stroke();
+          } else if (skin.pattern === 'stripes') {
+            layer.beginPath();
+            layer.moveTo(px + 1, py + cellSize - 1);
+            layer.lineTo(px + cellSize - 1, py + 1);
+            layer.stroke();
+          } else if (skin.pattern === 'grid') {
+            layer.strokeRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
+          } else if (skin.pattern === 'rings') {
+            layer.beginPath();
+            layer.arc(px + cellSize / 2, py + cellSize / 2, cellSize * 0.25, 0, Math.PI * 2);
+            layer.stroke();
+          }
+        }
+
+        if (id !== 1 && !trail) {
+          layer.globalAlpha = 0.25;
+          layer.strokeStyle = '#10131c';
+          layer.lineWidth = 1;
+          if (id % 3 === 0) {
+            layer.beginPath();
+            layer.moveTo(px + 2, py + 2);
+            layer.lineTo(px + cellSize - 2, py + cellSize - 2);
+            layer.stroke();
+          } else if (id % 3 === 1) {
+            layer.beginPath();
+            layer.arc(px + cellSize / 2, py + cellSize / 2, Math.max(1, cellSize * 0.18), 0, Math.PI * 2);
+            layer.stroke();
+          } else {
+            layer.strokeRect(px + cellSize * 0.28, py + cellSize * 0.28, cellSize * 0.44, cellSize * 0.44);
+          }
         }
       }
-      layer.globalAlpha=1;
-      this.terrainDirty=false;
     }
-    ctx.drawImage(this.terrainCanvas,0,0);
-    ctx.globalAlpha=1;this.drawPlayer(ctx,this.player,cellW,cellH,skin);
-    for(const bot of this.bots)if(bot.alive)this.drawPlayer(ctx,bot,cellW,cellH);
-    const now=performance.now();this.effects=this.effects.filter(effect=>now-effect.started<effect.duration);
-    for(const effect of this.effects){
-      const progress=(now-effect.started)/effect.duration,cx=(effect.x+.5)*cellW,cy=(effect.y+.5)*cellH;
-      if(effect.type==='capture'){ctx.strokeStyle='#fff';ctx.globalAlpha=(1-progress)*.85;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(cx,cy,2+progress*cellW*5,0,Math.PI*2);ctx.stroke();}
-      else for(const particle of effect.particles){const distance=progress*cellW*particle.speed*8;ctx.globalAlpha=1-progress;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(cx+Math.cos(particle.angle)*distance,cy+Math.sin(particle.angle)*distance,Math.max(1,cellW*.13*(1-progress)),0,Math.PI*2);ctx.fill();}
-    }
-    ctx.globalAlpha=1;ctx.restore();
+    layer.globalAlpha = 1;
+    this.terrainDirty = false;
+    this.ctx.drawImage(this.terrainCanvas, 0, 0);
   }
 
-  /** Draws a player marker. */
-  drawPlayer(ctx, player, cellW, cellH, skin = null) {
-    if (!player?.alive) return;
-    const palette = ['#9b7bff', '#ff6685', '#ffbd59', '#42d9c0', '#65a8ff', '#f58bdf', '#a6e36f', '#ff8d5e', '#7de0ff', '#e4dc6a', '#c4a1ff'];
-    const color = player.id===1&&skin?skin.color:(COLORS[player.id] || palette[(player.id - 1) % palette.length]);
-    this.ctx.fillStyle = '#ffffff';
-    this.ctx.fillRect(player.x * cellW + 1, player.y * cellH + 1, Math.max(2, cellW - 2), Math.max(2, cellH - 2));
-    this.ctx.fillStyle = color;
-    this.ctx.fillRect(player.x * cellW + 2, player.y * cellH + 2, Math.max(1, cellW - 4), Math.max(1, cellH - 4));
+  renderPlayers(ctx, cellSize, skin) {
+    for (const player of this.players.values()) {
+      if (!player.alive) continue;
+      const color = player.id === 1 ? skin.color : getPlayerColor(player.id);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(player.x * cellSize + 1, player.y * cellSize + 1, Math.max(2, cellSize - 2), Math.max(2, cellSize - 2));
+      ctx.fillStyle = color;
+      ctx.fillRect(player.x * cellSize + 2, player.y * cellSize + 2, Math.max(1, cellSize - 4), Math.max(1, cellSize - 4));
+    }
   }
 
-  /** Releases animation, observers and input listeners. Safe to call once. */
+  renderEffects(ctx, cellSize) {
+    const now = performance.now();
+    this.effects = this.effects.filter(effect => now - effect.started < effect.duration);
+    for (const effect of this.effects) {
+      const progress = (now - effect.started) / effect.duration;
+      const cx = (effect.x + 0.5) * cellSize;
+      const cy = (effect.y + 0.5) * cellSize;
+      if (effect.type === 'capture') {
+        ctx.strokeStyle = '#fff';
+        ctx.globalAlpha = (1 - progress) * 0.85;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 2 + progress * cellSize * 5, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        for (const particle of effect.particles ?? []) {
+          const distance = progress * cellSize * particle.speed * 8;
+          ctx.globalAlpha = 1 - progress;
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(
+            cx + Math.cos(particle.angle) * distance,
+            cy + Math.sin(particle.angle) * distance,
+            Math.max(1, cellSize * 0.13 * (1 - progress)),
+            0, Math.PI * 2
+          );
+          ctx.fill();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   destroy() {
     if (!this.running) return;
     this.running = false;
@@ -465,6 +318,7 @@ export class Game {
     this.resizeObserver.disconnect();
     this.unbindInput?.();
     document.removeEventListener('visibilitychange', this.onVisibility);
+    for (const unsubscribe of this.unsubscribeEvents) unsubscribe();
     this.callbacks = {};
   }
 }
