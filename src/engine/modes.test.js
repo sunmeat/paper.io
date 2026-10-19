@@ -46,9 +46,8 @@ describe('game simulation victory integration', () => {
 
   it('finishes the classic simulation when the player captures the whole map', () => {
     const simulation = createSimulation('classic');
-    simulation.grid.owners.fill(0);
-    for (let i = 0; i < simulation.grid.walkable.length; i++) {
-      if (simulation.grid.walkable[i]) simulation.grid.owners[i] = 1;
+    for (let i = 0; i < simulation.grid.owners.length; i++) {
+      if (simulation.grid.walkable[i]) simulation.grid.setOwnerAt(i, 1);
     }
     simulation.checkRoundOutcome();
     expect(simulation.over).toBe(true);
