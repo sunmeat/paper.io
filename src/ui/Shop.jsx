@@ -145,10 +145,36 @@ export default function Shop({ onClose }) {
         })}</div>}
         {tab === 'hats' && <div className="skin-grid">{HATS.map(renderCosmeticCard)}</div>}
         {tab === 'trails' && <div className="skin-grid">{TRAIL_EFFECTS.map(renderCosmeticCard)}</div>}
-        {tab === 'ach' && <div className="achievement-list">{ACH.map(item => {
-          const unlocked = achievements.includes(item[0]);
-          return <div className={'achievement-row ' + (unlocked ? 'unlocked' : '')} key={item[0]}><span className="achievement-icon">{unlocked ? item[1] : '🔒'}</span><div><strong>{item[language === 'ru' ? 2 : 3]}</strong><small>{item[language === 'ru' ? 4 : 5]}</small></div>{unlocked ? <Check size={16} /> : <Lock size={15} />}</div>;
-        })}</div>}
+        {tab === 'ach' && <div className="quest-workspace">
+          <section className="daily-calendar">
+            <div className="quest-section-heading"><div><span className="eyebrow">{t('dailyCalendar')}</span><strong>{t('streak')}: {dailyStreak}/7</strong></div><Gift size={20} /></div>
+            <div className="calendar-days">{Array.from({ length: 7 }, (_, index) => {
+              const dayNumber = index + 1;
+              const complete = dayNumber <= Math.min(7, dailyStreak);
+              return <div className={'calendar-day' + (complete ? ' calendar-day-complete' : '')} key={dayNumber}><small>{t('day')} {dayNumber}</small><strong>{[100,125,150,175,200,250,350][index]}</strong><span>{complete ? <Check size={13}/> : <Coins size={12}/>}</span></div>;
+            })}</div>
+            <button className="primary-button calendar-claim" disabled={calendarClaimed} onClick={() => { const result = claimDailyReward(); setNotice(result.ok ? (language === 'ru' ? 'Получено +' : 'Claimed +') + result.reward + ' 🪙' : t(result.reason === 'wait' ? 'dailyWait' : 'dailyClaimed')); }}>{calendarClaimed ? t('claimed') : t('claim') + ' · ' + (100 + Math.min(6, dailyStreak) * 25) + ' 🪙'}</button>
+          </section>
+          <section className="daily-quests">
+            <span className="eyebrow">{t('dailyQuests')}</span>
+            {todaysQuests.map(quest => {
+              const amount = Math.min(quest.target, Number(questProgress[quest.id]) || 0);
+              const claimed = claimedQuests.includes(quest.id);
+              const title = quest.type === 'kills' ? t('questKill') : quest.type === 'territory' ? t('questTerritory') : t('questPlay');
+              const current = quest.type === 'territory' ? amount.toFixed(3) + '%' : amount;
+              return <article className={'daily-quest-card' + (claimed ? ' quest-claimed' : '')} key={quest.id}>
+                <div className="daily-quest-copy"><strong>{title}</strong><small>{t('questProgress')}: {current} / {quest.target}{quest.type === 'territory' ? '%' : ''}</small></div>
+                <span className="quest-reward"><Coins size={13}/>{quest.reward}</span>
+                <div className="quest-progress-track"><i style={{ width: Math.min(100, amount / quest.target * 100) + '%' }}/></div>
+                <button className="skin-action" disabled={claimed || amount < quest.target} onClick={() => { const result = claimDailyQuest(quest.id); setNotice(result.ok ? (language === 'ru' ? 'Задание выполнено: +' : 'Quest claimed: +') + result.reward + ' 🪙' : t('questIncomplete')); }}>{claimed ? t('claimed') : amount >= quest.target ? t('claim') : t('questIncomplete')}</button>
+              </article>;
+            })}
+          </section>
+          <section className="achievement-list"><span className="eyebrow">{language === 'ru' ? 'ДОСТИЖЕНИЯ' : 'ACHIEVEMENTS'}</span>{ACHIEVEMENTS.map(item => {
+            const unlocked = achievements.includes(item.id);
+            return <div className={'achievement-row ' + (unlocked ? 'unlocked' : '')} key={item.id}><span className="achievement-icon">{unlocked ? item.icon : '🔒'}</span><div><strong>{item.title[language] || item.title.en}</strong><small>{item.description[language] || item.description.en}</small></div>{unlocked ? <Check size={16} /> : <Lock size={15} />}</div>;
+          })}</section>
+        </div>}
         {notice && <p className="shop-notice" role="status">{notice}</p>}
         <button className="secondary-button shop-close" onClick={onClose}>{t('close')}</button>
       </section>
