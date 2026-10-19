@@ -1,40 +1,35 @@
 const workspaces = new Map();
 
-/**
- * Closes a trail and captures all cells unreachable from the map boundary.
- * Capturing rival cells transfers ownership and updates incremental counts.
- * @param {import('./Grid.js').Grid} grid Grid to update.
- * @param {number} owner Player ID.
- * @param {number[]} trailCells Indices forming the closed trail.
- * @returns {number} Number of newly acquired cells, excluding trail cells.
- */
 export function captureArea(grid, owner, trailCells) {
   for (const index of trailCells) {
     grid.setOwnerAt(index, owner);
-    grid.trail[index] = 0;
+    if (grid.trail[index] !== 0) {
+      grid.trail[index] = 0;
+      grid.version++;
+    }
   }
 
-  const { width, height, owners } = grid;
+  const { width, height, owners, walkable } = grid;
   let workspace = workspaces.get(owners.length);
-  if (!workspace) { workspace = { visited: new Uint8Array(owners.length), queue: new Int32Array(owners.length) }; workspaces.set(owners.length, workspace); }
+  if (!workspace) {
+    workspace = { visited: new Uint8Array(owners.length), queue: new Int32Array(owners.length) };
+    workspaces.set(owners.length, workspace);
+  }
   const { visited, queue } = workspace;
   visited.fill(0);
   let head = 0;
   let tail = 0;
-
   const enqueue = index => {
-    if (visited[index] || owners[index] === owner) return;
+    if (!walkable[index] || visited[index] || owners[index] === owner) return;
     visited[index] = 1;
     queue[tail++] = index;
   };
 
-  for (let x = 0; x < width; x++) {
-    enqueue(x);
-    enqueue((height - 1) * width + x);
-  }
-  for (let y = 1; y < height - 1; y++) {
-    enqueue(y * width);
-    enqueue(y * width + width - 1);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const index = y * width + x;
+      if (walkable[index] && grid.isEdge(x, y)) enqueue(index);
+    }
   }
 
   while (head < tail) {
@@ -49,7 +44,7 @@ export function captureArea(grid, owner, trailCells) {
 
   let captured = 0;
   for (let i = 0; i < owners.length; i++) {
-    if (!visited[i] && owners[i] !== owner) {
+    if (walkable[i] && !visited[i] && owners[i] !== owner) {
       grid.setOwnerAt(i, owner);
       captured++;
     }
