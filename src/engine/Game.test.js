@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Game } from './Game.js';
 import { Simulation } from './Simulation.js';
 import { GAME_CONFIG } from './config.js';
+import { createMapMask, MAPS } from './maps.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -22,6 +23,46 @@ function deterministicSnapshot(seed) {
 }
 
 describe('Simulation', () => {
+  it('provides ten built-in arena shapes', () => {
+    expect(MAPS).toHaveLength(10);
+    for (const map of MAPS) {
+      const mask = createMapMask(90, 90, map.id);
+      expect(mask.length).toBe(8100);
+      expect(mask.reduce((sum, value) => sum + value, 0)).toBeGreaterThan(100);
+    }
+  });
+
+  it('spawns every player and starting territory inside the selected mask', () => {
+    const simulation = new Simulation({ mapId: 'star' });
+    for (const player of simulation.players.values()) {
+      expect(simulation.grid.inside(player.x, player.y)).toBe(true);
+      for (const index of player.trailCells) expect(simulation.grid.walkable[index]).toBe(1);
+    }
+    for (let index = 0; index < simulation.grid.owners.length; index++) {
+      if (simulation.grid.owners[index]) expect(simulation.grid.walkable[index]).toBe(1);
+    }
+  });
+
+  it('does not eliminate a player when they cross their own trail', () => {
+    const config = { ...GAME_CONFIG, worldWidth: 30, worldHeight: 30, botCount: 0 };
+    const simulation = new Simulation({ config });
+    const player = simulation.player;
+    player.x = 12;
+    player.y = 15;
+    player.dx = 1;
+    player.dy = 0;
+    simulation.grid.setTrail(13, 15, player.id);
+    player.trailCells = [simulation.grid.index(13, 15)];
+
+    simulation.movePlayer(player);
+
+    expect(player.alive).toBe(true);
+    expect(player.x).toBe(13);
+    expect(player.y).toBe(15);
+    expect(player.trailCells).toEqual([simulation.grid.index(13, 15)]);
+    expect(simulation.over).toBe(false);
+  });
+
   it('uses the configured fixed world dimensions', () => {
     expect(GAME_CONFIG.worldWidth).toBe(90);
     expect(GAME_CONFIG.worldHeight).toBe(90);
