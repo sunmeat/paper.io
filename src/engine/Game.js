@@ -17,7 +17,7 @@ export class Game {
       modeId: callbacks.modeId ?? 'classic',
       config: callbacks.countryLevel ? { botCount: Math.min(18, 9 + callbacks.countryLevel - 1) } : null,
       humanPlayer: !callbacks.observer,
-      playerLevel: Math.max(progress.playerLevel, callbacks.countryLevel || 1),
+      playerLevel: Math.max(progress.playerLevel, callbacks.playerLevel || 1, callbacks.countryLevel || 1),
       winStreak: progress.winStreak,
       lossStreak: progress.lossStreak
     });
