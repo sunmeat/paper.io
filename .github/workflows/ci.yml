@@ -14,7 +14,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - run: npm install
+      - run: npm run lint
+      - run: npm run format:check
       - run: npm test
       - run: npm run sim -- 200 3000
       - run: npm run build
