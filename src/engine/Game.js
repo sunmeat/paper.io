@@ -19,9 +19,17 @@ export class Game {
     this.dpr = 1;
     this.camera = { x: this.player?.x ?? 0, y: this.player?.y ?? 0, zoom: 1 };
     this.effects = [];
+    this.maskCanvas = document.createElement('canvas');
+    this.maskCtx = this.maskCanvas.getContext('2d');
+    this.maskDirty = true;
     this.terrainCanvas = document.createElement('canvas');
     this.terrainCtx = this.terrainCanvas.getContext('2d');
     this.terrainDirty = true;
+    this.minimapCanvas = document.createElement('canvas');
+    this.minimapCanvas.width = this.cellsWide;
+    this.minimapCanvas.height = this.cellsHigh;
+    this.minimapCtx = this.minimapCanvas.getContext('2d');
+    this.minimapVersion = -1;
     this.cachedSkinId = null;
     this.cachedGridVersion = -1;
 
@@ -68,6 +76,8 @@ export class Game {
     this.canvas.width = Math.round(rect.width * this.dpr);
     this.canvas.height = Math.round(rect.height * this.dpr);
     this.terrainDirty = true;
+    this.maskDirty = true;
+    this.minimapVersion = -1;
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.draw();
   }
@@ -87,6 +97,8 @@ export class Game {
     this.effects = [];
     this.camera = { x: this.player?.x ?? 0, y: this.player?.y ?? 0, zoom: 1 };
     this.terrainDirty = true;
+    this.maskDirty = true;
+    this.minimapVersion = -1;
     this.accumulator = 0;
     this.lastTime = 0;
     this.emitStats();
@@ -170,121 +182,90 @@ export class Game {
     this.renderEffects(ctx, cellSize);
     ctx.globalAlpha = 1;
     ctx.restore();
+    this.renderMinimap(width, height);
   }
 
   renderTerrain(cellSize, skin) {
     const width = Math.ceil(this.cellsWide * cellSize);
     const height = Math.ceil(this.cellsHigh * cellSize);
-    if (this.cachedGridVersion !== this.grid.version) this.terrainDirty = true;
+    if (this.maskCanvas.width !== width || this.maskCanvas.height !== height) {
+      this.maskCanvas.width = width; this.maskCanvas.height = height; this.maskDirty = true;
+    }
     if (this.terrainCanvas.width !== width || this.terrainCanvas.height !== height) {
-      this.terrainCanvas.width = width;
-      this.terrainCanvas.height = height;
-      this.terrainDirty = true;
+      this.terrainCanvas.width = width; this.terrainCanvas.height = height; this.terrainDirty = true;
     }
-    if (!this.terrainDirty) {
-      this.ctx.drawImage(this.terrainCanvas, 0, 0);
-      return;
-    }
-
-    const layer = this.terrainCtx;
-    layer.clearRect(0, 0, width, height);
-    for (let y = 0; y < this.cellsHigh; y++) {
-      for (let x = 0; x < this.cellsWide; x++) {
-        const index = this.grid.index(x, y);
-        const owner = this.grid.owners[index];
-        const trail = this.grid.trail[index];
-        const px = x * cellSize;
-        const py = y * cellSize;
-        if (!this.grid.walkable[index]) continue;
-        layer.globalAlpha = 1;
-        layer.fillStyle = '#171b28';
-        layer.fillRect(px, py, cellSize, cellSize);
-        if (!owner && !trail) continue;
-
-        const id = trail || owner;
-        layer.fillStyle = id === 1 ? skin.color : getPlayerColor(id);
-        layer.globalAlpha = trail ? 0.98 : 0.72;
-
-        if (id === 1 && trail && skin.trailShape === 'circle') {
-          layer.beginPath();
-          layer.arc(px + cellSize / 2, py + cellSize / 2, cellSize * 0.43, 0, Math.PI * 2);
-          layer.fill();
-        } else if (id === 1 && trail && skin.trailShape === 'diamond') {
-          layer.beginPath();
-          layer.moveTo(px + cellSize / 2, py + 1);
-          layer.lineTo(px + cellSize - 1, py + cellSize / 2);
-          layer.lineTo(px + cellSize / 2, py + cellSize - 1);
-          layer.lineTo(px + 1, py + cellSize / 2);
-          layer.closePath();
-          layer.fill();
-        } else {
-          layer.fillRect(px + 0.6, py + 0.6, Math.max(1, cellSize - 1.2), Math.max(1, cellSize - 1.2));
-        }
-
-        if (id === 1 && skin.pattern !== 'solid') {
-          layer.globalAlpha = 0.35;
-          layer.strokeStyle = '#fff';
-          layer.lineWidth = 1;
-          if (skin.pattern === 'dots') {
-            layer.beginPath();
-            layer.arc(px + cellSize / 2, py + cellSize / 2, Math.max(1, cellSize * 0.15), 0, Math.PI * 2);
-            layer.stroke();
-          } else if (skin.pattern === 'stripes') {
-            layer.beginPath();
-            layer.moveTo(px + 1, py + cellSize - 1);
-            layer.lineTo(px + cellSize - 1, py + 1);
-            layer.stroke();
-          } else if (skin.pattern === 'grid') {
-            layer.strokeRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
-          } else if (skin.pattern === 'rings') {
-            layer.beginPath();
-            layer.arc(px + cellSize / 2, py + cellSize / 2, cellSize * 0.25, 0, Math.PI * 2);
-            layer.stroke();
-          }
-        }
-
-        if (id !== 1 && !trail) {
-          layer.globalAlpha = 0.25;
-          layer.strokeStyle = '#10131c';
-          layer.lineWidth = 1;
-          if (id % 3 === 0) {
-            layer.beginPath();
-            layer.moveTo(px + 2, py + 2);
-            layer.lineTo(px + cellSize - 2, py + cellSize - 2);
-            layer.stroke();
-          } else if (id % 3 === 1) {
-            layer.beginPath();
-            layer.arc(px + cellSize / 2, py + cellSize / 2, Math.max(1, cellSize * 0.18), 0, Math.PI * 2);
-            layer.stroke();
-          } else {
-            layer.strokeRect(px + cellSize * 0.28, py + cellSize * 0.28, cellSize * 0.44, cellSize * 0.44);
-          }
-        }
+    if (this.maskDirty) {
+      const layer = this.maskCtx;
+      layer.clearRect(0, 0, width, height);
+      layer.fillStyle = '#10131c'; layer.fillRect(0, 0, width, height);
+      layer.fillStyle = '#171b28';
+      for (let y = 0; y < this.cellsHigh; y++) for (let x = 0; x < this.cellsWide; x++) {
+        if (this.grid.walkable[this.grid.index(x, y)]) layer.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
       }
-    }
-    layer.globalAlpha = 1;
-    layer.save();
-    layer.strokeStyle = '#aeb9d8';
-    layer.lineWidth = Math.max(1.5, cellSize * 0.1);
-    layer.shadowColor = '#7489ff';
-    layer.shadowBlur = cellSize * 0.8;
-    layer.beginPath();
-    for (let y = 0; y < this.cellsHigh; y++) {
-      for (let x = 0; x < this.cellsWide; x++) {
-        if (!this.grid.inside(x, y)) continue;
-        const px = x * cellSize;
-        const py = y * cellSize;
+      layer.strokeStyle = '#aeb9d8'; layer.lineWidth = Math.max(1.5, cellSize * 0.1); layer.beginPath();
+      for (let y = 0; y < this.cellsHigh; y++) for (let x = 0; x < this.cellsWide; x++) {
+        if (!this.grid.walkable[this.grid.index(x, y)]) continue;
+        const px = x * cellSize, py = y * cellSize;
         if (!this.grid.inside(x, y - 1)) { layer.moveTo(px, py); layer.lineTo(px + cellSize, py); }
         if (!this.grid.inside(x + 1, y)) { layer.moveTo(px + cellSize, py); layer.lineTo(px + cellSize, py + cellSize); }
         if (!this.grid.inside(x, y + 1)) { layer.moveTo(px + cellSize, py + cellSize); layer.lineTo(px, py + cellSize); }
         if (!this.grid.inside(x - 1, y)) { layer.moveTo(px, py + cellSize); layer.lineTo(px, py); }
       }
+      layer.stroke(); this.maskDirty = false; this.terrainDirty = true;
     }
-    layer.stroke();
-    layer.restore();
-    this.terrainDirty = false;
-    this.cachedGridVersion = this.grid.version;
-    this.ctx.drawImage(this.terrainCanvas, 0, 0);
+    if (this.cachedGridVersion !== this.grid.version || this.cachedSkinId !== (this.callbacks.getSkin?.() || 'classic')) this.terrainDirty = true;
+    if (this.terrainDirty) {
+      const layer = this.terrainCtx; layer.clearRect(0, 0, width, height);
+      for (let index = 0; index < this.grid.owners.length; index++) {
+        const owner = this.grid.owners[index], trail = this.grid.trail[index];
+        if ((!owner && !trail) || !this.grid.walkable[index]) continue;
+        const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
+        const px = x * cellSize, py = y * cellSize, id = trail || owner;
+        layer.fillStyle = id === 1 ? skin.color : getPlayerColor(id); layer.globalAlpha = trail ? 0.98 : 0.72;
+        if (id === 1 && trail && skin.trailShape === 'circle') {
+          layer.beginPath(); layer.arc(px + cellSize / 2, py + cellSize / 2, cellSize * 0.43, 0, Math.PI * 2); layer.fill();
+        } else if (id === 1 && trail && skin.trailShape === 'diamond') {
+          layer.beginPath(); layer.moveTo(px + cellSize / 2, py + 1); layer.lineTo(px + cellSize - 1, py + cellSize / 2);
+          layer.lineTo(px + cellSize / 2, py + cellSize - 1); layer.lineTo(px + 1, py + cellSize / 2); layer.closePath(); layer.fill();
+        } else layer.fillRect(px + 0.6, py + 0.6, Math.max(1, cellSize - 1.2), Math.max(1, cellSize - 1.2));
+      }
+      layer.globalAlpha = 1; this.terrainDirty = false;
+      this.cachedGridVersion = this.grid.version; this.cachedSkinId = this.callbacks.getSkin?.() || 'classic';
+    }
+    this.ctx.drawImage(this.maskCanvas, 0, 0); this.ctx.drawImage(this.terrainCanvas, 0, 0);
+  }
+
+  renderMinimap(width, height) {
+    if (this.minimapVersion !== this.grid.version) {
+      const image = this.minimapCtx.createImageData(this.cellsWide, this.cellsHigh);
+      const toRgb = id => {
+        const hex = (id === 1 ? '#3ddc84' : getPlayerColor(id)).replace('#', '');
+        return [parseInt(hex.slice(0, 2), 16) || 0, parseInt(hex.slice(2, 4), 16) || 0, parseInt(hex.slice(4, 6), 16) || 0];
+      };
+      const palette = new Map();
+      for (const player of this.players.values()) palette.set(player.id, toRgb(player.id));
+      for (let i = 0; i < this.grid.walkable.length; i++) {
+        if (!this.grid.walkable[i]) continue;
+        const o = i * 4, id = this.grid.trail[i] || this.grid.owners[i];
+        const c = id ? (palette.get(id) || [160, 160, 180]) : [35, 40, 54];
+        image.data[o] = c[0]; image.data[o + 1] = c[1]; image.data[o + 2] = c[2]; image.data[o + 3] = 255;
+      }
+      this.minimapCtx.putImageData(image, 0, 0); this.minimapVersion = this.grid.version;
+    }
+    const ctx = this.ctx, size = Math.min(154, Math.max(100, Math.min(width, height) * 0.25));
+    const x = width - size - 14, y = 68, mapHeight = size * this.cellsHigh / this.cellsWide;
+    ctx.save(); ctx.fillStyle = '#0b0e17'; ctx.fillRect(x - 5, y - 5, size + 10, mapHeight + 10);
+    ctx.strokeStyle = '#7883a7'; ctx.lineWidth = 1; ctx.strokeRect(x - 5, y - 5, size + 10, mapHeight + 10);
+    ctx.imageSmoothingEnabled = false; ctx.drawImage(this.minimapCanvas, x, y, size, mapHeight);
+    ctx.font = '9px monospace'; ctx.textBaseline = 'middle';
+    for (const player of this.players.values()) {
+      if (!player.alive) continue;
+      const px = x + (player.x + 0.5) * size / this.cellsWide, py = y + (player.y + 0.5) * mapHeight / this.cellsHigh;
+      ctx.fillStyle = player.id === 1 ? '#ffffff' : getPlayerColor(player.id);
+      ctx.beginPath(); ctx.arc(px, py, player.id === 1 ? 3.2 : 2.1, 0, Math.PI * 2); ctx.fill();
+      if (player.id !== 1) { ctx.fillStyle = '#f3f4fa'; ctx.fillText(player.x + ',' + player.y, Math.min(x + size - 26, px + 3), py - 4); }
+    }
+    ctx.restore();
   }
 
   renderPlayers(ctx, cellSize, skin) {
