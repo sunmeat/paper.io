@@ -1,18 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Check, Coins, Lock, ShoppingBag, X, Trophy, Sparkles, Crown, Footprints, Eye, Gift } from 'lucide-react';
 import { useGameStore } from '../store/gameStore.js';
-import { HATS, RARITY, SKINS, TRAIL_EFFECTS, getSkinById } from '../engine/skins.js';\nimport { ACHIEVEMENTS } from '../engine/achievements.js';\nimport { getDailyQuests } from '../store/gameStore.js';
+import { HATS, RARITY, SKINS, TRAIL_EFFECTS, getSkinById } from '../engine/skins.js';
+import { ACHIEVEMENTS } from '../engine/achievements.js';
+import { getDailyQuests } from '../store/gameStore.js';
 import { useT } from '../i18n.js';
-
-const ACH = [
-  ['first-capture', '🎨', 'Первый захват', 'First capture', 'Замкни первый след', 'Close your first trail'],
-  ['territory-10', '🗺️', 'Своя область', 'Territory builder', 'Займи 10% арены', 'Claim 10% of the arena'],
-  ['territory-25', '👑', 'Владыка арены', 'Arena ruler', 'Займи 25% арены', 'Claim 25% of the arena'],
-  ['first-round', '🏁', 'Первый раунд', 'First round', 'Заверши первый раунд', 'Finish your first round'],
-  ['rounds-10', '🔥', 'Десять попыток', 'Ten rounds', 'Сыграй 10 раундов', 'Play 10 rounds'],
-  ['daily-first', '🎁', 'Подарок судьбы', 'Daily bonus', 'Получи ежедневную награду', 'Claim a daily reward'],
-  ['daily-7', '📅', 'Неделя в игре', 'A full week', 'Собери серию из 7 дней', 'Reach a 7-day streak']
-];
 
 function readProgress() {
   try {
@@ -35,7 +27,13 @@ export default function Shop({ onClose }) {
   const equippedHat = useGameStore(state => state.equippedHat);
   const ownedTrails = useGameStore(state => state.ownedTrails);
   const equippedTrail = useGameStore(state => state.equippedTrail);
-  const achievements = useGameStore(state => state.achievements);\n  const dailyStreak = useGameStore(state => state.dailyStreak);\n  const lastDailyClaimDate = useGameStore(state => state.lastDailyClaimDate);\n  const dailyQuestProgress = useGameStore(state => state.dailyQuestProgress);\n  const dailyQuestClaims = useGameStore(state => state.dailyQuestClaims);\n  const claimDailyQuest = useGameStore(state => state.claimDailyQuest);\n  const claimDailyReward = useGameStore(state => state.claimDailyReward);
+  const achievements = useGameStore(state => state.achievements);
+  const dailyStreak = useGameStore(state => state.dailyStreak);
+  const lastDailyClaimDate = useGameStore(state => state.lastDailyClaimDate);
+  const dailyQuestProgress = useGameStore(state => state.dailyQuestProgress);
+  const dailyQuestClaims = useGameStore(state => state.dailyQuestClaims);
+  const claimDailyQuest = useGameStore(state => state.claimDailyQuest);
+  const claimDailyReward = useGameStore(state => state.claimDailyReward);
   const buy = useGameStore(state => state.buySkin);
   const claimSkinReward = useGameStore(state => state.claimSkinReward);
   const equip = useGameStore(state => state.equipSkin);
@@ -46,7 +44,13 @@ export default function Shop({ onClose }) {
   const [previewId, setPreviewId] = useState(equipped);
   const [previewHatId, setPreviewHatId] = useState(equippedHat);
   const [previewTrailId, setPreviewTrailId] = useState(equippedTrail);
-  const progress = useMemo(readProgress, []);\n  const now = new Date();\n  const todayKey = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');\n  const todaysQuests = getDailyQuests();\n  const questProgress = dailyQuestProgress?.[todayKey] || {};\n  const claimedQuests = dailyQuestClaims?.[todayKey] || [];\n  const calendarClaimed = lastDailyClaimDate === todayKey;
+  const progress = useMemo(readProgress, []);
+  const now = new Date();
+  const todayKey = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+  const todaysQuests = getDailyQuests();
+  const questProgress = dailyQuestProgress?.[todayKey] || {};
+  const claimedQuests = dailyQuestClaims?.[todayKey] || [];
+  const calendarClaimed = lastDailyClaimDate === todayKey;
   const previewSkin = getSkinById(previewId);
   const rarityName = rarity => RARITY[rarity]?.[language] || RARITY.common[language];
   const unlockLabel = skin => {
