@@ -65,7 +65,6 @@ export default function Shop({ onClose }) {
     else setNotice(language === 'ru' ? 'Пока недоступно.' : 'Not available yet.');
   };
   const ownedForTab = tab === 'hats' ? ownedHats : ownedTrails;
-  const catalog = tab === 'hats' ? HATS : TRAIL_EFFECTS;
   const equippedForTab = tab === 'hats' ? equippedHat : equippedTrail;
   const cosmeticType = tab === 'hats' ? 'hat' : 'trail';
 
