@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Coins, Lock, ShoppingBag, X, Trophy, Sparkles, Crown, Footprints, Eye } from 'lucide-react';
+import { Check, Coins, Lock, ShoppingBag, X, Trophy, Sparkles, Crown, Footprints, Eye, Gift } from 'lucide-react';
 import { useGameStore } from '../store/gameStore.js';
 import { HATS, RARITY, SKINS, TRAIL_EFFECTS, getSkinById } from '../engine/skins.js';\nimport { ACHIEVEMENTS } from '../engine/achievements.js';\nimport { getDailyQuests } from '../store/gameStore.js';
 import { useT } from '../i18n.js';
@@ -46,7 +46,7 @@ export default function Shop({ onClose }) {
   const [previewId, setPreviewId] = useState(equipped);
   const [previewHatId, setPreviewHatId] = useState(equippedHat);
   const [previewTrailId, setPreviewTrailId] = useState(equippedTrail);
-  const progress = useMemo(readProgress, []);\n  const todayKey = new Date().toLocaleDateString('en-CA');\n  const todaysQuests = getDailyQuests();\n  const questProgress = dailyQuestProgress?.[todayKey] || {};\n  const claimedQuests = dailyQuestClaims?.[todayKey] || [];\n  const calendarClaimed = lastDailyClaimDate === todayKey;
+  const progress = useMemo(readProgress, []);\n  const now = new Date();\n  const todayKey = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');\n  const todaysQuests = getDailyQuests();\n  const questProgress = dailyQuestProgress?.[todayKey] || {};\n  const claimedQuests = dailyQuestClaims?.[todayKey] || [];\n  const calendarClaimed = lastDailyClaimDate === todayKey;
   const previewSkin = getSkinById(previewId);
   const rarityName = rarity => RARITY[rarity]?.[language] || RARITY.common[language];
   const unlockLabel = skin => {
