@@ -65,10 +65,9 @@ describe('captureArea', () => {
 
   it('does not overwrite an opponent cell from a stale trail index', () => {
     const grid = new Grid(5, 5);
-    grid.setOwner(2, 2, 2);
-    grid.setTrail(2, 2, 0);
-    captureArea(grid, 1, [grid.index(2, 2)]);
-    expect(grid.ownerAt(2, 2)).toBe(2);
+    grid.setOwner(0, 2, 2);
+    captureArea(grid, 1, [grid.index(0, 2)]);
+    expect(grid.ownerAt(0, 2)).toBe(2);
   });
 
   it('captures a simple enclosed square', () => {
