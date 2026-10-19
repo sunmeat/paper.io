@@ -36,6 +36,11 @@ export default function DeathScreen({ onAgain, onMenu }) {
   const score = useCountUp(stats.sessionScore || 0);
   const kills = useCountUp(stats.kills || 0);
   const coins = useCountUp(stats.roundCoinsEarned || 0);
+  const territoryReward = Math.floor((Number(stats.territory) || 0) * 2);
+  const killReward = Math.max(0, Number(stats.kills) || 0) * 35;
+  const timeReward = Math.min(50, Math.floor(Math.max(0, Number(stats.roundTimeMs) || 0) / 60000) * 5);
+  const victoryReward = stats.outcome === 'victory' ? 75 : 0;
+  const secretReward = stats.secretConquered && stats.outcome === 'victory' ? 500 : 0;
   const ranking = [...(stats.playerStats || [])].sort((a, b) => b.territory - a.territory || a.id - b.id);
   const place = Math.max(1, ranking.findIndex(player => player.id === 1) + 1);
   const [newRecord, setNewRecord] = useState(false);
@@ -57,6 +62,15 @@ export default function DeathScreen({ onAgain, onMenu }) {
           <div><span><Clock size={12}/>{language === 'ru' ? 'Время' : 'Time'}</span><strong>{formatTime(stats.roundTimeMs)}</strong></div>
           <div><span><Trophy size={12}/>{language === 'ru' ? 'Место' : 'Place'}</span><strong>#{place}</strong></div>
           <div><span><Coins size={12}/>{language === 'ru' ? 'Монеты за раунд' : 'Coins earned'}</span><strong>+{coins}</strong></div>
+        </div>
+        <div className="reward-breakdown">
+          <span>{t('roundReward')}</span>
+          <div><small>{language === 'ru' ? 'База' : 'Base'}</small><strong>+10</strong></div>
+          <div><small>{t('rewardTerritory')}</small><strong>+{territoryReward}</strong></div>
+          <div><small>{t('rewardKills')}</small><strong>+{killReward}</strong></div>
+          <div><small>{t('rewardTime')}</small><strong>+{timeReward}</strong></div>
+          {victoryReward > 0 && <div><small>{language === 'ru' ? 'Победа' : 'Victory'}</small><strong>+{victoryReward}</strong></div>}
+          {secretReward > 0 && <div><small>{language === 'ru' ? 'Вся карта' : 'Full map'}</small><strong>+{secretReward}</strong></div>}
         </div>
         <button className="primary-button" onClick={onAgain}><RotateCcw size={17}/>{t('again')}</button>
         <button className="secondary-button" onClick={onMenu}><Home size={17}/>{t('menu')}</button>
