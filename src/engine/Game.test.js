@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Game } from './Game.js';
+import { Grid } from './Grid.js';
 import { Simulation } from './Simulation.js';
 import { GAME_CONFIG } from './config.js';
 import { createMapMask, MAPS } from './maps.js';
@@ -214,5 +215,17 @@ describe('fixed world and viewport resizing', () => {
     expect(simulation.player).toEqual(stateBefore.player);
     expect(simulation.bots.map(({ id, x, y, dx, dy, alive, trailCells }) => ({ id, x, y, dx, dy, alive, trailCells: [...trailCells] }))).toEqual(stateBefore.bots);
     expect(game.draw).toHaveBeenCalledOnce();
+  });
+});
+
+
+describe('incremental terrain invalidation', () => {
+  it('tracks only cells whose owner actually changes and drains the queue', () => {
+    const grid = new Grid(8, 8);
+    grid.setOwner(3, 4, 1);
+    grid.setOwner(3, 4, 1);
+    grid.setOwner(4, 4, 2);
+    expect(grid.drainDirtyOwners()).toEqual([grid.index(3, 4), grid.index(4, 4)]);
+    expect(grid.drainDirtyOwners()).toEqual([]);
   });
 });
