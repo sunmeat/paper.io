@@ -222,5 +222,5 @@ export const useGameStore = create(persist((set, get) => ({
       selectedMode: saved.selectedMode === 'sprint' ? 'sprint' : 'classic'
     };
   },
-  merge: (saved, current) => ({ ...current, ...migrate(saved) })
+  merge: (saved, current) => { const valid = Boolean(saved && saved.walletChecksum && saved.walletChecksum === walletChecksum(saved.coins)); const coins = valid ? Math.max(0, Math.floor(Number(saved.coins) || 0)) : 0; return { ...current, ...saved, coins, walletChecksum: walletChecksum(coins) }; }
 }));
