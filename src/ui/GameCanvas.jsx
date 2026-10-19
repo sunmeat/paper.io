@@ -24,10 +24,17 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
 
-    const game = new Game(canvas, {
+    let game;
+    game = new Game(canvas, {
       mapId,
       observer: new URLSearchParams(window.location.search).get('observer') === '1',
-      onStats,
+      onStats: stats => onStats?.({
+        ...stats,
+        top5: (stats.top5 || []).map(player => ({
+          ...player,
+          name: game?.players.get(player.id)?.name || (player.id === 1 ? 'Игрок' : `Бот ${player.id - 1}`)
+        }))
+      }),
       getSkin: () => useGameStore.getState().equippedSkin
     });
     const events = game.simulation.events;
@@ -39,8 +46,22 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         vibrate(18);
         useGameStore.getState().addCoins(Math.max(1, event.captured));
         useGameStore.getState().awardAchievement('first-capture');
+        const total = Math.max(1, game.grid.walkableCount || game.grid.owners.length);
+        window.dispatchEvent(new CustomEvent('paperio:capture', {
+          detail: { percent: Math.max(1, Math.round(event.captured / total * 100)), x: event.x, y: event.y }
+        }));
       }),
       events.on('kill', event => {
+        const killer = game.players.get(event.killerId);
+        const victim = game.players.get(event.victimId);
+        window.dispatchEvent(new CustomEvent('paperio:kill', {
+          detail: {
+            killerName: killer?.human ? 'Вы' : killer?.name || `Бот ${event.killerId}`,
+            victimName: victim?.human ? 'Вы' : victim?.name || `Бот ${event.victimId}`,
+            killerId: event.killerId,
+            victimId: event.victimId
+          }
+        }));
         if (event.victimId !== 1 && event.killerHuman) useGameStore.getState().addCoins(25);
       }),
       events.on('death', event => {
@@ -48,7 +69,10 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         playDeath();
         vibrate([35, 30, 60]);
       }),
-      events.on('gameOver', snapshot => { gameOverTimer = window.setTimeout(() => onGameOver?.(snapshot), 900); })
+      events.on('gameOver', snapshot => {
+        const finalSnapshot = { ...snapshot, roundTimeMs: Math.max(0, performance.now() - game.startedAt) };
+        gameOverTimer = window.setTimeout(() => onGameOver?.(finalSnapshot), 900);
+      })
     ];
 
     gameRef.current = game;
