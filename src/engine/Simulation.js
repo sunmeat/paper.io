@@ -135,7 +135,7 @@ export class Simulation {
   createPlayer(id, x, y, dx, dy, human = false) {
     const player = {
       id, x, y, prevX: x, prevY: y, dx, dy, next: null, turnQueue: [], trailCells: [], alive: true, human,
-      turnTimer: 0, respawnTimer: 0, lifetime: 0, deaths: 0, kills: 0,
+      turnTimer: 0, respawnTimer: 0, lifetime: 0, currentLifeTicks: 0, totalLifeTicks: 0, livesCompleted: 0, deaths: 0, kills: 0,
       lastHitBy: null, invulnerableTicks: 18, edgeTicks: 0
     };
     this.players.set(id, player);
@@ -357,6 +357,7 @@ export class Simulation {
     player.x = nx;
     player.y = ny;
     player.lifetime++;
+    player.currentLifeTicks++;
     player.edgeTicks = this.grid.isEdge(nx, ny) ? (player.edgeTicks || 0) + 1 : 0;
 
     if (this.resolvingTick) {
@@ -389,6 +390,9 @@ export class Simulation {
     if (!player?.alive) return;
     player.alive = false;
     player.deaths++;
+    player.totalLifeTicks = (player.totalLifeTicks || 0) + (player.currentLifeTicks || 0);
+    player.livesCompleted = (player.livesCompleted || 0) + 1;
+    player.currentLifeTicks = 0;
     player.respawnTimer = player.human ? 0 : this.config.respawnSteps;
     this.grid.clearTerritory(player.id);
     this.grid.clearTrail(player.id);
