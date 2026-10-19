@@ -2,10 +2,13 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { playCapture, playDeath, unlockAudio } from '../engine/audio.js';
 import { vibrate } from '../engine/haptics.js';
 import { Game } from '../engine/Game.js';
+import { getPlayerColor } from '../engine/playerPalette.js';
+import { getSkinById } from '../engine/skins.js';
 import { useGameStore } from '../store/gameStore.js';
 
 const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId = 'circle' }, ref) {
   const canvasRef = useRef(null);
+  const minimapRef = useRef(null);
   const gameRef = useRef(null);
 
   useEffect(() => {
@@ -40,6 +43,29 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
     const events = game.simulation.events;
     let gameOverTimer = null;
     let earnedCoins = 0;
+    const minimapCanvas = minimapRef.current;
+    const minimapCtx = minimapCanvas?.getContext('2d');
+    const drawMinimap = () => {
+      if (!minimapCanvas || !minimapCtx || !game?.grid) return;
+      const grid = game.grid;
+      const width = grid.width || game.cellsWide;
+      const height = grid.height || game.cellsHigh;
+      if (minimapCanvas.width !== width || minimapCanvas.height !== height) { minimapCanvas.width = width; minimapCanvas.height = height; }
+      const image = minimapCtx.createImageData(width, height);
+      const rgb = hex => [parseInt(hex.slice(1, 3), 16) || 0, parseInt(hex.slice(3, 5), 16) || 0, parseInt(hex.slice(5, 7), 16) || 0];
+      const palette = new Map([...game.players.values()].map(player => [player.id, rgb(player.id === 1 ? getSkinById(useGameStore.getState().equippedSkin).color : getPlayerColor(player.id))]));
+      for (let i = 0; i < grid.owners.length; i++) {
+        const offset = i * 4;
+        if (!grid.walkable[i]) { image.data[offset + 3] = 0; continue; }
+        const owner = grid.trail[i] || grid.owners[i];
+        const color = owner ? (palette.get(owner) || [140, 145, 165]) : [35, 40, 54];
+        image.data[offset] = color[0]; image.data[offset + 1] = color[1]; image.data[offset + 2] = color[2]; image.data[offset + 3] = 255;
+      }
+      minimapCtx.putImageData(image, 0, 0);
+      minimapCtx.fillStyle = '#fff';
+      for (const player of game.players.values()) if (player.alive) { minimapCtx.fillStyle = player.id === 1 ? getSkinById(useGameStore.getState().equippedSkin).color : getPlayerColor(player.id); minimapCtx.fillRect(player.x, player.y, 1, 1); }
+    };
+    const minimapTimer = window.setInterval(drawMinimap, 200);
     const unsubscribe = [
       events.on('capture', event => {
         if (!event.human) return;
@@ -85,12 +111,13 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
     return () => {
       for (const off of unsubscribe) off();
       if (gameOverTimer !== null) window.clearTimeout(gameOverTimer);
+      window.clearInterval(minimapTimer);
       game.destroy();
       if (gameRef.current === game) gameRef.current = null;
     };
   }, [onStats, onGameOver, mapId]);
 
-  return <canvas ref={canvasRef} className="game-canvas" aria-label="Paper.io game arena" />;
+  return <><canvas ref={canvasRef} className="game-canvas" aria-label="Paper.io game arena" /><canvas ref={minimapRef} className="game-minimap" aria-label="Minimap" /></>;
 });
 
 export default GameCanvas;
