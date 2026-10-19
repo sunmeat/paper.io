@@ -6,7 +6,7 @@ import { getPlayerColor } from '../engine/playerPalette.js';
 import { getSkinById } from '../engine/skins.js';
 import { useGameStore } from '../store/gameStore.js';
 
-const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId = 'circle', modeId = 'classic' }, ref) {
+const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId = 'circle', modeId = 'classic', countryId = 'ukraine', countryLevel = 1 }, ref) {
   const canvasRef = useRef(null);
   const minimapRef = useRef(null);
   const gameRef = useRef(null);
@@ -32,6 +32,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
     game = new Game(canvas, {
       mapId,
       modeId,
+      countryLevel,
       observer: new URLSearchParams(window.location.search).get('observer') === '1',
       onStats: stats => {
         if (roundFinished) return;
@@ -116,7 +117,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         const roundReward = victoryReward + secretReward;
         if (roundReward) { earnedCoins += roundReward; useGameStore.getState().addCoins(roundReward); }
         if (secretReward) window.dispatchEvent(new CustomEvent('paperio:fullmap'));
-        const finalSnapshot = { ...snapshot, roundTimeMs: game.simulation.elapsedMs, roundCoinsEarned: earnedCoins, victoryReward, secretReward };
+        const finalSnapshot = { ...snapshot, countryId, modeId, roundTimeMs: game.simulation.elapsedMs, roundCoinsEarned: earnedCoins, victoryReward, secretReward };
         gameOverTimer = window.setTimeout(() => onGameOver?.(finalSnapshot), 900);
       })
     ];
