@@ -23,6 +23,7 @@ export class Game {
     this.terrainCtx = this.terrainCanvas.getContext('2d');
     this.terrainDirty = true;
     this.cachedSkinId = null;
+    this.cachedGridVersion = -1;
 
     this.unsubscribeEvents = [
       this.simulation.events.on('capture', event => {
@@ -174,6 +175,7 @@ export class Game {
   renderTerrain(cellSize, skin) {
     const width = Math.ceil(this.cellsWide * cellSize);
     const height = Math.ceil(this.cellsHigh * cellSize);
+    if (this.cachedGridVersion !== this.grid.version) this.terrainDirty = true;
     if (this.terrainCanvas.width !== width || this.terrainCanvas.height !== height) {
       this.terrainCanvas.width = width;
       this.terrainCanvas.height = height;
@@ -191,11 +193,15 @@ export class Game {
         const index = this.grid.index(x, y);
         const owner = this.grid.owners[index];
         const trail = this.grid.trail[index];
+        const px = x * cellSize;
+        const py = y * cellSize;
+        if (!this.grid.walkable[index]) continue;
+        layer.globalAlpha = 1;
+        layer.fillStyle = '#171b28';
+        layer.fillRect(px, py, cellSize, cellSize);
         if (!owner && !trail) continue;
 
         const id = trail || owner;
-        const px = x * cellSize;
-        const py = y * cellSize;
         layer.fillStyle = id === 1 ? skin.color : getPlayerColor(id);
         layer.globalAlpha = trail ? 0.98 : 0.72;
 
@@ -257,7 +263,27 @@ export class Game {
       }
     }
     layer.globalAlpha = 1;
+    layer.save();
+    layer.strokeStyle = '#aeb9d8';
+    layer.lineWidth = Math.max(1.5, cellSize * 0.1);
+    layer.shadowColor = '#7489ff';
+    layer.shadowBlur = cellSize * 0.8;
+    layer.beginPath();
+    for (let y = 0; y < this.cellsHigh; y++) {
+      for (let x = 0; x < this.cellsWide; x++) {
+        if (!this.grid.inside(x, y)) continue;
+        const px = x * cellSize;
+        const py = y * cellSize;
+        if (!this.grid.inside(x, y - 1)) { layer.moveTo(px, py); layer.lineTo(px + cellSize, py); }
+        if (!this.grid.inside(x + 1, y)) { layer.moveTo(px + cellSize, py); layer.lineTo(px + cellSize, py + cellSize); }
+        if (!this.grid.inside(x, y + 1)) { layer.moveTo(px + cellSize, py + cellSize); layer.lineTo(px, py + cellSize); }
+        if (!this.grid.inside(x - 1, y)) { layer.moveTo(px, py + cellSize); layer.lineTo(px, py); }
+      }
+    }
+    layer.stroke();
+    layer.restore();
     this.terrainDirty = false;
+    this.cachedGridVersion = this.grid.version;
     this.ctx.drawImage(this.terrainCanvas, 0, 0);
   }
 
