@@ -71,7 +71,7 @@ export function advanceWorldProgress(progress, { countryId = 'ukraine', territor
   let selectedCountryId = current.selectedCountryId;
   if (countries.length && countries.every(item => completed.includes(item.id))) {
     prestige += 1;
-    completed.splice(0, completed.length, countries[0].id);
+    completed.splice(0, completed.length);
     selectedCountryId = countries[0].id;
   } else if (!isCountryUnlocked(selectedCountryId, completed, countries)) {
     selectedCountryId = countries.find(item => isCountryUnlocked(item.id, completed, countries))?.id || countries[0]?.id;
