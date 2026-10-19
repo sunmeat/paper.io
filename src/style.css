@@ -349,3 +349,8 @@ kbd {
 .cosmetic-card .skin-preview{min-height:64px}
 .shop-notice{margin:12px 0 0!important;padding:10px;border-radius:9px;background:#ffffff08;color:#d9d2ff!important;font-size:11px!important}
 @media(max-width:390px){.shop-card{padding:16px}.shop-tabs button{font-size:9px}.shop-tabs button svg{display:none}.skin-grid{gap:7px}.skin-card{padding:7px;gap:7px}.skin-preview{min-height:58px}.shop-preview-stage{grid-template-columns:105px 1fr;gap:10px;padding:9px}.shop-progress{font-size:9px}}
+
+.cosmetic-preview{display:grid;place-items:center;padding:0;background-color:#10131c;color:var(--skin-color)}
+.mini-trail-glow{box-shadow:0 0 10px 3px var(--skin-color)}
+.mini-trail-comet{box-shadow:0 0 14px 5px var(--skin-color)}
+.shop-mini-arena .mini-territory,.shop-mini-arena .mini-trail,.shop-mini-arena .mini-player{pointer-events:none}
