@@ -2,7 +2,24 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { HATS, SKINS, TRAIL_EFFECTS } from '../engine/skins.js';
 
-const walletChecksum = coins => {\n  const value = Math.max(0, Math.floor(Number(coins) || 0));\n  let hash = 2166136261;\n  for (const char of `paper-io-wallet-v1:${value}:arena`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);\n  return (hash >>> 0).toString(16);\n};\n\nexport const getDailyQuests = (date = new Date()) => {\n  const day = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);\n  const rotations = [\n    [{ id: 'kills-3', type: 'kills', target: 3, reward: 90 }, { id: 'territory-30', type: 'territory', target: 30, reward: 110 }],\n    [{ id: 'play-1', type: 'rounds', target: 1, reward: 60 }, { id: 'kills-3', type: 'kills', target: 3, reward: 90 }],\n    [{ id: 'territory-30', type: 'territory', target: 30, reward: 110 }, { id: 'play-1', type: 'rounds', target: 1, reward: 60 }]\n  ];\n  return rotations[((day % rotations.length) + rotations.length) % rotations.length];\n};\n\nconst base = {
+const walletChecksum = coins => {
+  const value = Math.max(0, Math.floor(Number(coins) || 0));
+  let hash = 2166136261;
+  for (const char of `paper-io-wallet-v1:${value}:arena`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return (hash >>> 0).toString(16);
+};
+
+export const getDailyQuests = (date = new Date()) => {
+  const day = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+  const rotations = [
+    [{ id: 'kills-3', type: 'kills', target: 3, reward: 90 }, { id: 'territory-30', type: 'territory', target: 30, reward: 110 }],
+    [{ id: 'play-1', type: 'rounds', target: 1, reward: 60 }, { id: 'kills-3', type: 'kills', target: 3, reward: 90 }],
+    [{ id: 'territory-30', type: 'territory', target: 30, reward: 110 }, { id: 'play-1', type: 'rounds', target: 1, reward: 60 }]
+  ];
+  return rotations[((day % rotations.length) + rotations.length) % rotations.length];
+};
+
+const base = {
   selectedMap: 'circle',
   coins: 0,
   ownedSkins: ['classic'],
@@ -62,7 +79,8 @@ export const useGameStore = create(persist((set, get) => ({
   setSnapshot: nextSnapshot => set(state => {
     const achievements = [...state.achievements];
     if (nextSnapshot.territory >= 10 && !achievements.includes('territory-10')) achievements.push('territory-10');
-    if (nextSnapshot.territory >= 25 && !achievements.includes('territory-25')) achievements.push('territory-25');\n    if ((Number(nextSnapshot.sessionScore) || 0) > 0 && !achievements.includes('first-capture')) achievements.push('first-capture');
+    if (nextSnapshot.territory >= 25 && !achievements.includes('territory-25')) achievements.push('territory-25');
+    if ((Number(nextSnapshot.sessionScore) || 0) > 0 && !achievements.includes('first-capture')) achievements.push('first-capture');
     return { snapshot: nextSnapshot, achievements };
   }),
   resetSnapshot: () => set({ snapshot, paused: false }),
@@ -74,7 +92,11 @@ export const useGameStore = create(persist((set, get) => ({
     const modeId = state.snapshot?.modeId || state.selectedMode || 'classic';
     const modeRecords = { ...(state.modeRecords || {}) };
     if (!achievements.includes('first-round')) achievements.push('first-round');
-    if (roundsPlayed >= 10 && !achievements.includes('rounds-10')) achievements.push('rounds-10');\n    if (kills >= 3 && !achievements.includes('killer-3')) achievements.push('killer-3');\n    if (territory >= 30 && !achievements.includes('territory-30')) achievements.push('territory-30');\n    if (totalRoundCoins >= 1000 && !achievements.includes('coins-1000')) achievements.push('coins-1000');\n    if (round.modeId === 'sprint' && territory >= 20 && !achievements.includes('sprint-winner')) achievements.push('sprint-winner');
+    if (roundsPlayed >= 10 && !achievements.includes('rounds-10')) achievements.push('rounds-10');
+    if (kills >= 3 && !achievements.includes('killer-3')) achievements.push('killer-3');
+    if (territory >= 30 && !achievements.includes('territory-30')) achievements.push('territory-30');
+    if (totalRoundCoins >= 1000 && !achievements.includes('coins-1000')) achievements.push('coins-1000');
+    if (round.modeId === 'sprint' && territory >= 20 && !achievements.includes('sprint-winner')) achievements.push('sprint-winner');
     modeRecords[modeId] = Math.max(Number(modeRecords[modeId]) || 0, Number(state.snapshot.territory) || 0);
     return {
       roundsPlayed,
@@ -94,7 +116,8 @@ export const useGameStore = create(persist((set, get) => ({
     const achievements = [...state.achievements];
     if (!achievements.includes('daily-first')) achievements.push('daily-first');
     if (streak >= 7 && !achievements.includes('daily-7')) achievements.push('daily-7');
-    const coins = state.coins + reward;\n    set({ coins, walletChecksum: walletChecksum(coins), lastDailyClaimDate: today, lastDailyClaimAt: now, dailyStreak: streak, achievements });
+    const coins = state.coins + reward;
+    set({ coins, walletChecksum: walletChecksum(coins), lastDailyClaimDate: today, lastDailyClaimAt: now, dailyStreak: streak, achievements });
     return { ok: true, reward };
   },
   buySkin: id => {
@@ -104,7 +127,8 @@ export const useGameStore = create(persist((set, get) => ({
     if (state.ownedSkins.includes(id)) return { ok: false, reason: 'owned' };
     if (skin.unlock && skin.unlock.type !== 'free') return { ok: false, reason: 'unlock' };
     if (state.coins < skin.price) return { ok: false, reason: 'coins' };
-    const coins = state.coins - skin.price;\n    set({ coins, walletChecksum: walletChecksum(coins), ownedSkins: [...state.ownedSkins, id], equippedSkin: id });
+    const coins = state.coins - skin.price;
+    set({ coins, walletChecksum: walletChecksum(coins), ownedSkins: [...state.ownedSkins, id], equippedSkin: id });
     return { ok: true };
   },
   claimSkinReward: id => {
@@ -125,10 +149,24 @@ export const useGameStore = create(persist((set, get) => ({
     if (!item) return { ok: false, reason: 'missing' };
     if (state[ownedKey].includes(id)) return { ok: false, reason: 'owned' };
     if (state.coins < item.price) return { ok: false, reason: 'coins' };
-    const coins = state.coins - item.price;\n    set({ coins, walletChecksum: walletChecksum(coins), [ownedKey]: [...state[ownedKey], id], [equippedKey]: id });
+    const coins = state.coins - item.price;
+    set({ coins, walletChecksum: walletChecksum(coins), [ownedKey]: [...state[ownedKey], id], [equippedKey]: id });
     return { ok: true };
   },
-  claimDailyQuest: id => {\n    const state = get();\n    const today = dateKey();\n    const quest = getDailyQuests().find(item => item.id === id);\n    const progress = state.dailyQuestProgress?.[today]?.[id] || 0;\n    const claims = { ...(state.dailyQuestClaims || {}) };\n    const todayClaims = [...(claims[today] || [])];\n    if (!quest || progress < quest.target || todayClaims.includes(id)) return { ok: false };\n    todayClaims.push(id); claims[today] = todayClaims;\n    const coins = state.coins + quest.reward;\n    set({ coins, walletChecksum: walletChecksum(coins), dailyQuestClaims: claims });\n    return { ok: true, reward: quest.reward };\n  },\n  equipCosmetic: (type, id) => {
+  claimDailyQuest: id => {
+    const state = get();
+    const today = dateKey();
+    const quest = getDailyQuests().find(item => item.id === id);
+    const progress = state.dailyQuestProgress?.[today]?.[id] || 0;
+    const claims = { ...(state.dailyQuestClaims || {}) };
+    const todayClaims = [...(claims[today] || [])];
+    if (!quest || progress < quest.target || todayClaims.includes(id)) return { ok: false };
+    todayClaims.push(id); claims[today] = todayClaims;
+    const coins = state.coins + quest.reward;
+    set({ coins, walletChecksum: walletChecksum(coins), dailyQuestClaims: claims });
+    return { ok: true, reward: quest.reward };
+  },
+  equipCosmetic: (type, id) => {
     const ownedKey = type === 'hat' ? 'ownedHats' : 'ownedTrails';
     const equippedKey = type === 'hat' ? 'equippedHat' : 'equippedTrail';
     set(state => state[ownedKey].includes(id) ? { [equippedKey]: id } : {});
@@ -149,7 +187,11 @@ export const useGameStore = create(persist((set, get) => ({
     const valid = (items, catalog, fallback) => Array.isArray(items) ? [...new Set([fallback, ...items.filter(id => catalog.some(item => item.id === id))])] : [fallback];
     return {
       ...base, ...saved,
-      coins: saved.walletChecksum && saved.walletChecksum === walletChecksum(saved.coins) ? Math.max(0, Math.floor(Number(saved.coins) || 0)) : (saved.walletChecksum ? 0 : Math.max(0, Math.floor(Number(saved.coins) || 0))),\n      walletChecksum: walletChecksum(saved.walletChecksum && saved.walletChecksum === walletChecksum(saved.coins) ? saved.coins : (saved.walletChecksum ? 0 : saved.coins)),\n      totalRoundCoins: Math.max(0, Number(saved.totalRoundCoins) || 0),\n      dailyQuestProgress: saved.dailyQuestProgress && typeof saved.dailyQuestProgress === 'object' ? saved.dailyQuestProgress : {},\n      dailyQuestClaims: saved.dailyQuestClaims && typeof saved.dailyQuestClaims === 'object' ? saved.dailyQuestClaims : {},
+      coins: saved.walletChecksum && saved.walletChecksum === walletChecksum(saved.coins) ? Math.max(0, Math.floor(Number(saved.coins) || 0)) : (saved.walletChecksum ? 0 : Math.max(0, Math.floor(Number(saved.coins) || 0))),
+      walletChecksum: walletChecksum(saved.walletChecksum && saved.walletChecksum === walletChecksum(saved.coins) ? saved.coins : (saved.walletChecksum ? 0 : saved.coins)),
+      totalRoundCoins: Math.max(0, Number(saved.totalRoundCoins) || 0),
+      dailyQuestProgress: saved.dailyQuestProgress && typeof saved.dailyQuestProgress === 'object' ? saved.dailyQuestProgress : {},
+      dailyQuestClaims: saved.dailyQuestClaims && typeof saved.dailyQuestClaims === 'object' ? saved.dailyQuestClaims : {},
       ownedSkins: valid(saved.ownedSkins, SKINS, 'classic'),
       equippedSkin: SKINS.some(item => item.id === saved.equippedSkin) && valid(saved.ownedSkins, SKINS, 'classic').includes(saved.equippedSkin) ? saved.equippedSkin : 'classic',
       ownedHats: valid(saved.ownedHats, HATS, 'none'),
