@@ -13,7 +13,10 @@ function simulate(seed) {
   const ranked = [...players].sort((a, b) =>
     simulation.grid.territoryCount(b.id) - simulation.grid.territoryCount(a.id) || a.id - b.id
   );
-  const playerKills = players.filter(player => !player.human).reduce((sum, player) => sum + (player.kills || 0), 0);
+  const playerKills = simulation.player?.kills || 0;
+  const botKills = players.filter(player => !player.human).reduce((sum, player) => sum + (player.kills || 0), 0);
+  const totalLifeTicks = players.reduce((sum, player) => sum + (player.totalLifeTicks || 0) + (player.currentLifeTicks || 0), 0);
+  const completedLives = players.reduce((sum, player) => sum + (player.livesCompleted || 0) + (player.alive ? 1 : 0), 0);
   const personalityWins = Object.fromEntries(Object.keys(BOT_PERSONALITIES).map(key => [key, 0]));
   if (ranked[0]?.personality) personalityWins[ranked[0].personality]++;
   return {
@@ -22,6 +25,8 @@ function simulate(seed) {
     deaths: players.reduce((sum, player) => sum + player.deaths, 0),
     lifetime: players.reduce((sum, player) => sum + player.lifetime, 0) / players.length,
     playerKills,
+    botKills,
+    averageLifetime: totalLifeTicks / Math.max(1, completedLives),
     personalityWins
   };
 }
@@ -33,6 +38,8 @@ let lifetimeTotal = 0;
 let survivorsTotal = 0;
 let deathsTotal = 0;
 let playerKillsTotal = 0;
+let botKillsTotal = 0;
+let averageLifetimeTotal = 0;
 
 for (let game = 0; game < gameCount; game++) {
   const result = simulate(0x51f15e + game * 7919);
@@ -40,6 +47,8 @@ for (let game = 0; game < gameCount; game++) {
   survivorsTotal += result.survivors;
   deathsTotal += result.deaths;
   playerKillsTotal += result.playerKills;
+  botKillsTotal += result.botKills;
+  averageLifetimeTotal += result.averageLifetime;
   wins.set(result.leader.id, (wins.get(result.leader.id) || 0) + 1);
   const difficulty = result.leader.strategy?.difficulty ?? 'observer';
   difficultyWins.set(difficulty, (difficultyWins.get(difficulty) || 0) + 1);
@@ -48,10 +57,11 @@ for (let game = 0; game < gameCount; game++) {
 
 const winValues = [...wins.values()];
 console.log(`Headless simulation: ${gameCount} matches, ${botCount} bots, ${maxTicks} tick limit`);
-console.log(`Average active lifetime: ${(lifetimeTotal / gameCount / botCount).toFixed(1)} ticks per bot`);
+console.log(`Average life duration: ${(averageLifetimeTotal / gameCount).toFixed(1)} ticks per life`);
 console.log(`Average bots alive at stop: ${(survivorsTotal / gameCount).toFixed(2)} / ${botCount}`);
 console.log(`Average eliminations per match: ${(deathsTotal / gameCount).toFixed(1)}`);
-console.log(`Average kills per match: ${(playerKillsTotal / gameCount).toFixed(1)}`);
+console.log(`Average human-player kills per match: ${(playerKillsTotal / gameCount).toFixed(1)}`);
+console.log(`Average bot kills per match: ${(botKillsTotal / gameCount).toFixed(1)}`);
 console.log(`Different territory leaders: ${wins.size} / ${botCount}`);
 console.log(`Largest seat lead share: ${(Math.max(...winValues) / gameCount * 100).toFixed(1)}%`);
 console.log('Territory leaders by seat:', Object.fromEntries([...wins.entries()].sort((a, b) => a[0] - b[0])));
