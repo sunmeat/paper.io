@@ -222,5 +222,5 @@ export const useGameStore = create(persist((set, get) => ({
       selectedMode: saved.selectedMode === 'sprint' ? 'sprint' : 'classic'
     };
   },
-  merge: (saved, current) => ({ ...current, ...saved })
+  merge: (saved, current) => ({ ...current, ...migrate(saved) })
 }));
