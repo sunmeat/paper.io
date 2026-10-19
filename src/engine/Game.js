@@ -32,6 +32,13 @@ export class Game {
     this.dpr = 1;
     this.camera = { x: this.player?.x ?? 0, y: this.player?.y ?? 0, zoom: 1 };
     this.effects = [];
+    this.effectPool = [];
+    this.cameraShake = 0;
+    this.qualityLevel = 2;
+    this.fpsWindowStarted = performance.now();
+    this.fpsFrames = 0;
+    this.measuredFps = 60;
+    this.renderMetrics = { fullTerrainRedraws: 0, incrementalTerrainRedraws: 0, cellsRedrawn: 0 };
     this.maskCanvas = document.createElement('canvas');
     this.maskCtx = this.maskCanvas.getContext('2d');
     this.maskDirty = true;
@@ -49,11 +56,12 @@ export class Game {
     this.unsubscribeEvents = [
       this.simulation.events.on('capture', event => {
         if (event.human) this.recordBotProgressAfterCapture(event.captured);
-        this.effects.push({ type: 'capture', x: event.x, y: event.y, started: performance.now(), duration: 420 });
+        this.addEffect({ type: 'capture', x: event.x, y: event.y, started: performance.now(), duration: 620 });
       }),
       this.simulation.events.on('death', event => {
         if (event.human) this.recordBotProgressAfterLoss();
-        this.effects.push({
+        this.cameraShake = Math.max(this.cameraShake, event.human ? 9 : 3);
+        this.addEffect({
           type: 'death', x: this.players.get(event.playerId)?.x ?? 0, y: this.players.get(event.playerId)?.y ?? 0,
           started: performance.now(), duration: 480,
           particles: Array.from({ length: 18 }, (_, i) => ({
@@ -230,9 +238,12 @@ export class Game {
     ctx.fillStyle = '#10131c';
     ctx.fillRect(0, 0, width, height);
     ctx.save();
+    const shakeX = this.cameraShake > 0.15 ? (Math.random() - 0.5) * this.cameraShake : 0;
+    const shakeY = this.cameraShake > 0.15 ? (Math.random() - 0.5) * this.cameraShake : 0;
+    this.cameraShake *= 0.82;
     ctx.translate(
-      width / 2 - this.camera.x * cellSize * this.camera.zoom,
-      height / 2 - this.camera.y * cellSize * this.camera.zoom
+      width / 2 - this.camera.x * cellSize * this.camera.zoom + shakeX,
+      height / 2 - this.camera.y * cellSize * this.camera.zoom + shakeY
     );
     ctx.scale(this.camera.zoom, this.camera.zoom);
 
@@ -262,6 +273,8 @@ export class Game {
     if (this.terrainCanvas.width !== width || this.terrainCanvas.height !== height) {
       this.terrainCanvas.width = width; this.terrainCanvas.height = height; this.terrainDirty = true;
     }
+
+    // Static walkable background and arena outline are cached independently of ownership.
     if (this.maskDirty) {
       const layer = this.maskCtx;
       layer.clearRect(0, 0, width, height);
@@ -281,36 +294,76 @@ export class Game {
       }
       layer.stroke(); this.maskDirty = false; this.terrainDirty = true;
     }
-    if (this.cachedOwnerVersion !== this.grid.ownerVersion || this.cachedSkinId !== (this.callbacks.getSkin?.() || 'classic')) this.terrainDirty = true;
-    if (this.terrainDirty) {
-      const layer = this.terrainCtx; layer.clearRect(0, 0, width, height);
-      for (let index = 0; index < this.grid.owners.length; index++) {
-        const owner = this.grid.owners[index];
-        if (!owner || !this.grid.walkable[index]) continue;
-        const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
-        const px = x * cellSize, py = y * cellSize;
-        layer.fillStyle = owner === 1 ? skin.color : getPlayerColor(owner, skin.color);
-        layer.globalAlpha = 0.72;
-        layer.fillRect(px, py, cellSize + 1, cellSize + 1);
-      }
-      layer.globalAlpha = 1;
-      this.renderSkinPattern(layer, cellSize, skin);
-      this.renderTerritoryEdges(layer, cellSize);
+
+    const skinId = this.callbacks.getSkin?.() || 'classic';
+    const fullRedraw = this.terrainDirty || this.cachedSkinId !== skinId;
+    const changed = this.grid.drainDirtyOwners();
+    if (fullRedraw) {
+      const layer = this.terrainCtx;
+      layer.clearRect(0, 0, width, height);
+      const all = this.grid.owners.keys();
+      this.paintOwnerCells(layer, cellSize, skin, all);
+      const cells = this.grid.owners.keys();
+      this.renderSkinPattern(layer, cellSize, skin, cells);
+      this.renderTerritoryEdges(layer, cellSize, cells);
       this.terrainDirty = false;
-      this.cachedOwnerVersion = this.grid.ownerVersion; this.cachedSkinId = this.callbacks.getSkin?.() || 'classic';
+      this.cachedOwnerVersion = this.grid.ownerVersion;
+      this.cachedSkinId = skinId;
+      this.renderMetrics.fullTerrainRedraws++;
+    } else if (changed.length) {
+      // Dirty cells plus their neighbours refresh rounded joins and shared borders.
+      const dirty = new Set();
+      for (const index of changed) {
+        const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
+        for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+          const nx = x + ox, ny = y + oy;
+          if (this.grid.inBounds(nx, ny)) dirty.add(this.grid.index(nx, ny));
+        }
+      }
+      const cells = [...dirty];
+      const layer = this.terrainCtx;
+      for (const index of cells) {
+        const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
+        layer.clearRect(x * cellSize - 1, y * cellSize - 1, cellSize + 2, cellSize + 2);
+      }
+      this.paintOwnerCells(layer, cellSize, skin, cells);
+      this.renderSkinPattern(layer, cellSize, skin, cells);
+      this.renderTerritoryEdges(layer, cellSize, cells);
+      this.cachedOwnerVersion = this.grid.ownerVersion;
+      this.renderMetrics.incrementalTerrainRedraws++;
+      this.renderMetrics.cellsRedrawn += cells.length;
     }
+
     this.ctx.drawImage(this.maskCanvas, 0, 0);
     this.ctx.drawImage(this.terrainCanvas, 0, 0);
   }
 
-  renderSkinPattern(ctx, cellSize, skin) {
+  paintOwnerCells(ctx, cellSize, skin, indices) {
+    for (const index of indices) {
+      const owner = this.grid.owners[index];
+      if (!owner || !this.grid.walkable[index]) continue;
+      const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
+      const px = x * cellSize, py = y * cellSize;
+      const color = owner === 1 ? skin.color : getPlayerColor(owner, skin.color);
+      // A subtle offset underlay gives cells a lightweight raised/tiled appearance.
+      ctx.globalAlpha = 0.24;
+      ctx.fillStyle = '#05070d';
+      ctx.fillRect(px + cellSize * 0.12, py + cellSize * 0.12, cellSize * 0.88, cellSize * 0.88);
+      ctx.globalAlpha = 0.76;
+      ctx.fillStyle = color;
+      ctx.fillRect(px, py, cellSize, cellSize);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  renderSkinPattern(ctx, cellSize, skin, indices = null) {
     if (skin.pattern === 'solid' || cellSize < 5) return;
     ctx.save();
     ctx.globalAlpha = 0.16;
     ctx.strokeStyle = skin.color;
     ctx.fillStyle = skin.color;
     ctx.lineWidth = Math.max(0.6, cellSize * 0.045);
-    for (let index = 0; index < this.grid.owners.length; index++) {
+    for (const index of (indices || this.grid.owners.keys())) {
       if (this.grid.owners[index] !== 1 || !this.grid.walkable[index]) continue;
       const x = (index % this.cellsWide) * cellSize;
       const y = Math.floor(index / this.cellsWide) * cellSize;
@@ -333,13 +386,13 @@ export class Game {
     ctx.restore();
   }
 
-  renderTerritoryEdges(ctx, cellSize) {
+  renderTerritoryEdges(ctx, cellSize, indices = null) {
     ctx.save();
     ctx.strokeStyle = '#10131c';
     ctx.lineWidth = Math.max(0.7, cellSize * 0.055);
     ctx.beginPath();
-    for (let y = 0; y < this.cellsHigh; y++) for (let x = 0; x < this.cellsWide; x++) {
-      const index = this.grid.index(x, y);
+    for (const index of (indices || this.grid.owners.keys())) {
+      const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
       if (!this.grid.walkable[index]) continue;
       const owner = this.grid.owners[index];
       const px = x * cellSize, py = y * cellSize;
@@ -489,32 +542,61 @@ export class Game {
     ctx.restore();
   }
 
+  addEffect(effect) {
+    const pooled = this.effectPool.pop();
+    if (pooled) Object.assign(pooled, effect);
+    this.effects.push(pooled || effect);
+  }
+
+  measureRenderPerformance(time) {
+    this.fpsFrames++;
+    const elapsed = time - this.fpsWindowStarted;
+    if (elapsed < 1000) return;
+    this.measuredFps = this.fpsFrames * 1000 / elapsed;
+    if (this.measuredFps < 45) this.qualityLevel = Math.max(0, this.qualityLevel - 1);
+    else if (this.measuredFps > 57) this.qualityLevel = Math.min(2, this.qualityLevel + 1);
+    this.fpsFrames = 0;
+    this.fpsWindowStarted = time;
+    this.callbacks.onPerformance?.({
+      fps: Math.round(this.measuredFps),
+      quality: ['low', 'balanced', 'high'][this.qualityLevel],
+      ...this.renderMetrics
+    });
+  }
+
   renderEffects(ctx, cellSize) {
     const now = performance.now();
-    this.effects = this.effects.filter(effect => now - effect.started < effect.duration);
-    for (const effect of this.effects) {
+    for (let index = this.effects.length - 1; index >= 0; index--) {
+      const effect = this.effects[index];
       const progress = (now - effect.started) / effect.duration;
+      if (progress >= 1) {
+        this.effects.splice(index, 1);
+        this.effectPool.push(effect);
+        continue;
+      }
       const cx = (effect.x + 0.5) * cellSize;
       const cy = (effect.y + 0.5) * cellSize;
       if (effect.type === 'capture') {
+        // Expanding wave starts at the trail endpoint and blooms across the captured land.
+        ctx.save();
+        ctx.globalAlpha = (1 - progress) * 0.75;
         ctx.strokeStyle = '#fff';
-        ctx.globalAlpha = (1 - progress) * 0.85;
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = Math.max(1, cellSize * 0.09);
         ctx.beginPath();
-        ctx.arc(cx, cy, 2 + progress * cellSize * 5, 0, Math.PI * 2);
+        ctx.arc(cx, cy, cellSize * (0.7 + progress * (this.qualityLevel === 0 ? 2.8 : 5.2)), 0, Math.PI * 2);
         ctx.stroke();
-      } else {
-        for (const particle of effect.particles ?? []) {
+        ctx.restore();
+      } else if (this.qualityLevel > 0) {
+        const particles = effect.particles ?? [];
+        const stride = this.qualityLevel === 1 ? 2 : 1;
+        for (let particleIndex = 0; particleIndex < particles.length; particleIndex += stride) {
+          const particle = particles[particleIndex];
           const distance = progress * cellSize * particle.speed * 8;
           ctx.globalAlpha = 1 - progress;
           ctx.fillStyle = '#fff';
           ctx.beginPath();
-          ctx.arc(
-            cx + Math.cos(particle.angle) * distance,
-            cy + Math.sin(particle.angle) * distance,
-            Math.max(1, cellSize * 0.13 * (1 - progress)),
-            0, Math.PI * 2
-          );
+          ctx.arc(cx + Math.cos(particle.angle) * distance, cy + Math.sin(particle.angle) * distance,
+            Math.max(1, cellSize * 0.13 * (1 - progress)), 0, Math.PI * 2);
           ctx.fill();
         }
       }
