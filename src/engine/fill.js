@@ -2,11 +2,10 @@ const workspaces = new Map();
 
 export function captureArea(grid, owner, trailCells) {
   for (const index of trailCells) {
+    if (!grid.walkable[index] || grid.trail[index] !== owner) continue;
     grid.setOwnerAt(index, owner);
-    if (grid.trail[index] !== 0) {
-      grid.trail[index] = 0;
-      grid.version++;
-    }
+    grid.trail[index] = 0;
+    grid.version++;
   }
 
   const { width, height, owners, walkable } = grid;
@@ -45,14 +44,14 @@ export function captureArea(grid, owner, trailCells) {
 
   let captured = 0;
   for (let i = 0; i < owners.length; i++) {
-    if (walkable[i] && !visited[i] && owners[i] !== owner) {
-      if (owners[i] !== owner) {
-        grid.setOwnerAt(i, owner);
-        if (grid.trail[i] && grid.trail[i] !== owner) capturedTrailOwners.add(grid.trail[i]);
-        captured++;
-      }
-      if (grid.trail[i] !== 0) { grid.trail[i] = 0; grid.version++; }
+    if (!walkable[i] || visited[i] || owners[i] === owner) continue;
+    if (grid.trail[i] && grid.trail[i] !== owner) capturedTrailOwners.add(grid.trail[i]);
+    grid.setOwnerAt(i, owner);
+    if (grid.trail[i] !== 0) {
+      grid.trail[i] = 0;
+      grid.version++;
     }
+    captured++;
   }
   grid.capturedTrailOwners = capturedTrailOwners;
   grid.clearTrail(owner);
