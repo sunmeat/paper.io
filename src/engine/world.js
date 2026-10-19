@@ -53,6 +53,33 @@ export function isCountryUnlocked(countryId, completed = [], countries = WORLD_C
   return completed.includes(countries[index - 1].id);
 }
 
+
+export function restoreWorldProgress(saved = {}) {
+  const source = saved && typeof saved === 'object' ? saved : {};
+  const completedCountries = [...new Set((Array.isArray(source.completedCountries) ? source.completedCountries : Array.isArray(source.completed) ? source.completed : [])
+    .filter(id => WORLD_COUNTRIES.some(country => country.id === id)))];
+  const requestedCountry = WORLD_COUNTRIES.some(country => country.id === source.selectedCountryId) ? source.selectedCountryId : WORLD_COUNTRIES[0].id;
+  const selectedCountryId = isCountryUnlocked(requestedCountry, completedCountries) ? requestedCountry : (WORLD_COUNTRIES.find(country => isCountryUnlocked(country.id, completedCountries))?.id || WORLD_COUNTRIES[0].id);
+  const experience = Math.max(0, Math.floor(Number(source.experience) || 0));
+  const gamesPlayed = Math.max(0, Math.floor(Number(source.gamesPlayed) || 0));
+  const bestTerritory = Math.max(0, Number(source.bestTerritory) || 0);
+  const prestige = Math.max(0, Math.floor(Number(source.prestige) || 0));
+  return {
+    ...DEFAULT_WORLD_PROGRESS,
+    completedCountries,
+    selectedCountryId,
+    prestige,
+    experience,
+    level: getPlayerLevel(experience),
+    gamesPlayed,
+    totalTerritory: Math.max(0, Number(source.totalTerritory) || 0),
+    bestTerritory,
+    countryRecords: source.countryRecords && typeof source.countryRecords === 'object' ? source.countryRecords : {},
+    rank: getPlayerRank(gamesPlayed, bestTerritory, prestige),
+    lastExperienceGained: Math.max(0, Math.floor(Number(source.lastExperienceGained) || 0))
+  };
+}
+
 export function advanceWorldProgress(progress, { countryId = 'ukraine', territory = 0, experience = 0 } = {}, countries = WORLD_COUNTRIES) {
   const current = { ...DEFAULT_WORLD_PROGRESS, ...progress };
   const completed = [...new Set(current.completed || [])];
