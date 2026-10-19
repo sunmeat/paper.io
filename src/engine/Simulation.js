@@ -254,15 +254,16 @@ export class Simulation {
         continue;
       }
       this.movePlayer(player);
-      const bonusMoves = Math.min(2, Math.floor((player.edgeTicks || 0) / 8));
-      for (let bonus = 0; bonus < bonusMoves && player.alive; bonus++) {
-        this.resolvingTick = false;
-        this.movePlayer(player);
-        this.resolvingTick = true;
-      }
       if (this.over) break;
     }
     this.resolvingTick = false;
+    // Edge-boost substeps happen after the simultaneous movement phase.
+    for (const player of active) {
+      if (!player.alive) continue;
+      const bonusMoves = Math.min(2, Math.floor((player.edgeTicks || 0) / 8));
+      for (let bonus = 0; bonus < bonusMoves && player.alive; bonus++) this.movePlayer(player);
+      if (this.over) break;
+    }
 
     // Resolve every completed loop only after all participants have moved.
     for (const player of active) {
