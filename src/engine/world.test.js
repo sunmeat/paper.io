@@ -5,6 +5,7 @@ import {
   getPlayerLevel,
   getPlayerRank,
   isCountryUnlocked,
+  restoreWorldProgress,
   WORLD_COUNTRIES
 } from './world.js';
 
@@ -26,11 +27,11 @@ describe('country world progression', () => {
       { ...DEFAULT_WORLD_PROGRESS, completed: [] },
       { countryId: 'ukraine', territory: 93.125, experience: 220 }
     );
-    const restored = JSON.parse(JSON.stringify(progress));
-    expect(restored.completed).toEqual(['ukraine']);
+    const restored = restoreWorldProgress(JSON.parse(JSON.stringify(progress)));
+    expect(restored.completedCountries).toEqual(['ukraine']);
     expect(restored.countryRecords.ukraine).toBe(93.125);
     expect(restored.experience).toBe(220);
-    const next = advanceWorldProgress(restored, { countryId: 'france', territory: 90, experience: 100 });
+    const next = advanceWorldProgress({ ...restored, completed: restored.completedCountries }, { countryId: 'france', territory: 90, experience: 100 });
     expect(next.completed).toEqual(['ukraine', 'france']);
     expect(next.gamesPlayed).toBe(2);
   });
