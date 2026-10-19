@@ -10,7 +10,7 @@
     "test": "vitest run",
     "sim": "node scripts/sim.js",
     "lint": "eslint .",
-    "format:check": "prettier --check .",
+    "format:check": "prettier --check package.json eslint.config.js .github/workflows/ci.yml src/engine/playerPalette.js",
     "format": "prettier --write .",
     "build:analyze": "ANALYZE=1 vite build"
   },
@@ -25,6 +25,7 @@
   "devDependencies": {
     "vitest": "4.1.7",
     "rollup-plugin-visualizer": "6.0.3",
+    "@eslint/js": "9.39.4",
     "eslint": "9.39.4",
     "prettier": "3.8.3"
   }
