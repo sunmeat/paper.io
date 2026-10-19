@@ -382,3 +382,10 @@ kbd {
 .daily-quest-card .skin-action{grid-column:1/-1}
 .quest-claimed{border-color:#58e6ad44}
 @media(max-width:390px){.daily-calendar,.daily-quests{padding:10px}.calendar-days{gap:3px}.calendar-day{padding:7px 1px}.calendar-day small{font-size:7px}.calendar-day strong{font-size:9px}}
+
+.reward-breakdown{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:0 0 18px;padding:12px;border:1px solid #ffcf7025;border-radius:12px;background:#ffcf7008}
+.reward-breakdown>span{grid-column:1/-1;color:#ffcf70;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase}
+.reward-breakdown>div{display:grid;gap:4px;min-width:0}
+.reward-breakdown small{overflow:hidden;color:#959cb1;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.reward-breakdown strong{color:#ffcf70;font:11px 'DM Mono',monospace}
+@media(max-width:380px){.reward-breakdown{gap:8px;padding:10px}.reward-breakdown small{font-size:8px}}
