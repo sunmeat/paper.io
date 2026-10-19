@@ -77,7 +77,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         useGameStore.getState().awardAchievement('first-capture');
         const total = Math.max(1, game.grid.walkableCount || game.grid.owners.length);
         window.dispatchEvent(new CustomEvent('paperio:capture', {
-          detail: { percent: Math.max(1, Math.round(event.captured / total * 100)), x: event.x, y: event.y }
+          detail: (() => { const rect = canvas.getBoundingClientRect(); const cellSize = Math.min(rect.width, rect.height) / 27; return { percent: Math.max(1, Math.round(event.captured / total * 100)), x: event.x, y: event.y, screenX: rect.width / 2 + (event.x + 0.5 - game.camera.x) * cellSize * game.camera.zoom, screenY: rect.height / 2 + (event.y + 0.5 - game.camera.y) * cellSize * game.camera.zoom }; })()
         }));
       }),
       events.on('kill', event => {
