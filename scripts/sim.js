@@ -23,7 +23,6 @@ function simulate(seed) {
     leader: ranked[0],
     survivors: players.filter(player => player.alive).length,
     deaths: players.reduce((sum, player) => sum + player.deaths, 0),
-    lifetime: players.reduce((sum, player) => sum + player.lifetime, 0) / players.length,
     playerKills,
     botKills,
     averageLifetime: totalLifeTicks / Math.max(1, completedLives),
@@ -34,7 +33,6 @@ function simulate(seed) {
 const wins = new Map();
 const difficultyWins = new Map();
 const personalityWins = Object.fromEntries(Object.keys(BOT_PERSONALITIES).map(key => [key, 0]));
-let lifetimeTotal = 0;
 let survivorsTotal = 0;
 let deathsTotal = 0;
 let playerKillsTotal = 0;
@@ -43,7 +41,6 @@ let averageLifetimeTotal = 0;
 
 for (let game = 0; game < gameCount; game++) {
   const result = simulate(0x51f15e + game * 7919);
-  lifetimeTotal += result.lifetime;
   survivorsTotal += result.survivors;
   deathsTotal += result.deaths;
   playerKillsTotal += result.playerKills;
