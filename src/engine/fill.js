@@ -3,10 +3,11 @@ const workspaces = new Map();
 export function retainLargestTerritoryComponents(grid) {
   const { owners, walkable, width, height } = grid;
   let workspace = workspaces.get(owners.length);
-  if (!workspace) {
+  if (!workspace || !workspace.labels) {
     workspace = {
+      ...workspace,
       labels: new Uint32Array(owners.length),
-      queue: new Int32Array(owners.length)
+      queue: workspace?.queue || new Int32Array(owners.length)
     };
     workspaces.set(owners.length, workspace);
   }
