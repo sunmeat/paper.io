@@ -37,6 +37,7 @@ export class Game {
     this.effectPool = [];
     this.particlePool = [];
     this.cameraShake = 0;
+    this.hitStopUntil = 0;
     this.qualityLevel = 2;
     this.fpsWindowStarted = performance.now();
     this.fpsFrames = 0;
@@ -65,12 +66,34 @@ export class Game {
         this.addEffect({ type: 'capture', x: event.x, y: event.y, started: performance.now(), duration: 620 });
       }),
       this.simulation.events.on('death', event => {
-        if (event.human) this.recordBotProgressAfterLoss();
+        const now = performance.now();
+        const victim = this.players.get(event.playerId);
+        if (event.human) {
+          this.recordBotProgressAfterLoss();
+          this.hitStopUntil = now + 120;
+        }
         this.cameraShake = Math.max(this.cameraShake, event.human ? 9 : 3);
+        const skin = getSkinById(this.callbacks.getSkin?.() || 'classic');
         this.addEffect({
-          type: 'death', x: this.players.get(event.playerId)?.x ?? 0, y: this.players.get(event.playerId)?.y ?? 0,
-          started: performance.now(), duration: 480,
+          type: 'death',
+          x: victim?.x ?? 0,
+          y: victim?.y ?? 0,
+          started: now,
+          duration: 1200,
+          color: victim?.human ? skin.color : getPlayerColor(event.playerId, skin.color),
+          cells: event.territoryCells || [],
           particles: this.createParticles(18)
+        });
+      }),
+      this.simulation.events.on('gameOver', snapshot => {
+        if (snapshot.outcome !== 'victory') return;
+        this.addEffect({
+          type: 'victory-confetti',
+          x: this.cellsWide / 2,
+          y: this.cellsHigh / 2,
+          started: performance.now(),
+          duration: 1200,
+          particles: this.createParticles(72, true)
         });
       }),
     ];
@@ -156,6 +179,7 @@ export class Game {
   restart() {
     this.simulation.reset();
     this.effects = [];
+    this.hitStopUntil = 0;
     this.camera = { x: this.player?.x ?? 0, y: this.player?.y ?? 0, zoom: 1 };
     this.terrainDirty = true;
     this.maskDirty = true;
@@ -188,7 +212,7 @@ export class Game {
       this.lastTime = time;
     }
     this.frameDeltaMs = delta;
-    if (!inCountdown && !this.paused && !this.over) {
+    if (!inCountdown && !this.paused && !this.over && time >= this.hitStopUntil) {
       this.accumulator += delta;
       while (this.accumulator >= GAME_CONFIG.fixedStepMs) {
         this.simulation.update(GAME_CONFIG.fixedStepMs);
@@ -220,17 +244,20 @@ export class Game {
     const interpolation = Math.max(0, Math.min(1, this.simulation.moveAccumulator / this.simulation.config.moveIntervalMs));
     const playerX = this.player ? this.player.prevX + (this.player.x - this.player.prevX) * interpolation : this.cellsWide / 2;
     const playerY = this.player ? this.player.prevY + (this.player.y - this.player.prevY) * interpolation : this.cellsHigh / 2;
-    const targetX = this.player?.alive ? playerX + 0.5 : this.cellsWide / 2;
-    const targetY = this.player?.alive ? playerY + 0.5 : this.cellsHigh / 2;
+    const targetX = this.simulation.over ? this.cellsWide / 2 : this.player?.alive ? playerX + 0.5 : this.cellsWide / 2;
+    const targetY = this.simulation.over ? this.cellsHigh / 2 : this.player?.alive ? playerY + 0.5 : this.cellsHigh / 2;
     const territory = this.grid.territoryCount(1) / Math.max(1, this.grid.owners.length);
     const viewportRatio = Math.min(width, height) / Math.max(width, height);
     const viewportZoom = Math.max(0.9, Math.min(1.08, 0.9 + viewportRatio * 0.18));
-    const targetZoom = Math.max(0.9, Math.min(1.08, viewportZoom * (1 - territory * 0.18)));
+    const fullMapZoom = Math.min(width / (cellSize * this.cellsWide), height / (cellSize * this.cellsHigh));
+    const targetZoom = this.simulation.over
+      ? fullMapZoom
+      : Math.max(0.9, Math.min(1.08, viewportZoom * (1 - territory * 0.18)));
 
-    const cameraAlpha = 1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * 8);
+    const cameraAlpha = 1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * (this.simulation.over ? 4 : 8));
     this.camera.x += (targetX - this.camera.x) * cameraAlpha;
     this.camera.y += (targetY - this.camera.y) * cameraAlpha;
-    this.camera.zoom += (targetZoom - this.camera.zoom) * (1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * 2.8));
+    this.camera.zoom += (targetZoom - this.camera.zoom) * (1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * 3.2));
 
     const visibleWidth = width / (cellSize * this.camera.zoom);
     const visibleHeight = height / (cellSize * this.camera.zoom);
@@ -264,6 +291,7 @@ export class Game {
     }
 
     this.renderTerrain(cellSize, skin);
+    this.renderFinalTerritories(ctx, cellSize, skin);
     this.renderTrail(ctx, cellSize, interpolation, skin);
     this.renderPlayers(ctx, cellSize, skin, interpolation);
     this.renderEffects(ctx, cellSize);
@@ -445,6 +473,21 @@ export class Game {
     ctx.restore();
   }
 
+  renderFinalTerritories(ctx, cellSize, skin) {
+    const owners = this.simulation.finalTerritoryOwners;
+    if (!this.simulation.over || !owners) return;
+    ctx.save();
+    ctx.globalAlpha = 0.58;
+    for (let index = 0; index < owners.length; index++) {
+      const owner = owners[index];
+      if (!owner || !this.grid.walkable[index]) continue;
+      const color = owner === 1 ? skin.color : getPlayerColor(owner, skin.color);
+      ctx.fillStyle = color;
+      ctx.fillRect((index % this.cellsWide) * cellSize, Math.floor(index / this.cellsWide) * cellSize, cellSize + 0.2, cellSize + 0.2);
+    }
+    ctx.restore();
+  }
+
   renderTrail(ctx, cellSize, interpolation, skin) {
     const trailEffect = getTrailById(this.callbacks.getTrail?.() || 'none');
     ctx.save();
@@ -607,12 +650,15 @@ export class Game {
     ctx.restore();
   }
 
-  createParticles(count) {
+  createParticles(count, confetti = false) {
     const particles = [];
+    const confettiColors = ['#ffd34f', '#ff6685', '#42d9c0', '#65a8ff', '#9b7bff', '#f4f6ff'];
     for (let i = 0; i < count; i++) {
       const particle = this.particlePool.pop() || {};
-      particle.angle = Math.PI * 2 * i / count;
-      particle.speed = 0.6 + (i % 5) * 0.32;
+      particle.angle = confetti ? Math.PI * 2 * i / count + (Math.random() - 0.5) * 0.35 : Math.PI * 2 * i / count;
+      particle.speed = confetti ? 1.1 + Math.random() * 2 : 0.6 + (i % 5) * 0.32;
+      particle.color = confetti ? confettiColors[i % confettiColors.length] : '#fff';
+      particle.rotation = Math.random() * Math.PI;
       particles.push(particle);
     }
     return particles;
@@ -646,18 +692,19 @@ export class Game {
     const now = performance.now();
     for (let index = this.effects.length - 1; index >= 0; index--) {
       const effect = this.effects[index];
-      const progress = (now - effect.started) / effect.duration;
+      const elapsed = now - effect.started;
+      const progress = elapsed / effect.duration;
       if (progress >= 1) {
         this.effects.splice(index, 1);
         for (const particle of effect.particles || []) this.particlePool.push(particle);
         effect.particles = null;
+        effect.cells = null;
         this.effectPool.push(effect);
         continue;
       }
       const cx = (effect.x + 0.5) * cellSize;
       const cy = (effect.y + 0.5) * cellSize;
       if (effect.type === 'capture') {
-        // Expanding wave starts at the trail endpoint and blooms across the captured land.
         ctx.save();
         ctx.globalAlpha = (1 - progress) * 0.75;
         ctx.strokeStyle = '#fff';
@@ -666,18 +713,45 @@ export class Game {
         ctx.arc(cx, cy, cellSize * (0.7 + progress * (this.qualityLevel === 0 ? 2.8 : 5.2)), 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
-      } else if (this.qualityLevel > 0) {
-        const particles = effect.particles ?? [];
-        const stride = this.qualityLevel === 1 ? 2 : 1;
-        for (let particleIndex = 0; particleIndex < particles.length; particleIndex += stride) {
-          const particle = particles[particleIndex];
-          const distance = progress * cellSize * particle.speed * 8;
-          ctx.globalAlpha = 1 - progress;
-          ctx.fillStyle = '#fff';
-          ctx.beginPath();
-          ctx.arc(cx + Math.cos(particle.angle) * distance, cy + Math.sin(particle.angle) * distance,
-            Math.max(1, cellSize * 0.13 * (1 - progress)), 0, Math.PI * 2);
-          ctx.fill();
+      } else if (effect.type === 'death') {
+        if (elapsed >= 120 && elapsed < 480 && this.qualityLevel > 0) {
+          const burstProgress = (elapsed - 120) / 360;
+          const particles = effect.particles || [];
+          const stride = this.qualityLevel === 1 ? 2 : 1;
+          for (let particleIndex = 0; particleIndex < particles.length; particleIndex += stride) {
+            const particle = particles[particleIndex];
+            const distance = burstProgress * cellSize * particle.speed * 8;
+            ctx.globalAlpha = 1 - burstProgress;
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx + Math.cos(particle.angle) * distance, cy + Math.sin(particle.angle) * distance,
+              Math.max(1, cellSize * 0.13 * (1 - burstProgress)), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        if (elapsed >= 480 && effect.cells?.length) {
+          const fade = Math.max(0, 1 - (elapsed - 480) / 720);
+          ctx.save();
+          ctx.globalAlpha = fade;
+          ctx.fillStyle = effect.color || '#fff';
+          for (const cellIndex of effect.cells) {
+            ctx.fillRect((cellIndex % this.cellsWide) * cellSize, Math.floor(cellIndex / this.cellsWide) * cellSize, cellSize + 0.15, cellSize + 0.15);
+          }
+          ctx.restore();
+        }
+      } else if (effect.type === 'victory-confetti') {
+        const particles = effect.particles || [];
+        for (const particle of particles) {
+          const distance = progress * cellSize * particle.speed * 18;
+          const x = cx + Math.cos(particle.angle) * distance;
+          const y = cy + Math.sin(particle.angle) * distance + progress * progress * cellSize * 22;
+          ctx.save();
+          ctx.globalAlpha = 1 - progress * 0.65;
+          ctx.translate(x, y);
+          ctx.rotate(particle.rotation + progress * 7);
+          ctx.fillStyle = particle.color;
+          ctx.fillRect(-cellSize * 0.11, -cellSize * 0.055, cellSize * 0.22, cellSize * 0.11);
+          ctx.restore();
         }
       }
     }
