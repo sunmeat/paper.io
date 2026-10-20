@@ -1,5 +1,71 @@
 const workspaces = new Map();
 
+export function retainLargestTerritoryComponents(grid) {
+  const { owners, walkable, width, height } = grid;
+  let workspace = workspaces.get(owners.length);
+  if (!workspace) {
+    workspace = {
+      labels: new Uint32Array(owners.length),
+      queue: new Int32Array(owners.length)
+    };
+    workspaces.set(owners.length, workspace);
+  }
+
+  const { labels, queue } = workspace;
+  labels.fill(0);
+  const largestByOwner = new Map();
+  const sizesByComponent = [0];
+  let componentId = 0;
+
+  for (let start = 0; start < owners.length; start++) {
+    const owner = owners[start];
+    if (!walkable[start] || !owner || labels[start]) continue;
+
+    componentId++;
+    let head = 0;
+    let tail = 0;
+    queue[tail++] = start;
+    labels[start] = componentId;
+
+    while (head < tail) {
+      const index = queue[head++];
+      const x = index % width;
+      const y = Math.floor(index / width);
+      const neighbors = [
+        x > 0 ? index - 1 : -1,
+        x + 1 < width ? index + 1 : -1,
+        y > 0 ? index - width : -1,
+        y + 1 < height ? index + width : -1
+      ];
+
+      for (const neighbor of neighbors) {
+        if (neighbor < 0 || !walkable[neighbor] || owners[neighbor] !== owner || labels[neighbor]) continue;
+        labels[neighbor] = componentId;
+        queue[tail++] = neighbor;
+      }
+    }
+
+    sizesByComponent[componentId] = tail;
+    const previousLargest = largestByOwner.get(owner);
+    if (!previousLargest || tail > previousLargest.size) {
+      largestByOwner.set(owner, { id: componentId, size: tail });
+    }
+  }
+
+  let neutralized = 0;
+  for (let index = 0; index < owners.length; index++) {
+    const owner = owners[index];
+    if (!owner) continue;
+    const largest = largestByOwner.get(owner);
+    if (largest && labels[index] !== largest.id) {
+      grid.setOwnerAt(index, 0);
+      neutralized++;
+    }
+  }
+
+  return neutralized;
+}
+
 export function captureArea(grid, owner, trailCells) {
   const capturedTrailOwners = new Set();
   for (const index of trailCells) {
@@ -21,8 +87,9 @@ export function captureArea(grid, owner, trailCells) {
 
   const { width, height, owners, walkable } = grid;
   let workspace = workspaces.get(owners.length);
-  if (!workspace) {
+  if (!workspace || !workspace.visited) {
     workspace = {
+      ...workspace,
       visited: new Uint8Array(owners.length),
       queue: new Int32Array(owners.length)
     };
@@ -76,5 +143,6 @@ export function captureArea(grid, owner, trailCells) {
 
   grid.capturedTrailOwners = capturedTrailOwners;
   grid.clearTrail(owner);
+  retainLargestTerritoryComponents(grid);
   return captured;
 }
