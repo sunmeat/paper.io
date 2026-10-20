@@ -23,6 +23,7 @@ export const getDailyQuests = (date = new Date()) => {
 const base = {
   selectedMap: 'circle',
   coins: 0,
+  revivesPurchased: 0,
   ownedSkins: ['classic'],
   equippedSkin: 'classic',
   ownedHats: ['none'],
@@ -94,6 +95,15 @@ export const useGameStore = create(persist((set, get) => ({
   }),
   resetSnapshot: () => set({ snapshot, paused: false }),
   addCoins: amount => set(state => { const coins = state.coins + Math.max(0, Math.floor(amount || 0)); return { coins, walletChecksum: walletChecksum(coins) }; }),
+  getRevivePrice: () => get().revivesPurchased > 0 ? 200 : 100,
+  spendCoinsForRevive: () => {
+    const state = get();
+    const price = state.revivesPurchased > 0 ? 200 : 100;
+    if (state.coins < price) return { ok: false, reason: 'coins', price };
+    const coins = state.coins - price;
+    set({ coins, walletChecksum: walletChecksum(coins), revivesPurchased: state.revivesPurchased + 1 });
+    return { ok: true, price };
+  },
   awardAchievement: id => set(state => state.achievements.includes(id) ? {} : { achievements: [...state.achievements, id] }),
   finishRound: () => set(state => {
     const achievements = [...state.achievements];
@@ -204,7 +214,7 @@ export const useGameStore = create(persist((set, get) => ({
   version: 4,
   storage: createJSONStorage(() => localStorage),
   partialize: state => ({
-    selectedMap: state.selectedMap, coins: state.coins, ownedSkins: state.ownedSkins, equippedSkin: state.equippedSkin,
+    selectedMap: state.selectedMap, coins: state.coins, revivesPurchased: state.revivesPurchased, ownedSkins: state.ownedSkins, equippedSkin: state.equippedSkin,
     ownedHats: state.ownedHats, equippedHat: state.equippedHat, ownedTrails: state.ownedTrails, equippedTrail: state.equippedTrail,
     achievements: state.achievements, lastDailyClaimDate: state.lastDailyClaimDate, lastDailyClaimAt: state.lastDailyClaimAt,
     dailyStreak: state.dailyStreak, roundsPlayed: state.roundsPlayed,
@@ -219,6 +229,7 @@ export const useGameStore = create(persist((set, get) => ({
       coins: saved.walletChecksum && saved.walletChecksum === walletChecksum(saved.coins) ? Math.max(0, Math.floor(Number(saved.coins) || 0)) : (saved.walletChecksum ? 0 : Math.max(0, Math.floor(Number(saved.coins) || 0))),
       walletChecksum: walletChecksum(saved.walletChecksum && saved.walletChecksum === walletChecksum(saved.coins) ? saved.coins : (saved.walletChecksum ? 0 : saved.coins)),
       totalRoundCoins: Math.max(0, Number(saved.totalRoundCoins) || 0),
+      revivesPurchased: Math.max(0, Math.floor(Number(saved.revivesPurchased) || 0)),
       dailyQuestProgress: saved.dailyQuestProgress && typeof saved.dailyQuestProgress === 'object' ? saved.dailyQuestProgress : {},
       dailyQuestClaims: saved.dailyQuestClaims && typeof saved.dailyQuestClaims === 'object' ? saved.dailyQuestClaims : {},
       ownedSkins: valid(saved.ownedSkins, SKINS, 'classic'),
