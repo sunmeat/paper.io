@@ -128,7 +128,7 @@ export class Simulation {
       const playerWidth = this.config.playerStartWidth;
       const playerHeight = this.config.playerStartHeight;
       const spawn = this.findSpawn(
-        Math.round(this.cellsWide * 0.18),
+        Math.floor(this.cellsWide / 2),
         Math.floor(this.cellsHigh / 2),
         playerWidth,
         playerHeight,
@@ -324,14 +324,8 @@ export class Simulation {
       if (!player.alive) continue;
       const plan = plans.get(player.id);
       if (plan?.blocked) {
-        player.edgeTicks = (player.edgeTicks || 0) + 1;
-        const tangents = player.dx !== 0 ? [[0, 1], [0, -1]] : [[1, 0], [-1, 0]];
-        const tangent = tangents.find(([dx, dy]) => this.grid.inside(player.x + dx, player.y + dy));
-        if (tangent) {
-          [player.dx, player.dy] = tangent;
-          player.edgeTicks++;
-          this.movePlayer(player);
-        }
+        this.eliminatePlayer(player);
+        if (this.over) break;
         continue;
       }
       this.movePlayer(player);
