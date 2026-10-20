@@ -27,11 +27,11 @@ export function captureArea(grid, owner, trailCells) {
   visited.fill(0);
   let head = 0;
   let tail = 0;
-  // Flood-fill every cell not owned by the capturer, including rival land.
-  // This matches Paper.io: rival territory connected to the outside stays theirs,
-  // while rival cells enclosed by the new loop are captured.
+  // Flood-fill only neutral cells reachable from the map edge. Rival territories
+  // are barriers during this pass: enclosed rival cells are captured with the
+  // enclosed neutral area, while rival land outside the loop remains theirs.
   const enqueue = index => {
-    if (!walkable[index] || visited[index] || owners[index] === owner) return;
+    if (!walkable[index] || visited[index] || owners[index] !== 0) return;
     visited[index] = 1;
     queue[tail++] = index;
   };
@@ -64,8 +64,9 @@ export function captureArea(grid, owner, trailCells) {
     captured++;
   };
 
-  // Every non-capturer cell cut off from the map edge is captured, regardless
-  // of whether it was neutral land or belonged to an opponent.
+  // Claim all cells not owned by the player that are not connected to the
+  // outside through neutral land. This includes opponent-owned cells enclosed
+  // by the newly closed contour.
   for (let i = 0; i < owners.length; i++) {
     if (walkable[i] && owners[i] !== owner && !visited[i]) captureCell(i);
   }
