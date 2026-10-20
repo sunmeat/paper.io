@@ -13,7 +13,7 @@ export class Game {
     const progress = this.readBotProgress();
     this.simulation = new Simulation({
       seed: callbacks.seed ?? GAME_CONFIG.seed,
-      mapId: callbacks.mapId ?? 'ukraine',
+      mapId: callbacks.mapId ?? 'circle',
       modeId: callbacks.modeId ?? 'classic',
       config: { ...(callbacks.countryLevel ? { botCount: Math.min(18, 9 + callbacks.countryLevel - 1) } : {}), ...(callbacks.config || {}) },
       humanPlayer: !callbacks.observer,
