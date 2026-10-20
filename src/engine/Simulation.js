@@ -74,6 +74,8 @@ export class Simulation {
     this.maxTerritoryCells = 0;
     this.finalTerritoryOwners = null;
     this.deathKillerId = null;
+    this.revivesUsed = 0;
+    this.deathReason = null;
 
     this.initializing = true;
     this.botCount = this.config.botCount;
@@ -397,6 +399,23 @@ export class Simulation {
     this.events.emit('gameOver', this.getStats());
   }
 
+  revive() {
+    const player = this.player;
+    if (!player || player.alive || this.revivesUsed >= 1 || this.outcome !== 'defeat' || this.deathReason !== 'death') return false;
+    this.respawnPlayer(player);
+    player.invulnerableTicks = 30;
+    this.revivesUsed++;
+    this.over = false;
+    this.paused = false;
+    this.outcome = null;
+    this.winnerId = null;
+    this.deathReason = null;
+    this.finalTerritoryOwners = null;
+    this.deathKillerId = null;
+    this.events.emit('revive', { playerId: player.id, revivesUsed: this.revivesUsed });
+    return true;
+  }
+
   randomDirection(current) {
     const options = DIRECTIONS.filter(([x, y]) => !(x === -current.dx && y === -current.dy));
     return options[Math.floor(this.random() * options.length)];
@@ -521,6 +540,7 @@ export class Simulation {
     if (attributedKiller?.human && !player.human) this.sessionScore += 100;
 
     if (player.human) {
+      this.deathReason = 'death';
       this.outcome = 'defeat';
       this.winnerId = null;
       this.over = true;
