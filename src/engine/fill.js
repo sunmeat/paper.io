@@ -6,6 +6,8 @@ export function captureArea(grid, owner, trailCells) {
     if (!grid.walkable[index]) continue;
 
     const trailOwner = grid.trail[index];
+    // Ignore stale trail indices that point at ordinary rival territory.
+    if (grid.owners[index] && grid.owners[index] !== owner && !trailOwner) continue;
     if (trailOwner && trailOwner !== owner) capturedTrailOwners.add(trailOwner);
 
     // The player's trail is the new border even when it crosses rival land.
