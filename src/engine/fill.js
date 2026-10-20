@@ -3,9 +3,13 @@ const workspaces = new Map();
 export function captureArea(grid, owner, trailCells) {
   const capturedTrailOwners = new Set();
   for (const index of trailCells) {
-    if (!grid.walkable[index] || (grid.owners[index] && grid.owners[index] !== owner)) continue;
+    if (!grid.walkable[index]) continue;
+
     const trailOwner = grid.trail[index];
     if (trailOwner && trailOwner !== owner) capturedTrailOwners.add(trailOwner);
+
+    // The player's trail is the new border even when it crosses rival land.
+    // Leaving an enemy-owned trail cell unchanged creates a hole in the loop.
     grid.setOwnerAt(index, owner);
     if (trailOwner) {
       grid.trail[index] = 0;
@@ -18,18 +22,18 @@ export function captureArea(grid, owner, trailCells) {
   if (!workspace) {
     workspace = {
       visited: new Uint8Array(owners.length),
-      enemyVisited: new Uint8Array(owners.length),
       queue: new Int32Array(owners.length)
     };
     workspaces.set(owners.length, workspace);
   }
-  const { visited, enemyVisited, queue } = workspace;
+  const { visited, queue } = workspace;
   visited.fill(0);
   let head = 0;
   let tail = 0;
-  // Flood-fill every cell not owned by the capturing player, including rival land.
-  // Enemy territory connected to the outside remains theirs; enclosed enemy cells
-  // are captured along with enclosed neutral land.
+
+  // Everything not owned by the capturing player, including rival territory,
+  // is traversable by the outside flood-fill. Only cells sealed by our border
+  // are claimed, so connected enemy land outside the loop stays untouched.
   const enqueue = index => {
     if (!walkable[index] || visited[index] || owners[index] === owner) return;
     visited[index] = 1;
@@ -64,12 +68,10 @@ export function captureArea(grid, owner, trailCells) {
     captured++;
   };
 
-  // Claim every non-player cell that cannot reach the map edge, whether neutral
-  // or rival-owned. This is the only capture rule; do not separately flood-fill
-  // enemy regions, which can accidentally steal land outside the loop.
   for (let i = 0; i < owners.length; i++) {
     if (walkable[i] && owners[i] !== owner && !visited[i]) captureCell(i);
   }
+
   grid.capturedTrailOwners = capturedTrailOwners;
   grid.clearTrail(owner);
   return captured;
