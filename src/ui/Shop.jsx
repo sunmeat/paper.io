@@ -16,7 +16,7 @@ export default function Shop({ onClose }) {
   const ownedTrails = useGameStore(state => state.ownedTrails);
   const equippedTrail = useGameStore(state => state.equippedTrail);
   const achievements = useGameStore(state => state.achievements);
-  const profile = useGameStore(state => ({ ...state, captured: state.totalTerritory || 0 }));
+  const profile = useGameStore(state => state);
   const claimCosmeticReward = useGameStore(state => state.claimCosmeticReward);
   const dailyStreak = useGameStore(state => state.dailyStreak);
   const lastDailyClaimDate = useGameStore(state => state.lastDailyClaimDate);
