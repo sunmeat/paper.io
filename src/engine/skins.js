@@ -7,7 +7,7 @@ export const RARITY = Object.freeze({
 export const SKINS = Object.freeze([
   { id: 'classic', name: { ru: 'Классика', en: 'Classic' }, price: 0, color: '#9b7bff', pattern: 'solid', trailShape: 'square', rarity: 'common', unlock: { type: 'free' } },
   { id: 'neon', name: { ru: 'Неон', en: 'Neon' }, price: 150, color: '#e7ff45', pattern: 'dots', trailShape: 'circle', rarity: 'common' },
-  { id: 'coral', name: { ru: 'Коралл', en: 'Coral' }, price: 300, color: '#ff6685', pattern: 'stripes', trailShape: 'diamond', rarity: 'common' },
+  { id: 'coral', name: { ru: 'Коралл', en: 'Coral' }, price: 300, color: '#ff6685', pattern: 'stripes', trailShape: 'diamond', rarity: 'common', unlock: { type: 'quest', captured: 100 } },
   { id: 'ice', name: { ru: 'Лёд', en: 'Ice' }, price: 900, color: '#65dfff', pattern: 'grid', trailShape: 'square', rarity: 'rare' },
   { id: 'royal', name: { ru: 'Королевский', en: 'Royal' }, price: 1600, color: '#ffbd59', pattern: 'rings', trailShape: 'circle', rarity: 'epic', unlock: { type: 'sprint', wins: 1 } },
   { id: 'mint', name: { ru: 'Мята', en: 'Mint' }, price: 0, color: '#58e6ad', pattern: 'diagonal', trailShape: 'square', rarity: 'common', unlock: { type: 'round-territory', target: 75 } },
@@ -16,7 +16,7 @@ export const SKINS = Object.freeze([
   { id: 'lava', name: { ru: 'Лава', en: 'Lava' }, price: 1000, color: '#ff704d', pattern: 'diagonal', trailShape: 'diamond', rarity: 'rare' },
   { id: 'galaxy', name: { ru: 'Галактика', en: 'Galaxy' }, price: 2000, color: '#e18cff', pattern: 'stars', trailShape: 'circle', rarity: 'epic', unlock: { type: 'country', country: 'france' } },
   { id: 'matrix', name: { ru: 'Матрица', en: 'Matrix' }, price: 1100, color: '#a7ef58', pattern: 'pixels', trailShape: 'square', rarity: 'rare' },
-  { id: 'candy', name: { ru: 'Конфета', en: 'Candy' }, price: 450, color: '#ff91cf', pattern: 'stripes', trailShape: 'circle', rarity: 'common' },
+  { id: 'candy', name: { ru: 'Конфета', en: 'Candy' }, price: 450, color: '#ff91cf', pattern: 'stripes', trailShape: 'circle', rarity: 'common', unlock: { type: 'level', level: 3 } },
   { id: 'toxic', name: { ru: 'Токсик', en: 'Toxic' }, price: 0, color: '#c5f34a', pattern: 'dots', trailShape: 'diamond', rarity: 'epic', unlock: { type: 'win-streak', target: 3 } },
   { id: 'gold', name: { ru: 'Золото', en: 'Gold' }, price: 2500, color: '#f5d76e', pattern: 'rings', trailShape: 'circle', rarity: 'epic' }
 ]);
