@@ -3,7 +3,7 @@ export const GAME_MODES = Object.freeze({
     id: 'classic',
     title: { ru: 'Классика', en: 'Classic' },
     description: { ru: 'Захвати 90% карты или переживи всех соперников.', en: 'Capture 90% of the map or outlast every rival.' },
-    config: { moveIntervalMs: 125, worldWidth: 90, worldHeight: 90, botCount: 10 },
+    config: { moveIntervalMs: 125, worldWidth: 180, worldHeight: 180, botCount: 10 },
     powerups: false,
     targetTerritory: 90,
     timeLimitMs: null
@@ -12,7 +12,7 @@ export const GAME_MODES = Object.freeze({
     id: 'sprint',
     title: { ru: 'Спринт · 3 мин', en: 'Sprint · 3 min' },
     description: { ru: 'За три минуты захвати больше территории, чем соперники.', en: 'Claim more territory than rivals in three minutes.' },
-    config: { moveIntervalMs: 125, worldWidth: 80, worldHeight: 80, botCount: 8 },
+    config: { moveIntervalMs: 125, worldWidth: 160, worldHeight: 160, botCount: 8 },
     powerups: true,
     targetTerritory: null,
     timeLimitMs: 180000
