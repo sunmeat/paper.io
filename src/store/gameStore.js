@@ -258,7 +258,7 @@ export const useGameStore = create(persist((set, get) => ({
   }
 }), {
   name: 'paper-io-meta',
-  version: 4,
+  version: 5,
   storage: createJSONStorage(() => localStorage),
   partialize: state => ({
     selectedMap: state.selectedMap, coins: state.coins, revivesPurchased: state.revivesPurchased, ownedSkins: state.ownedSkins, equippedSkin: state.equippedSkin,
