@@ -2,6 +2,7 @@ export const ACHIEVEMENTS = Object.freeze([
   { id: 'first-capture', icon: '🎨', title: { ru: 'Первый захват', en: 'First capture' }, description: { ru: 'Замкни первый след', en: 'Close your first trail' } },
   { id: 'territory-10', icon: '🗺️', title: { ru: 'Своя область', en: 'Territory builder' }, description: { ru: 'Займи 10% арены', en: 'Claim 10% of the arena' } },
   { id: 'territory-25', icon: '👑', title: { ru: 'Владыка арены', en: 'Arena ruler' }, description: { ru: 'Займи 25% арены', en: 'Claim 25% of the arena' } },
+  { id: 'first-leader', icon: '👑', title: { ru: 'Корона арены', en: 'Arena leader' }, description: { ru: 'Впервые возглавь таблицу', en: 'Become the arena leader for the first time' } },
   { id: 'first-round', icon: '🏁', title: { ru: 'Первый раунд', en: 'First round' }, description: { ru: 'Заверши первый раунд', en: 'Finish your first round' } },
   { id: 'rounds-10', icon: '🔥', title: { ru: 'Десять попыток', en: 'Ten rounds' }, description: { ru: 'Сыграй 10 раундов', en: 'Play 10 rounds' } },
   { id: 'daily-first', icon: '🎁', title: { ru: 'Подарок судьбы', en: 'Daily bonus' }, description: { ru: 'Получи ежедневную награду', en: 'Claim a daily reward' } },
