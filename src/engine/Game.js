@@ -24,6 +24,8 @@ export class Game {
     this.running = true;
     this.frame = 0;
     this.lastTime = 0;
+    this.frameDeltaMs = 0;
+    this.renderAngles = new Map();
     this.accumulator = 0;
     this.lastStatsAt = 0;
     this.countdownEndAt = performance.now() + 3000;
@@ -181,6 +183,7 @@ export class Game {
       delta = Math.min(time - this.lastTime, GAME_CONFIG.maxFrameDeltaMs);
       this.lastTime = time;
     }
+    this.frameDeltaMs = delta;
     if (!inCountdown && !this.paused && !this.over) {
       this.accumulator += delta;
       while (this.accumulator >= GAME_CONFIG.fixedStepMs) {
@@ -213,16 +216,17 @@ export class Game {
     const interpolation = Math.max(0, Math.min(1, this.simulation.moveAccumulator / this.simulation.config.moveIntervalMs));
     const playerX = this.player ? this.player.prevX + (this.player.x - this.player.prevX) * interpolation : this.cellsWide / 2;
     const playerY = this.player ? this.player.prevY + (this.player.y - this.player.prevY) * interpolation : this.cellsHigh / 2;
-    const targetX = this.player?.alive ? playerX : this.cellsWide / 2;
-    const targetY = this.player?.alive ? playerY : this.cellsHigh / 2;
+    const targetX = this.player?.alive ? playerX + 0.5 : this.cellsWide / 2;
+    const targetY = this.player?.alive ? playerY + 0.5 : this.cellsHigh / 2;
     const territory = this.grid.territoryCount(1) / Math.max(1, this.grid.owners.length);
     const viewportRatio = Math.min(width, height) / Math.max(width, height);
     const viewportZoom = Math.max(0.9, Math.min(1.08, 0.9 + viewportRatio * 0.18));
     const targetZoom = Math.max(0.9, Math.min(1.08, viewportZoom * (1 - territory * 0.18)));
 
-    this.camera.x += (targetX - this.camera.x) * 0.16;
-    this.camera.y += (targetY - this.camera.y) * 0.16;
-    this.camera.zoom += (targetZoom - this.camera.zoom) * 0.045;
+    const cameraAlpha = 1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * 8);
+    this.camera.x += (targetX - this.camera.x) * cameraAlpha;
+    this.camera.y += (targetY - this.camera.y) * cameraAlpha;
+    this.camera.zoom += (targetZoom - this.camera.zoom) * (1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * 2.8));
 
     const visibleWidth = width / (cellSize * this.camera.zoom);
     const visibleHeight = height / (cellSize * this.camera.zoom);
@@ -500,17 +504,33 @@ export class Game {
       const x = player.prevX + (player.x - player.prevX) * interpolation;
       const y = player.prevY + (player.y - player.prevY) * interpolation;
       const px = x * cellSize, py = y * cellSize;
+      const cx = px + cellSize / 2, cy = py + cellSize / 2;
       const color = player.id === 1 ? skin.color : getPlayerColor(player.id, skin.color);
       const hat = player.human ? getHatById(this.callbacks.getHat?.() || 'none') : getHatById('none');
-      const inset = cellSize * 0.08;
+      const targetAngle = Math.atan2(player.dy, player.dx);
+      const previousAngle = this.renderAngles.get(player.id) ?? targetAngle;
+      const angleDelta = Math.atan2(Math.sin(targetAngle - previousAngle), Math.cos(targetAngle - previousAngle));
+      const angle = previousAngle + angleDelta * (1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 80));
+      this.renderAngles.set(player.id, angle);
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.roundRect(px + inset, py + inset, cellSize - inset * 2, cellSize - inset * 2, cellSize * 0.22);
+      ctx.arc(cx, cy, cellSize * 0.47, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.roundRect(px + cellSize * 0.16, py + cellSize * 0.16, cellSize * 0.68, cellSize * 0.68, cellSize * 0.18);
+      ctx.arc(cx, cy, cellSize * 0.37, 0, Math.PI * 2);
       ctx.fill();
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(cellSize * 0.34, 0);
+      ctx.lineTo(-cellSize * 0.12, -cellSize * 0.16);
+      ctx.lineTo(-cellSize * 0.12, cellSize * 0.16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
       if (hat.id !== 'none' && player.human) {
         ctx.save(); ctx.fillStyle = hat.id === 'halo' ? '#ffe8a6' : '#f5f2ff'; ctx.strokeStyle = '#111522'; ctx.lineWidth = Math.max(0.6, cellSize * 0.05);
         if (hat.id === 'halo') { ctx.beginPath(); ctx.ellipse(px + cellSize / 2, py + cellSize * 0.12, cellSize * 0.24, cellSize * 0.07, 0, 0, Math.PI * 2); ctx.stroke(); }
