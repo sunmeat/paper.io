@@ -10,6 +10,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
   const canvasRef = useRef(null);
   const minimapRef = useRef(null);
   const gameRef = useRef(null);
+  const roundFinishedRef = useRef(false);
 
   useEffect(() => {
     const unlock = () => unlockAudio();
@@ -20,6 +21,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
   useImperativeHandle(ref, () => ({
     pause() { gameRef.current?.setPaused(true); },
     resume() { gameRef.current?.setPaused(false); },
+    revive() { const revived = gameRef.current?.revive() || false; if (revived) roundFinishedRef.current = false; return revived; },
     restart() { gameRef.current?.restart(); }
   }), []);
 
@@ -28,7 +30,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
     if (!canvas) return undefined;
 
     let game;
-    let roundFinished = false;
+    roundFinishedRef.current = false;
     game = new Game(canvas, {
       mapId,
       modeId,
@@ -38,7 +40,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       onPerformance: metrics => { if (new URLSearchParams(window.location.search).get('benchmark') === '1') console.info('[paper.io benchmark]', metrics); },
       observer: new URLSearchParams(window.location.search).get('observer') === '1',
       onStats: stats => {
-        if (roundFinished) return;
+        if (roundFinishedRef.current) return;
         onStats?.({
           ...stats,
           top5: (stats.top5 || []).map(player => ({
@@ -139,7 +141,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       }),
       events.on('gameOver', snapshot => {
         if (roundFinished) return;
-        roundFinished = true;
+        roundFinishedRef.current = true;
         const victoryReward = snapshot.outcome === 'victory' ? 150 : 0;
         const secretReward = snapshot.outcome === 'victory' && snapshot.secretConquered ? 500 : 0;
         const roundReward = victoryReward + secretReward;
