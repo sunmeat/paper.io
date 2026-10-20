@@ -559,7 +559,7 @@ export class Game {
         ctx.restore();
       }
       if (isLeader) {
-        const crownPath = new Path2D();
+        const crownPath = new window.Path2D();
         crownPath.moveTo(-0.32, 0);
         crownPath.lineTo(-0.32, -0.24);
         crownPath.lineTo(-0.16, -0.09);
