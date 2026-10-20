@@ -9,9 +9,9 @@ export const GAME_CONFIG = Object.freeze({
   swipeThresholdPx: 24,
   botCount: 10,
   seed: 0x51f15e,
-  playerStartWidth: 5,
-  playerStartHeight: 4,
-  botStartWidth: 4,
-  botStartHeight: 3,
+  playerStartWidth: 10,
+  playerStartHeight: 10,
+  botStartWidth: 10,
+  botStartHeight: 10,
   respawnSteps: 30
 });
