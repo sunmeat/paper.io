@@ -28,6 +28,8 @@ export default [
         Audio: 'readonly',
         Blob: 'readonly',
         URL: 'readonly',
+        URLSearchParams: 'readonly',
+        CustomEvent: 'readonly',
         fetch: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
