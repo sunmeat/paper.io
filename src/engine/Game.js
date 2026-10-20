@@ -355,39 +355,23 @@ export class Game {
     }
 
     const skinId = this.callbacks.getSkin?.() || 'classic';
-    const fullRedraw = this.terrainDirty || this.cachedSkinId !== skinId;
     const changed = this.grid.drainDirtyOwners();
-    if (fullRedraw) {
+    const fullRedraw = this.terrainDirty || this.cachedSkinId !== skinId ||
+      this.cachedOwnerVersion !== this.grid.ownerVersion;
+
+    // Ownership changes can affect borders several cells away from the changed cell.
+    // Redraw the complete cached ownership layer on capture/loss to avoid stale gaps
+    // left by clearing fractional-pixel rectangles in the incremental renderer.
+    if (fullRedraw || changed.length) {
       const layer = this.terrainCtx;
       layer.clearRect(0, 0, width, height);
-      const all = this.grid.owners.keys();
-      this.paintOwnerCells(layer, cellSize, skin, all);
       const cells = Array.from(this.grid.owners.keys());
+      this.paintOwnerCells(layer, cellSize, skin, cells);
       this.renderTerritoryEdges(layer, cellSize, cells);
       this.terrainDirty = false;
       this.cachedOwnerVersion = this.grid.ownerVersion;
       this.cachedSkinId = skinId;
       this.renderMetrics.fullTerrainRedraws++;
-    } else if (changed.length) {
-      // Dirty cells plus their neighbours refresh rounded joins and shared borders.
-      const dirty = new Set();
-      for (const index of changed) {
-        const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
-        for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
-          const nx = x + ox, ny = y + oy;
-          if (this.grid.inBounds(nx, ny)) dirty.add(this.grid.index(nx, ny));
-        }
-      }
-      const cells = [...dirty];
-      const layer = this.terrainCtx;
-      for (const index of cells) {
-        const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
-        layer.clearRect(x * cellSize - 1, y * cellSize - 1, cellSize + 2, cellSize + 2);
-      }
-      this.paintOwnerCells(layer, cellSize, skin, cells);
-      this.renderTerritoryEdges(layer, cellSize, cells);
-      this.cachedOwnerVersion = this.grid.ownerVersion;
-      this.renderMetrics.incrementalTerrainRedraws++;
       this.renderMetrics.cellsRedrawn += cells.length;
     }
 
