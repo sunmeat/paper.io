@@ -67,7 +67,7 @@ export class Simulation {
     this.elapsedMs = 0;
     this.outcome = null;
     this.winnerId = null;
-    this.leaderId = null;
+    this._leaderId = null;
     this.hasResolvedLeader = false;
     this.secretConquered = false;
 
@@ -544,8 +544,8 @@ export class Simulation {
     return true;
   }
 
-  get leader() {
-    return this.leaderId;
+  get leaderId() {
+    return this._leaderId;
   }
 
   getStats() {
@@ -562,16 +562,16 @@ export class Simulation {
     const ranked = [...playerStats].sort((a, b) => b.territory - a.territory || a.id - b.id);
     const total = this.grid.walkableCount || 1;
     const candidate = ranked.find(player => player.territory > 0) || null;
-    const current = playerStats.find(player => player.id === this.leaderId);
+    const current = playerStats.find(player => player.id === this._leaderId);
     const margin = total * 0.005;
     const nextLeader = !current || current.territory <= 0
       ? candidate?.id ?? null
       : candidate && candidate.id !== current.id && candidate.territory >= current.territory + margin
         ? candidate.id
         : current.id;
-    if (nextLeader !== this.leaderId) {
-      const previousLeaderId = this.leaderId;
-      this.leaderId = nextLeader;
+    if (nextLeader !== this._leaderId) {
+      const previousLeaderId = this._leaderId;
+      this._leaderId = nextLeader;
       if (this.hasResolvedLeader) this.events.emit('leaderChange', { previousLeaderId, leaderId: nextLeader });
     }
     this.hasResolvedLeader = true;
@@ -592,7 +592,7 @@ export class Simulation {
       over: this.over,
       paused: this.paused,
       top5,
-      leaderId: this.leaderId,
+      leaderId: this._leaderId,
       kills: this.player?.kills || 0,
       playerStats
     };
