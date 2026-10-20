@@ -1,4 +1,4 @@
-import { UKRAINE_POLYGONS } from './ukraine.js';
+import { UKRAINE_ASPECT, UKRAINE_POLYGONS } from './ukraine.js';
 
 export const MAPS = Object.freeze([
   { id: 'circle', name: { ru: 'Круг', en: 'Circle' } },
@@ -54,7 +54,13 @@ function insideShape(kind, nx, ny) {
 // Scan-convert geographic polygons a row at a time. Testing every map cell
 // against hundreds of polygon vertices was freezing startup on mobile.
 function rasterizeUkraine(mask, width, height) {
-  for (const polygon of UKRAINE_POLYGONS) {
+  const canvasAspect = width / height;
+  const scaleX = canvasAspect > UKRAINE_ASPECT ? UKRAINE_ASPECT / canvasAspect : 1;
+  const scaleY = canvasAspect < UKRAINE_ASPECT ? canvasAspect / UKRAINE_ASPECT : 1;
+  const offsetX = (1 - scaleX) / 2;
+  const offsetY = (1 - scaleY) / 2;
+  for (const sourcePolygon of UKRAINE_POLYGONS) {
+    const polygon = sourcePolygon.map(([x, y]) => [offsetX + x * scaleX, offsetY + y * scaleY]);
     let minY = 1;
     let maxY = 0;
     for (const [, y] of polygon) {
