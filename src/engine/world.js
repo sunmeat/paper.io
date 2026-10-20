@@ -5,7 +5,7 @@ export const WORLD_COUNTRIES = Object.freeze([
   { id: 'brazil', flag: '🇧🇷', name: { ru: 'Бразилия', en: 'Brazil' }, mapId: 'heart', target: 90 },
   { id: 'canada', flag: '🇨🇦', name: { ru: 'Канада', en: 'Canada' }, mapId: 'star', target: 90 },
   { id: 'egypt', flag: '🇪🇬', name: { ru: 'Египет', en: 'Egypt' }, mapId: 'cross', target: 90 },
-  { id: 'australia', flag: '🇦🇺', name: { ru: 'Австралия', en: 'Australia' }, mapId: 'clover', target: 90 },
+  { id: 'australia', flag: '🇦🇺', name: { ru: 'Австралия', en: 'Australia' }, mapId: 'australia', target: 90 },
   { id: 'france-elite', flag: '🏆', name: { ru: 'Финал чемпионов', en: 'Champions finale' }, mapId: 'crown', target: 90 }
 ]);
 
