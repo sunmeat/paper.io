@@ -135,6 +135,33 @@ describe('Simulation', () => {
     expect(victim.lastHitBy).toBe(killer.id);
   });
 
+  it('revives a dead player with starting territory and reopens the round', () => {
+    const simulation = new Simulation({ config: { ...GAME_CONFIG, botCount: 2, worldWidth: 48, worldHeight: 48 } });
+    const player = simulation.player;
+    const killer = simulation.bots[0];
+
+    simulation.eliminatePlayer(player, killer);
+    expect(player.alive).toBe(false);
+    expect(simulation.over).toBe(true);
+    expect(simulation.paused).toBe(true);
+
+    expect(simulation.revive()).toBe(true);
+    expect(player.alive).toBe(true);
+    expect(simulation.over).toBe(false);
+    expect(simulation.paused).toBe(false);
+    expect(player.invulnerableTicks).toBe(30);
+    expect(simulation.grid.territoryCount(player.id)).toBeGreaterThan(0);
+    expect(simulation.revivesUsed).toBe(1);
+    expect(simulation.revive()).toBe(false);
+  });
+
+  it('does not revive when the round ended without a death', () => {
+    const simulation = new Simulation({ config: { ...GAME_CONFIG, botCount: 2 } });
+    simulation.finishRound('defeat');
+    expect(simulation.revive()).toBe(false);
+    expect(simulation.over).toBe(true);
+  });
+
   it('preserves peak territory and killer details for the delayed results screen', () => {
     const simulation = new Simulation({ config: { ...GAME_CONFIG, botCount: 2, worldWidth: 48, worldHeight: 48 } });
     const player = simulation.player;
