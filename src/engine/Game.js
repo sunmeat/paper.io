@@ -531,6 +531,20 @@ export class Game {
       ctx.closePath();
       ctx.fill();
       ctx.restore();
+      if (!player.human && player.name) {
+        ctx.save();
+        ctx.font = `600 ${Math.max(8, cellSize * 0.38)}px Manrope, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = Math.max(2, cellSize * 0.12);
+        ctx.strokeStyle = '#10131c';
+        ctx.fillStyle = '#f4f6ff';
+        const labelY = py - cellSize * 0.08;
+        ctx.strokeText(player.name, cx, labelY, 112);
+        ctx.fillText(player.name, cx, labelY, 112);
+        ctx.restore();
+      }
       if (hat.id !== 'none' && player.human) {
         ctx.save(); ctx.fillStyle = hat.id === 'halo' ? '#ffe8a6' : '#f5f2ff'; ctx.strokeStyle = '#111522'; ctx.lineWidth = Math.max(0.6, cellSize * 0.05);
         if (hat.id === 'halo') { ctx.beginPath(); ctx.ellipse(px + cellSize / 2, py + cellSize * 0.12, cellSize * 0.24, cellSize * 0.07, 0, 0, Math.PI * 2); ctx.stroke(); }
