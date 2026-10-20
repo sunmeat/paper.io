@@ -213,6 +213,17 @@ export const useGameStore = create(persist((set, get) => ({
     return { ok: true };
   },
   equipSkin: id => set(state => state.ownedSkins.includes(id) ? { equippedSkin: id } : {}),
+  claimCosmeticReward: (type, id) => {
+    const state = get();
+    const catalog = type === 'hat' ? HATS : TRAIL_EFFECTS;
+    const ownedKey = type === 'hat' ? 'ownedHats' : 'ownedTrails';
+    const equippedKey = type === 'hat' ? 'equippedHat' : 'equippedTrail';
+    const item = catalog.find(entry => entry.id === id);
+    if (!item || !item.unlock || item.unlock.type === 'free' || !isUnlocked(item, state)) return { ok: false, reason: 'locked' };
+    if (state[ownedKey].includes(id)) return { ok: false, reason: 'owned' };
+    set({ [ownedKey]: [...state[ownedKey], id], [equippedKey]: id });
+    return { ok: true };
+  },
   buyCosmetic: (type, id) => {
     const state = get();
     const catalog = type === 'hat' ? HATS : TRAIL_EFFECTS;
