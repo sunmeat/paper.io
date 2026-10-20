@@ -442,3 +442,6 @@ kbd {
 .killer-result { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0 14px; padding: 11px 13px; border: 1px solid #ffffff12; border-radius: 12px; background: #ffffff05; }
 .killer-result span { color: #959cb1; font: 10px monospace; }
 .killer-result strong { font-size: 12px; }
+
+.revive-button { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: center; gap: 9px; margin: 0 0 9px; border: 1px solid #ffd34f66; border-radius: 13px; background: linear-gradient(110deg,#ffd34f,#ffb84d); color: #20180a; font-size: 11px; font-weight: 900; letter-spacing: .25px; box-shadow: 0 5px 22px #ffd34f18; }
+.revive-button:disabled { cursor: not-allowed; opacity: .42; filter: saturate(.45); }
