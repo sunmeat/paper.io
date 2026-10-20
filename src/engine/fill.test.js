@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { captureArea } from './fill.js';
+import { captureArea, retainLargestTerritoryComponents } from './fill.js';
 import { Grid } from './Grid.js';
 import { MAPS, createMapMask } from './maps.js';
 
@@ -217,5 +217,42 @@ describe('map catalog', () => {
 
   it('falls back to the circle for a saved unknown map id', () => {
     expect(Array.from(createMapMask(12, 12, 'clover'))).toEqual(Array.from(createMapMask(12, 12, 'circle')));
+  });
+});
+
+describe('connected territory components', () => {
+  it('neutralizes smaller disconnected pieces for every owner after a capture', () => {
+    const grid = new Grid(10, 10);
+
+    for (let x = 1; x <= 4; x++) grid.setOwner(x, 1, 1);
+    grid.setOwner(7, 7, 1);
+    grid.setOwner(8, 7, 1);
+
+    for (let x = 1; x <= 3; x++) grid.setOwner(x, 5, 2);
+    grid.setOwner(7, 1, 2);
+
+    captureArea(grid, 1, []);
+
+    for (let x = 1; x <= 4; x++) expect(grid.ownerAt(x, 1)).toBe(1);
+    expect(grid.ownerAt(7, 7)).toBe(0);
+    expect(grid.ownerAt(8, 7)).toBe(0);
+
+    for (let x = 1; x <= 3; x++) expect(grid.ownerAt(x, 5)).toBe(2);
+    expect(grid.ownerAt(7, 1)).toBe(0);
+    expect(grid.territoryCount(1)).toBe(4);
+    expect(grid.territoryCount(2)).toBe(3);
+  });
+
+  it('keeps one largest component and neutralizes all smaller components', () => {
+    const grid = new Grid(8, 8);
+    for (let x = 1; x <= 4; x++) grid.setOwner(x, 1, 3);
+    for (let x = 1; x <= 3; x++) grid.setOwner(x, 5, 3);
+    grid.setOwner(6, 6, 3);
+
+    expect(retainLargestTerritoryComponents(grid)).toBe(4);
+    expect(grid.territoryCount(3)).toBe(4);
+    expect(grid.ownerAt(2, 1)).toBe(3);
+    expect(grid.ownerAt(2, 5)).toBe(0);
+    expect(grid.ownerAt(6, 6)).toBe(0);
   });
 });
