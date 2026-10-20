@@ -493,15 +493,13 @@ export class Simulation {
     for (let index = 0; index < this.grid.owners.length; index++) {
       if (this.grid.owners[index] === player.id) territoryCells.push(index);
     }
-    if (player.human) {
-      this.finalTerritoryOwners = new Uint16Array(this.grid.owners);
-      this.deathKillerId = attributedKiller?.id ?? null;
-    }
+    if (player.human) this.deathKillerId = attributedKiller?.id ?? null;
     if (transferTerritory && attributedKiller && attributedKiller.id !== player.id) {
       for (let index = 0; index < this.grid.owners.length; index++) {
         if (this.grid.owners[index] === player.id) this.grid.setOwnerAt(index, attributedKiller.id);
       }
     }
+    if (player.human) this.finalTerritoryOwners = new Uint16Array(this.grid.owners);
     player.alive = false;
     player.deaths++;
     player.totalLifeTicks = (player.totalLifeTicks || 0) + (player.currentLifeTicks || 0);
