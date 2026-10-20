@@ -94,6 +94,30 @@ describe('pre-seeded match start', () => {
   });
 });
 
+
+describe('leader selection', () => {
+  it('keeps the current leader until a rival leads by at least 0.5% of the arena', () => {
+    const simulation = new Simulation({ config: { worldWidth: 80, worldHeight: 60, botCount: 2 } });
+    for (let index = 0; index < simulation.grid.owners.length; index++) {
+      if (simulation.grid.owners[index]) simulation.grid.setOwnerAt(index, 0);
+    }
+    const cells = [];
+    for (let index = 0; index < simulation.grid.walkable.length; index++) {
+      if (simulation.grid.walkable[index]) cells.push(index);
+    }
+    for (const index of cells.slice(0, 100)) simulation.grid.setOwnerAt(index, 1);
+    for (const index of cells.slice(100, 199)) simulation.grid.setOwnerAt(index, 2);
+
+    expect(simulation.getStats().leaderId).toBe(1);
+    const margin = Math.ceil(simulation.grid.walkableCount * 0.005);
+    for (const index of cells.slice(199, 199 + margin - 1)) simulation.grid.setOwnerAt(index, 2);
+    expect(simulation.getStats().leaderId).toBe(1);
+
+    simulation.grid.setOwnerAt(cells[199 + margin - 1], 2);
+    expect(simulation.getStats().leaderId).toBe(2);
+  });
+});
+
 describe('territory transfer on direct trail kills', () => {
   function makeVictimTerritory(simulation, victim, count = 2) {
     const cells = [];
