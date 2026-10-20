@@ -36,7 +36,8 @@ describe('Simulation', () => {
   it('provides eight built-in arena shapes and keeps Ukraine as a progression map', () => {
     expect(MAPS).toHaveLength(8);
     expect(MAPS.some(map => map.id === 'ukraine')).toBe(false);
-    expect(MAPS.some(map => map.id === 'island' || map.id === 'archipelago')).toBe(false);\n    expect(createMapMask(90, 90, 'ukraine').reduce((sum, value) => sum + value, 0)).toBeGreaterThan(100);
+    expect(MAPS.some(map => map.id === 'island' || map.id === 'archipelago')).toBe(false);
+    expect(createMapMask(90, 90, 'ukraine').reduce((sum, value) => sum + value, 0)).toBeGreaterThan(100);
     for (const map of MAPS) {
       const mask = createMapMask(90, 90, map.id);
       expect(mask.length).toBe(8100);
