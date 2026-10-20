@@ -98,7 +98,7 @@ export class Game {
           this.lossProgressTimer = window.setTimeout(() => {
             if (this.simulation.over && !this.player?.alive && this.simulation.outcome === 'defeat') this.recordBotProgressAfterLoss();
             this.lossProgressTimer = null;
-          }, 6200);
+          }, 7000);
         }
       }),
     ];
