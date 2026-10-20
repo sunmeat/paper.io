@@ -13,11 +13,12 @@ export const PLAYER_PALETTE = Object.freeze([
 ]);
 
 function rgb(hex) {
-  return [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16));
+  return [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
 }
 
 function colorDistance(left, right) {
-  const a = rgb(left), b = rgb(right);
+  const a = rgb(left),
+    b = rgb(right);
   return Math.sqrt(a.reduce((sum, value, index) => sum + (value - b[index]) ** 2, 0));
 }
 
