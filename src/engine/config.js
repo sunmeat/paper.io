@@ -2,7 +2,7 @@
 export const GAME_CONFIG = Object.freeze({
   worldWidth: 90,
   worldHeight: 90,
-  moveIntervalMs: 110,
+  moveIntervalMs: 125,
   fixedStepMs: 1000 / 30,
   maxFrameDeltaMs: 250,
   statsIntervalMs: 150,
