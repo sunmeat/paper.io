@@ -9,6 +9,8 @@ export const ACHIEVEMENTS = Object.freeze([
   { id: 'daily-7', icon: '📅', title: { ru: 'Неделя в игре', en: 'A full week' }, description: { ru: 'Собери серию из 7 дней', en: 'Reach a 7-day streak' } },
   { id: 'killer-3', icon: '💥', title: { ru: 'Тройной удар', en: 'Triple threat' }, description: { ru: 'Устрани 3 соперников за раунд', en: 'Eliminate 3 rivals in one round' } },
   { id: 'territory-30', icon: '🌐', title: { ru: 'Большая территория', en: 'Big territory' }, description: { ru: 'Займи 30% арены за раунд', en: 'Claim 30% of the arena in one round' } },
+  { id: 'territory-75', icon: '🌍', title: { ru: 'Почти вся карта', en: 'Map dominator' }, description: { ru: 'Займи 75% арены за раунд', en: 'Claim 75% of the arena in one round' } },
+  { id: 'kills-25', icon: '☠️', title: { ru: 'Охотник', en: 'Predator' }, description: { ru: 'Устрани 25 соперников за всё время', en: 'Eliminate 25 rivals in total' } },
   { id: 'coins-1000', icon: '🪙', title: { ru: 'Копилка', en: 'Coin collector' }, description: { ru: 'Заработай 1000 монет за раунды', en: 'Earn 1000 coins from rounds' } },
   { id: 'sprint-winner', icon: '⚡', title: { ru: 'Спринтер', en: 'Sprinter' }, description: { ru: 'Заверши спринт с результатом 20%+', en: 'Finish a sprint with 20%+' } }
 ]);
