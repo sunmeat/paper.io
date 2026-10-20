@@ -316,6 +316,7 @@ export class Game {
     this.renderFinalTerritories(ctx, cellSize, skin);
     this.renderTrail(ctx, cellSize, interpolation, skin);
     this.renderPlayers(ctx, cellSize, skin, interpolation);
+    this.renderPickups(ctx, cellSize);
     this.renderEffects(ctx, cellSize);
     ctx.globalAlpha = 1;
     ctx.restore();
@@ -565,6 +566,35 @@ export class Game {
     ctx.restore();
   }
 
+  renderPickups(ctx, cellSize) {
+    if (!this.simulation.mode.powerups || !this.simulation.pickups.length) return;
+    const now = performance.now();
+    const icons = { speed: '⚡', shield: '🛡️', bigCapture: '💥', freeze: '❄️' };
+    for (const pickup of this.simulation.pickups) {
+      const cx = (pickup.x + 0.5) * cellSize;
+      const cy = (pickup.y + 0.5) * cellSize;
+      const pulse = 0.82 + (Math.sin(now / 180 + pickup.id) + 1) * 0.09;
+      ctx.save();
+      ctx.globalAlpha = 0.8 + (Math.sin(now / 230 + pickup.id) + 1) * 0.1;
+      ctx.fillStyle = '#151927';
+      ctx.strokeStyle = '#a7f3ff';
+      ctx.lineWidth = Math.max(1, cellSize * 0.06);
+      ctx.shadowColor = '#6ce8ff';
+      ctx.shadowBlur = cellSize * 0.45;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cellSize * 0.48 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.font = `${Math.max(9, cellSize * 0.65 * pulse)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(icons[pickup.powerup] || '✦', cx, cy + cellSize * 0.02);
+      ctx.restore();
+    }
+  }
+
   renderPlayers(ctx, cellSize, skin, interpolation) {
     const now = performance.now();
     for (const player of this.players.values()) {
@@ -575,6 +605,19 @@ export class Game {
       const px = x * cellSize, py = y * cellSize;
       const cx = px + cellSize / 2, cy = py + cellSize / 2;
       const color = player.id === 1 ? skin.color : getPlayerColor(player.id, skin.color);
+      const activeEffects = Object.entries(player.effects || {}).filter(([, ticks]) => ticks > 0);
+      if (activeEffects.length) {
+        ctx.save();
+        ctx.strokeStyle = player.effects.shield > 0 ? '#70e9ff' : player.effects.speed > 0 ? '#ffd76a' : player.effects.freeze > 0 ? '#9bc8ff' : '#ff8ce5';
+        ctx.lineWidth = Math.max(1.2, cellSize * 0.09);
+        ctx.globalAlpha = 0.6 + (Math.sin(performance.now() / 110) + 1) * 0.18;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.shadowBlur = cellSize * 0.6;
+        ctx.beginPath();
+        ctx.arc(cx, cy, cellSize * 0.62 + Math.sin(performance.now() / 140) * cellSize * 0.06, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
       const hat = player.human ? getHatById(this.callbacks.getHat?.() || 'none') : getHatById('none');
       const isLeader = player.id === this.leaderId;
       const targetAngle = Math.atan2(player.dy, player.dx);
