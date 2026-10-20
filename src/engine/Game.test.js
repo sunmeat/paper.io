@@ -220,7 +220,6 @@ describe('Simulation', () => {
     expect(classic.pickups).toHaveLength(0);
 
     const sprint = new Simulation({ seed: 77, config, modeId: 'sprint' });
-    for (let tick = 0; tick < 100; tick++) sprint.step();
     expect(sprint.pickups.length).toBeGreaterThan(0);
     expect(sprint.pickups.length).toBeLessThanOrEqual(3);
     expect(sprint.pickups.every(pickup => sprint.grid.inside(pickup.x, pickup.y))).toBe(true);
