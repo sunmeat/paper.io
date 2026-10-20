@@ -67,6 +67,8 @@ export class Simulation {
     this.elapsedMs = 0;
     this.outcome = null;
     this.winnerId = null;
+    this.leaderId = null;
+    this.hasResolvedLeader = false;
     this.secretConquered = false;
 
     this.initializing = true;
@@ -542,12 +544,38 @@ export class Simulation {
     return true;
   }
 
+  get leader() {
+    return this.leaderId;
+  }
+
   getStats() {
     const players = [...this.players.values()];
-    const top5 = players
-      .map(player => ({ id: player.id, score: this.grid.territoryCount(player.id) }))
-      .sort((a, b) => b.score - a.score || a.id - b.id)
-      .slice(0, 5);
+    const playerStats = players.map(player => ({
+      id: player.id,
+      kills: player.kills || 0,
+      deaths: player.deaths,
+      alive: player.alive,
+      territory: this.grid.territoryCount(player.id),
+      x: player.x,
+      y: player.y
+    }));
+    const ranked = [...playerStats].sort((a, b) => b.territory - a.territory || a.id - b.id);
+    const total = this.grid.walkableCount || 1;
+    const candidate = ranked.find(player => player.territory > 0) || null;
+    const current = playerStats.find(player => player.id === this.leaderId);
+    const margin = total * 0.005;
+    const nextLeader = !current || current.territory <= 0
+      ? candidate?.id ?? null
+      : candidate && candidate.id !== current.id && candidate.territory >= current.territory + margin
+        ? candidate.id
+        : current.id;
+    if (nextLeader !== this.leaderId) {
+      const previousLeaderId = this.leaderId;
+      this.leaderId = nextLeader;
+      if (this.hasResolvedLeader) this.events.emit('leaderChange', { previousLeaderId, leaderId: nextLeader });
+    }
+    this.hasResolvedLeader = true;
+    const top5 = ranked.slice(0, 5);
     const score = this.player ? this.grid.territoryCount(this.player.id) : 0;
     const total = this.grid.walkableCount;
     return {
@@ -564,8 +592,9 @@ export class Simulation {
       over: this.over,
       paused: this.paused,
       top5,
+      leaderId: this.leaderId,
       kills: this.player?.kills || 0,
-      playerStats: players.map(player => ({ id: player.id, kills: player.kills || 0, deaths: player.deaths, alive: player.alive, territory: this.grid.territoryCount(player.id), x: player.x, y: player.y }))
+      playerStats
     };
   }
 }
