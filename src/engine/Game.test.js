@@ -135,6 +135,26 @@ describe('Simulation', () => {
     expect(victim.lastHitBy).toBe(killer.id);
   });
 
+  it('preserves peak territory and killer details for the delayed results screen', () => {
+    const simulation = new Simulation({ config: { ...GAME_CONFIG, botCount: 2, worldWidth: 48, worldHeight: 48 } });
+    const player = simulation.player;
+    const killer = simulation.bots[0];
+    let deathEvent;
+    simulation.events.on('death', event => { deathEvent = event; });
+
+    simulation.updateMaxTerritory();
+    const peak = simulation.maxTerritory;
+    simulation.eliminatePlayer(player, killer);
+
+    const stats = simulation.getStats();
+    expect(peak).toBeGreaterThan(0);
+    expect(stats.maxTerritory).toBe(peak);
+    expect(stats.territory).toBeGreaterThan(0);
+    expect(stats.killerId).toBe(killer.id);
+    expect(deathEvent.territoryCells.length).toBeGreaterThan(0);
+    expect(simulation.finalTerritoryOwners).toBeInstanceOf(Uint16Array);
+  });
+
   it('reports kills and approximate bot coordinates in round stats', () => {
     const simulation = new Simulation();
     const stats = simulation.getStats();
