@@ -27,11 +27,11 @@ export function captureArea(grid, owner, trailCells) {
   visited.fill(0);
   let head = 0;
   let tail = 0;
-  // Flood-fill only neutral cells reachable from the map edge. Rival territories
-  // are barriers during this pass: enclosed rival cells are captured with the
-  // enclosed neutral area, while rival land outside the loop remains theirs.
+  // Flood-fill every cell not owned by the capturing player, including rival land.
+  // Enemy territory connected to the outside remains theirs; enclosed enemy cells
+  // are captured along with enclosed neutral land.
   const enqueue = index => {
-    if (!walkable[index] || visited[index] || owners[index] !== 0) return;
+    if (!walkable[index] || visited[index] || owners[index] === owner) return;
     visited[index] = 1;
     queue[tail++] = index;
   };
@@ -64,9 +64,9 @@ export function captureArea(grid, owner, trailCells) {
     captured++;
   };
 
-  // Claim all cells not owned by the player that are not connected to the
-  // outside through neutral land. This includes opponent-owned cells enclosed
-  // by the newly closed contour.
+  // Claim every non-player cell that cannot reach the map edge, whether neutral
+  // or rival-owned. This is the only capture rule; do not separately flood-fill
+  // enemy regions, which can accidentally steal land outside the loop.
   for (let i = 0; i < owners.length; i++) {
     if (walkable[i] && owners[i] !== owner && !visited[i]) captureCell(i);
   }
