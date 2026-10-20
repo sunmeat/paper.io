@@ -88,6 +88,7 @@ export const useGameStore = create(persist((set, get) => ({
     const achievements = [...state.achievements];
     if (nextSnapshot.territory >= 10 && !achievements.includes('territory-10')) achievements.push('territory-10');
     if (nextSnapshot.territory >= 25 && !achievements.includes('territory-25')) achievements.push('territory-25');
+    if (nextSnapshot.leaderId === 1 && !achievements.includes('first-leader')) achievements.push('first-leader');
     if ((Number(nextSnapshot.sessionScore) || 0) > 0 && !achievements.includes('first-capture')) achievements.push('first-capture');
     return { snapshot: nextSnapshot, achievements };
   }),
