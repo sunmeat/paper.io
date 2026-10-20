@@ -324,8 +324,14 @@ export class Simulation {
       if (!player.alive) continue;
       const plan = plans.get(player.id);
       if (plan?.blocked) {
-        this.eliminatePlayer(player);
-        if (this.over) break;
+        // Preserve the original wall behavior: turn along the edge instead of dying.
+        const tangents = player.dx !== 0 ? [[0, 1], [0, -1]] : [[1, 0], [-1, 0]];
+        const tangent = tangents.find(([dx, dy]) => this.grid.inside(player.x + dx, player.y + dy));
+        if (tangent) {
+          [player.dx, player.dy] = tangent;
+          player.next = null;
+          this.movePlayer(player);
+        }
         continue;
       }
       this.movePlayer(player);
