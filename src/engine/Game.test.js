@@ -74,8 +74,8 @@ describe('Simulation', () => {
     const config = { ...GAME_CONFIG, botCount: 2, worldWidth: 48, worldHeight: 48 };
     const simulation = new Simulation({ config, humanPlayer: false });
     const [first, second] = simulation.bots;
-    Object.assign(first, { x: 20, y: 20, dx: 1, dy: 0, next: null, invulnerableTicks: 0, turnTimer: 10, trailCells: [1, 2] });
-    Object.assign(second, { x: 22, y: 20, dx: -1, dy: 0, next: null, invulnerableTicks: 0, turnTimer: 10, trailCells: [] });
+    Object.assign(first, { x: 20, y: 20, dx: 1, dy: 0, next: null, alive: true, deaths: 0, respawnTimer: 0, invulnerableTicks: 0, turnTimer: 10, trailCells: [1, 2] });
+    Object.assign(second, { x: 22, y: 20, dx: -1, dy: 0, next: null, alive: true, deaths: 0, respawnTimer: 0, invulnerableTicks: 0, turnTimer: 10, trailCells: [] });
     simulation.step();
     expect(first.alive).toBe(false);
     expect(first.deaths).toBe(1);
