@@ -345,13 +345,10 @@ export class Game {
       const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
       const px = x * cellSize, py = y * cellSize;
       const color = owner === 1 ? skin.color : getPlayerColor(owner, skin.color);
-      // A subtle offset underlay gives cells a lightweight raised/tiled appearance.
-      ctx.globalAlpha = 0.24;
-      ctx.fillStyle = '#05070d';
-      ctx.fillRect(px + cellSize * 0.12, py + cellSize * 0.12, cellSize * 0.88, cellSize * 0.88);
-      ctx.globalAlpha = 0.76;
+      // Adjacent cells blend into one continuous territory instead of a tiled patchwork.
+      ctx.globalAlpha = 1;
       ctx.fillStyle = color;
-      ctx.fillRect(px, py, cellSize, cellSize);
+      ctx.fillRect(px - 0.35, py - 0.35, cellSize + 0.7, cellSize + 0.7);
     }
     ctx.globalAlpha = 1;
   }
@@ -443,9 +440,10 @@ export class Game {
   renderTrail(ctx, cellSize, interpolation, skin) {
     const trailEffect = getTrailById(this.callbacks.getTrail?.() || 'none');
     ctx.save();
-    ctx.lineCap = 'butt';
+    ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.lineWidth = cellSize * (0.88 + (Math.sin(performance.now() / 115) + 1) * 0.035);
+    // A full-cell stroke makes the exposed trail visually join the filled territory.
+    ctx.lineWidth = cellSize * (1.02 + (Math.sin(performance.now() / 115) + 1) * 0.015);
     for (const player of this.players.values()) {
       if (!player.alive || !player.trailCells.length) continue;
       const points = player.trailCells.filter(index => this.grid.trail[index] === player.id).map(index => ({
