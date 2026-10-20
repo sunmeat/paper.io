@@ -33,10 +33,10 @@ describe('Simulation', () => {
     expect(Object.keys(BOT_PERSONALITIES)).toEqual(['greedy', 'cautious', 'hunter']);
   });
 
-  it('provides nine built-in arena shapes including Ukraine', () => {
-    expect(MAPS).toHaveLength(9);
-    expect(MAPS.some(map => map.id === 'ukraine')).toBe(true);
-    expect(MAPS.some(map => map.id === 'island' || map.id === 'archipelago')).toBe(false);
+  it('provides eight built-in arena shapes and keeps Ukraine as a progression map', () => {
+    expect(MAPS).toHaveLength(8);
+    expect(MAPS.some(map => map.id === 'ukraine')).toBe(false);
+    expect(MAPS.some(map => map.id === 'island' || map.id === 'archipelago')).toBe(false);\n    expect(createMapMask(90, 90, 'ukraine').reduce((sum, value) => sum + value, 0)).toBeGreaterThan(100);
     for (const map of MAPS) {
       const mask = createMapMask(90, 90, map.id);
       expect(mask.length).toBe(8100);
@@ -51,7 +51,7 @@ describe('Simulation', () => {
     expect(simulation.bots.every(bot => ['easy', 'normal', 'hard'].includes(bot.strategy.difficulty))).toBe(true);
   });
 
-  it('starts every player with the same circular ten-by-ten base on the Ukraine map', () => {
+  it('starts every player with the same circular ten-by-ten base on a progression map', () => {
     const simulation = new Simulation({ mapId: 'ukraine' });
     const counts = [...simulation.players.values()].map(player => simulation.grid.territoryCount(player.id));
     expect(counts.length).toBe(simulation.botCount + 1);
