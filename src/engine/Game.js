@@ -536,7 +536,8 @@ export class Game {
       ctx.closePath();
       ctx.fill();
       ctx.restore();
-      if (!player.human && player.name) {
+      const displayName = player.human ? (this.callbacks.getLanguage?.() === 'ru' ? 'ВЫ' : 'YOU') : player.name;
+      if (displayName) {
         ctx.save();
         ctx.font = `600 ${Math.max(8, cellSize * 0.38)}px Manrope, sans-serif`;
         ctx.textAlign = 'center';
@@ -546,8 +547,8 @@ export class Game {
         ctx.strokeStyle = '#10131c';
         ctx.fillStyle = isLeader ? '#ffd76a' : '#f4f6ff';
         const labelY = py - cellSize * 0.08;
-        ctx.strokeText(player.name, cx, labelY, 112);
-        ctx.fillText(player.name, cx, labelY, 112);
+        ctx.strokeText(displayName, cx, labelY, 112);
+        ctx.fillText(displayName, cx, labelY, 112);
         ctx.restore();
       }
       if (hat.id !== 'none' && player.human) {
