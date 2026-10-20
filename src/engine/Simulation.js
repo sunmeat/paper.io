@@ -576,8 +576,10 @@ export class Simulation {
     }
     this.hasResolvedLeader = true;
     const top5 = ranked.slice(0, 5);
+    if (this._leaderId != null && top5.some(player => player.id === this._leaderId)) {
+      top5.sort((a, b) => (a.id === this._leaderId ? -1 : b.id === this._leaderId ? 1 : b.territory - a.territory));
+    }
     const score = this.player ? this.grid.territoryCount(this.player.id) : 0;
-    const total = this.grid.walkableCount;
     return {
       territory: total ? Number((score / total * 100).toFixed(3)) : 0,
       modeId: this.modeId,
