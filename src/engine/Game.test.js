@@ -213,6 +213,26 @@ describe('Simulation', () => {
     for (const bot of simulation.bots) expect(simulation.players.get(bot.id)).toBe(bot);
   });
 
+  it('spawns deterministic pickups only in modes that enable powerups and collects effects', () => {
+    const config = { ...GAME_CONFIG, worldWidth: 48, worldHeight: 48, botCount: 0 };
+    const classic = new Simulation({ seed: 77, config, modeId: 'classic' });
+    for (let tick = 0; tick < 180; tick++) classic.step();
+    expect(classic.pickups).toHaveLength(0);
+
+    const sprint = new Simulation({ seed: 77, config, modeId: 'sprint' });
+    for (let tick = 0; tick < 100; tick++) sprint.step();
+    expect(sprint.pickups.length).toBeGreaterThan(0);
+    expect(sprint.pickups.length).toBeLessThanOrEqual(3);
+    expect(sprint.pickups.every(pickup => sprint.grid.inside(pickup.x, pickup.y))).toBe(true);
+    const pickup = sprint.pickups[0];
+    const player = sprint.player;
+    player.x = pickup.x;
+    player.y = pickup.y;
+    expect(sprint.collectPickupAt(player, pickup.x, pickup.y)).toBe(true);
+    expect(sprint.pickups.some(item => item.id === pickup.id)).toBe(false);
+    expect(Object.values(player.effects).some(ticks => ticks > 0)).toBe(true);
+  });
+
   it('publishes named gameplay events', () => {
     const simulation = new Simulation();
     const listener = vi.fn();
