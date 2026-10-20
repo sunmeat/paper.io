@@ -66,30 +66,39 @@ describe('collision rules', () => {
 
 
 describe('territory transfer on direct trail kills', () => {
+  function makeVictimTerritory(simulation, victim, count = 2) {
+    const cells = [];
+    for (let index = 0; index < simulation.grid.walkable.length && cells.length < count; index++) {
+      if (simulation.grid.walkable[index] && simulation.grid.owners[index] === 0) cells.push(index);
+    }
+    expect(cells).toHaveLength(count);
+    for (const index of cells) simulation.grid.setOwnerAt(index, victim.id);
+    return cells;
+  }
+
   it('transfers all territory to the killer when explicitly enabled', () => {
     const simulation = new Simulation({ config: { botCount: 0 } });
     const killer = simulation.player;
     const victim = simulation.createPlayer(2, 20, 20, 1, 0, false);
-    simulation.grid.setOwner(20, 20, victim.id);
-    simulation.grid.setOwner(21, 20, victim.id);
+    const cells = makeVictimTerritory(simulation, victim);
 
     simulation.eliminatePlayer(victim, killer, { transferTerritory: true });
 
     expect(simulation.grid.territoryCount(victim.id)).toBe(0);
-    expect(simulation.grid.ownerAt(20, 20)).toBe(killer.id);
-    expect(simulation.grid.ownerAt(21, 20)).toBe(killer.id);
+    for (const index of cells) expect(simulation.grid.owners[index]).toBe(killer.id);
   });
 
   it('does not transfer territory for other elimination causes', () => {
     const simulation = new Simulation({ config: { botCount: 0 } });
     const killer = simulation.player;
     const victim = simulation.createPlayer(2, 20, 20, 1, 0, false);
-    simulation.grid.setOwner(20, 20, victim.id);
+    const cells = makeVictimTerritory(simulation, victim);
+    const killerTerritoryBefore = simulation.grid.territoryCount(killer.id);
 
     simulation.eliminatePlayer(victim, killer);
 
     expect(simulation.grid.territoryCount(victim.id)).toBe(0);
-    expect(simulation.grid.ownerAt(20, 20)).toBe(0);
-    expect(simulation.grid.territoryCount(killer.id)).toBe(0);
+    for (const index of cells) expect(simulation.grid.owners[index]).toBe(0);
+    expect(simulation.grid.territoryCount(killer.id)).toBe(killerTerritoryBefore);
   });
 });
