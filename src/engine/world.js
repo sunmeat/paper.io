@@ -1,5 +1,5 @@
 export const WORLD_COUNTRIES = Object.freeze([
-  { id: 'ukraine', flag: '🇺🇦', name: { ru: 'Украина', en: 'Ukraine' }, mapId: 'circle', target: 90 },
+  { id: 'ukraine', flag: '🇺🇦', name: { ru: 'Украина', en: 'Ukraine' }, mapId: 'ukraine', target: 90 },
   { id: 'france', flag: '🇫🇷', name: { ru: 'Франция', en: 'France' }, mapId: 'hexagon', target: 90 },
   { id: 'japan', flag: '🇯🇵', name: { ru: 'Япония', en: 'Japan' }, mapId: 'diamond', target: 90 },
   { id: 'brazil', flag: '🇧🇷', name: { ru: 'Бразилия', en: 'Brazil' }, mapId: 'heart', target: 90 },
