@@ -166,6 +166,8 @@ export class Simulation {
     const player = {
       id, x, y, prevX: x, prevY: y, dx, dy, next: null, turnQueue: [], trailCells: [], alive: true, human,
       turnTimer: 0, respawnTimer: 0, lifetime: 0, currentLifeTicks: 0, totalLifeTicks: 0, livesCompleted: 0, deaths: 0, kills: 0,
+      startWidth: human ? this.config.playerStartWidth : this.config.botStartWidth,
+      startHeight: human ? this.config.playerStartHeight : this.config.botStartHeight,
       lastHitBy: null, invulnerableTicks: 18, edgeTicks: 0
     };
     this.players.set(id, player);
