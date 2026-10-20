@@ -21,22 +21,6 @@ function pointInPolygon(x, y, points) {
   return inside;
 }
 
-const UKRAINE_REGIONS = UKRAINE_POLYGONS.map(points => ({
-  points,
-  minX: Math.min(...points.map(point => point[0])),
-  maxX: Math.max(...points.map(point => point[0])),
-  minY: Math.min(...points.map(point => point[1])),
-  maxY: Math.max(...points.map(point => point[1]))
-}));
-
-function insideUkraine(nx, ny) {
-  return UKRAINE_REGIONS.some(region =>
-    nx >= region.minX && nx <= region.maxX &&
-    ny >= region.minY && ny <= region.maxY &&
-    pointInPolygon(nx, ny, region.points)
-  );
-}
-
 function polygonPoints(kind) {
   if (kind === 'star') return Array.from({ length: 10 }, (_, i) => {
     const angle = -Math.PI / 2 + i * Math.PI / 5;
@@ -55,7 +39,6 @@ function polygonPoints(kind) {
 }
 
 function insideShape(kind, nx, ny) {
-  if (kind === 'ukraine') return insideUkraine(nx, ny);
   const dx = nx - 0.5;
   const dy = ny - 0.5;
   const polygon = polygonPoints(kind);
@@ -68,9 +51,45 @@ function insideShape(kind, nx, ny) {
   return dx * dx / 0.225 + dy * dy / 0.225 <= 1;
 }
 
+// Scan-convert geographic polygons a row at a time. Testing every map cell
+// against hundreds of polygon vertices was freezing startup on mobile.
+function rasterizeUkraine(mask, width, height) {
+  for (const polygon of UKRAINE_POLYGONS) {
+    let minY = 1;
+    let maxY = 0;
+    for (const [, y] of polygon) {
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const firstRow = Math.max(0, Math.floor(minY * height));
+    const lastRow = Math.min(height - 1, Math.ceil(maxY * height));
+    for (let row = firstRow; row <= lastRow; row++) {
+      const y = (row + 0.5) / height;
+      const intersections = [];
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const [x1, y1] = polygon[j];
+        const [x2, y2] = polygon[i];
+        if ((y1 <= y && y < y2) || (y2 <= y && y < y1)) {
+          intersections.push(x1 + ((y - y1) * (x2 - x1)) / (y2 - y1));
+        }
+      }
+      intersections.sort((a, b) => a - b);
+      for (let i = 0; i + 1 < intersections.length; i += 2) {
+        const start = Math.max(0, Math.ceil(intersections[i] * width - 0.5));
+        const end = Math.min(width - 1, Math.floor(intersections[i + 1] * width - 0.5));
+        for (let x = start; x <= end; x++) mask[row * width + x] = 1;
+      }
+    }
+  }
+}
+
 export function createMapMask(width, height, mapId = 'circle') {
   const selected = mapId === 'ukraine' || MAPS.some(map => map.id === mapId) ? mapId : 'circle';
   const mask = new Uint8Array(width * height);
+  if (selected === 'ukraine') {
+    rasterizeUkraine(mask, width, height);
+    return mask;
+  }
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       mask[y * width + x] = insideShape(selected, (x + 0.5) / width, (y + 0.5) / height) ? 1 : 0;
