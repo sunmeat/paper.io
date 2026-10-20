@@ -432,8 +432,8 @@ export class Game {
     ctx.lineCap = 'round';
     ctx.beginPath();
 
-    // Draw each territory boundary once, from the owned cell only.
-    // Neutral cells must not paint the reverse side of the same edge.
+    // Keep only the outer contour of owned land. Borders between claimed cells
+    // are omitted so a territory reads as one continuous, solid region.
     for (const index of (indices || this.grid.owners.keys())) {
       const owner = this.grid.owners[index];
       if (!owner || !this.grid.walkable[index]) continue;
@@ -442,21 +442,23 @@ export class Game {
       const y = Math.floor(index / this.cellsWide);
       const px = x * cellSize;
       const py = y * cellSize;
-      const differs = neighbor => !this.grid.walkable[neighbor] || this.grid.owners[neighbor] !== owner;
+      const isNeutralOrOutside = neighbor =>
+        neighbor < 0 || neighbor >= this.grid.owners.length ||
+        !this.grid.walkable[neighbor] || this.grid.owners[neighbor] === 0;
 
-      if (x === 0 || differs(index - 1)) {
+      if (x === 0 || isNeutralOrOutside(index - 1)) {
         ctx.moveTo(px, py);
         ctx.lineTo(px, py + cellSize);
       }
-      if (x === this.cellsWide - 1 || differs(index + 1)) {
+      if (x === this.cellsWide - 1 || isNeutralOrOutside(index + 1)) {
         ctx.moveTo(px + cellSize, py);
         ctx.lineTo(px + cellSize, py + cellSize);
       }
-      if (y === 0 || differs(index - this.cellsWide)) {
+      if (y === 0 || isNeutralOrOutside(index - this.cellsWide)) {
         ctx.moveTo(px, py);
         ctx.lineTo(px + cellSize, py);
       }
-      if (y === this.cellsHigh - 1 || differs(index + this.cellsWide)) {
+      if (y === this.cellsHigh - 1 || isNeutralOrOutside(index + this.cellsWide)) {
         ctx.moveTo(px, py + cellSize);
         ctx.lineTo(px + cellSize, py + cellSize);
       }
