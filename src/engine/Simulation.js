@@ -70,6 +70,10 @@ export class Simulation {
     this._leaderId = null;
     this.hasResolvedLeader = false;
     this.secretConquered = false;
+    this.maxTerritory = 0;
+    this.maxTerritoryCells = 0;
+    this.finalTerritoryOwners = null;
+    this.deathKillerId = null;
 
     this.initializing = true;
     this.botCount = this.config.botCount;
@@ -128,6 +132,7 @@ export class Simulation {
       );
       this.player = this.createPlayer(1, spawn.x, spawn.y, 1, 0, true);
       this.initializeTerritory(this.player, playerWidth, playerHeight);
+      this.updateMaxTerritory();
     }
     this.initializing = false;
   }
@@ -347,9 +352,19 @@ export class Simulation {
       const victim = this.players.get(victimId);
       if (victim?.alive) this.eliminatePlayer(victim, killer, { transferTerritory: pendingTerritoryTransfers.has(victimId) });
     }
+    this.updateMaxTerritory();
     if (!this.over) this.checkTerritoryLoss();
     for (const player of this.players.values()) if (player.alive && player.invulnerableTicks > 0) player.invulnerableTicks--;
     if (!this.over) this.checkRoundOutcome();
+  }
+
+  updateMaxTerritory() {
+    if (!this.player) return;
+    const cells = this.grid.territoryCount(this.player.id);
+    if (cells > this.maxTerritoryCells) {
+      this.maxTerritoryCells = cells;
+      this.maxTerritory = Number((cells / Math.max(1, this.grid.walkableCount) * 100).toFixed(3));
+    }
   }
 
   checkRoundOutcome() {
@@ -375,6 +390,8 @@ export class Simulation {
     this.winnerId = outcome === 'victory' ? 1 : null;
     const total = this.grid.walkableCount || 1;
     this.secretConquered = Boolean(this.player && this.grid.territoryCount(this.player.id) >= total);
+    this.updateMaxTerritory();
+    this.finalTerritoryOwners = new Uint16Array(this.grid.owners);
     this.over = true;
     this.paused = true;
     this.events.emit('gameOver', this.getStats());
@@ -471,6 +488,15 @@ export class Simulation {
   eliminatePlayer(player, killer = null, { transferTerritory = false } = {}) {
     if (!player?.alive) return;
     const attributedKiller = killer ?? (player.lastHitBy ? this.players.get(player.lastHitBy) : null);
+    this.updateMaxTerritory();
+    const territoryCells = [];
+    for (let index = 0; index < this.grid.owners.length; index++) {
+      if (this.grid.owners[index] === player.id) territoryCells.push(index);
+    }
+    if (player.human) {
+      this.finalTerritoryOwners = new Uint16Array(this.grid.owners);
+      this.deathKillerId = attributedKiller?.id ?? null;
+    }
     if (transferTerritory && attributedKiller && attributedKiller.id !== player.id) {
       for (let index = 0; index < this.grid.owners.length; index++) {
         if (this.grid.owners[index] === player.id) this.grid.setOwnerAt(index, attributedKiller.id);
@@ -491,7 +517,7 @@ export class Simulation {
       player.lastHitBy = attributedKiller.id;
       attributedKiller.kills = (attributedKiller.kills || 0) + 1;
     }
-    const death = { playerId: player.id, human: player.human, killerId: attributedKiller?.id ?? null };
+    const death = { playerId: player.id, human: player.human, killerId: attributedKiller?.id ?? null, territoryCells };
     this.events.emit('death', death);
     if (attributedKiller) this.events.emit('kill', { killerId: attributedKiller.id, victimId: player.id, killerHuman: attributedKiller.human, victimHuman: player.human });
     if (attributedKiller?.human && !player.human) this.sessionScore += 100;
@@ -561,12 +587,19 @@ export class Simulation {
 
   getStats() {
     const players = [...this.players.values()];
+    const finalCounts = this.over && this.finalTerritoryOwners
+      ? this.finalTerritoryOwners.reduce((counts, owner) => {
+          if (owner) counts[owner] = (counts[owner] || 0) + 1;
+          return counts;
+        }, {})
+      : null;
+    const territoryCount = playerId => finalCounts ? finalCounts[playerId] || 0 : this.grid.territoryCount(playerId);
     const playerStats = players.map(player => ({
       id: player.id,
       kills: player.kills || 0,
       deaths: player.deaths,
       alive: player.alive,
-      territory: this.grid.territoryCount(player.id),
+      territory: territoryCount(player.id),
       x: player.x,
       y: player.y
     }));
@@ -590,13 +623,16 @@ export class Simulation {
     if (this._leaderId != null && top5.some(player => player.id === this._leaderId)) {
       top5.sort((a, b) => (a.id === this._leaderId ? -1 : b.id === this._leaderId ? 1 : b.territory - a.territory));
     }
-    const score = this.player ? this.grid.territoryCount(this.player.id) : 0;
+    const score = this.player ? territoryCount(this.player.id) : 0;
     return {
       territory: total ? Number((score / total * 100).toFixed(3)) : 0,
       modeId: this.modeId,
       elapsedMs: this.elapsedMs,
       outcome: this.outcome,
       winnerId: this.winnerId,
+      killerId: this.deathKillerId,
+      maxTerritory: this.maxTerritory,
+      maxTerritoryCells: this.maxTerritoryCells,
       secretConquered: this.secretConquered,
       score,
       sessionScore: this.sessionScore,
