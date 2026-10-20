@@ -124,6 +124,7 @@ export const useGameStore = create(persist((set, get) => ({
     const today = dateKey();
     const dailyQuestProgress = { ...(state.dailyQuestProgress || {}) };
     const previous = dailyQuestProgress[today] || {};
+    dailyQuestProgress[today] = { ...previous };
     const modeId = round.modeId || state.selectedMode || 'classic';
     for (const quest of getDailyQuests()) {
       const value = quest.type === 'kills' ? kills : quest.type === 'territory' ? territory : quest.type === 'sprint' ? (modeId === 'sprint' ? 1 : 0) : 1;
