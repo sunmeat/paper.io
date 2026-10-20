@@ -1,5 +1,6 @@
+import { UKRAINE_POLYGONS } from './ukraine.js';
+
 export const MAPS = Object.freeze([
-  { id: 'ukraine', name: { ru: 'Украина · границы 1991 года', en: 'Ukraine · 1991 borders' } },
   { id: 'circle', name: { ru: 'Круг', en: 'Circle' } },
   { id: 'star', name: { ru: 'Звезда', en: 'Star' } },
   { id: 'heart', name: { ru: 'Сердце', en: 'Heart' } },
@@ -20,17 +21,23 @@ function pointInPolygon(x, y, points) {
   return inside;
 }
 
+const UKRAINE_REGIONS = UKRAINE_POLYGONS.map(points => ({
+  points,
+  minX: Math.min(...points.map(point => point[0])),
+  maxX: Math.max(...points.map(point => point[0])),
+  minY: Math.min(...points.map(point => point[1])),
+  maxY: Math.max(...points.map(point => point[1]))
+}));
+
+function insideUkraine(nx, ny) {
+  return UKRAINE_REGIONS.some(region =>
+    nx >= region.minX && nx <= region.maxX &&
+    ny >= region.minY && ny <= region.maxY &&
+    pointInPolygon(nx, ny, region.points)
+  );
+}
+
 function polygonPoints(kind) {
-  if (kind === 'ukraine') return [
-    [0.08, 0.29], [0.15, 0.22], [0.24, 0.24], [0.29, 0.18],
-    [0.39, 0.16], [0.48, 0.20], [0.56, 0.18], [0.65, 0.22],
-    [0.72, 0.24], [0.78, 0.30], [0.87, 0.32], [0.94, 0.39],
-    [0.91, 0.45], [0.84, 0.49], [0.86, 0.55], [0.80, 0.60],
-    [0.75, 0.62], [0.72, 0.70], [0.67, 0.75], [0.63, 0.84],
-    [0.58, 0.79], [0.55, 0.71], [0.49, 0.67], [0.43, 0.63],
-    [0.38, 0.59], [0.31, 0.57], [0.25, 0.52], [0.18, 0.50],
-    [0.14, 0.44], [0.08, 0.43], [0.05, 0.36]
-  ];
   if (kind === 'star') return Array.from({ length: 10 }, (_, i) => {
     const angle = -Math.PI / 2 + i * Math.PI / 5;
     const radius = i % 2 ? 0.25 : 0.47;
@@ -48,6 +55,7 @@ function polygonPoints(kind) {
 }
 
 function insideShape(kind, nx, ny) {
+  if (kind === 'ukraine') return insideUkraine(nx, ny);
   const dx = nx - 0.5;
   const dy = ny - 0.5;
   const polygon = polygonPoints(kind);
@@ -60,8 +68,8 @@ function insideShape(kind, nx, ny) {
   return dx * dx / 0.225 + dy * dy / 0.225 <= 1;
 }
 
-export function createMapMask(width, height, mapId = 'ukraine') {
-  const selected = MAPS.some(map => map.id === mapId) ? mapId : 'circle';
+export function createMapMask(width, height, mapId = 'circle') {
+  const selected = mapId === 'ukraine' || MAPS.some(map => map.id === mapId) ? mapId : 'circle';
   const mask = new Uint8Array(width * height);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
