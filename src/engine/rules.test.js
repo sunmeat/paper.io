@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Grid } from './Grid.js';
 import { captureArea } from './fill.js';
 import { resolveHeadCollision, resolveTrailCrossing } from './rules.js';
+import { Simulation } from './Simulation.js';
 
 describe('territory ownership and captures', () => {
   it('updates territory counts incrementally when ownership changes', () => {
@@ -60,5 +61,35 @@ describe('collision rules', () => {
       { id: 1, trailCells: [1, 2] },
       { id: 2, trailCells: [3, 4] }
     )).toEqual([1, 2]);
+  });
+});
+
+
+describe('territory transfer on direct trail kills', () => {
+  it('transfers all territory to the killer when explicitly enabled', () => {
+    const simulation = new Simulation({ config: { botCount: 0 } });
+    const killer = simulation.player;
+    const victim = simulation.createPlayer(2, 20, 20, 1, 0, false);
+    simulation.grid.setOwner(20, 20, victim.id);
+    simulation.grid.setOwner(21, 20, victim.id);
+
+    simulation.eliminatePlayer(victim, killer, { transferTerritory: true });
+
+    expect(simulation.grid.territoryCount(victim.id)).toBe(0);
+    expect(simulation.grid.ownerAt(20, 20)).toBe(killer.id);
+    expect(simulation.grid.ownerAt(21, 20)).toBe(killer.id);
+  });
+
+  it('does not transfer territory for other elimination causes', () => {
+    const simulation = new Simulation({ config: { botCount: 0 } });
+    const killer = simulation.player;
+    const victim = simulation.createPlayer(2, 20, 20, 1, 0, false);
+    simulation.grid.setOwner(20, 20, victim.id);
+
+    simulation.eliminatePlayer(victim, killer);
+
+    expect(simulation.grid.territoryCount(victim.id)).toBe(0);
+    expect(simulation.grid.ownerAt(20, 20)).toBe(0);
+    expect(simulation.grid.territoryCount(killer.id)).toBe(0);
   });
 });
