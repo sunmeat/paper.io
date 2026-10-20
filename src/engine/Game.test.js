@@ -220,6 +220,8 @@ describe('Simulation', () => {
     expect(classic.pickups).toHaveLength(0);
 
     const sprint = new Simulation({ seed: 77, config, modeId: 'sprint' });
+    const sprintMirror = new Simulation({ seed: 77, config, modeId: 'sprint' });
+    expect(sprint.pickups).toEqual(sprintMirror.pickups);
     expect(sprint.pickups.length).toBeGreaterThan(0);
     expect(sprint.pickups.length).toBeLessThanOrEqual(3);
     expect(sprint.pickups.every(pickup => sprint.grid.inside(pickup.x, pickup.y))).toBe(true);
