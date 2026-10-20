@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HATS, RARITY, SKINS, TRAIL_EFFECTS, getSkinById } from './skins.js';
+import { HATS, isUnlocked, RARITY, SKINS, TRAIL_EFFECTS, getSkinById } from './skins.js';
 import { getPlayerColor, PLAYER_PALETTE } from './playerPalette.js';
 
 function rgb(hex) {
@@ -52,5 +52,43 @@ describe('cosmetic catalog', () => {
   it('defines all rarity labels and frame colors', () => {
     expect(Object.keys(RARITY)).toEqual(['common', 'rare', 'epic']);
     for (const rarity of Object.values(RARITY)) expect(rarity.color).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+});
+
+describe('isUnlocked', () => {
+  it('allows free items and items without requirements', () => {
+    expect(isUnlocked({ id: 'free', unlock: { type: 'free' } }, {})).toBe(true);
+    expect(isUnlocked({ id: 'shop-item', price: 100 }, {})).toBe(true);
+  });
+
+  it('checks territory and kill counts for the current round', () => {
+    expect(isUnlocked({ unlock: { type: 'round-territory', target: 75 } }, { lastRoundTerritory: 74.9 })).toBe(false);
+    expect(isUnlocked({ unlock: { type: 'round-territory', target: 75 } }, { lastRoundTerritory: 75 })).toBe(true);
+    expect(isUnlocked({ unlock: { type: 'round-kills', target: 5 } }, { lastRoundKills: 4 })).toBe(false);
+    expect(isUnlocked({ unlock: { type: 'round-kills', target: 5 } }, { lastRoundKills: 5 })).toBe(true);
+  });
+
+  it('checks win streaks and lifetime kills', () => {
+    expect(isUnlocked({ unlock: { type: 'win-streak', target: 3 } }, { winStreak: 2 })).toBe(false);
+    expect(isUnlocked({ unlock: { type: 'win-streak', target: 3 } }, { winStreak: 3 })).toBe(true);
+    expect(isUnlocked({ unlock: { type: 'total-kills', target: 25 } }, { totalKills: 24 })).toBe(false);
+    expect(isUnlocked({ unlock: { type: 'total-kills', target: 25 } }, { totalKills: 25 })).toBe(true);
+  });
+
+  it('checks country completion and sprint wins', () => {
+    expect(isUnlocked({ unlock: { type: 'country', country: 'france' } }, { completedCountries: [] })).toBe(false);
+    expect(isUnlocked({ unlock: { type: 'country', country: 'france' } }, { completedCountries: ['france'] })).toBe(true);
+    expect(isUnlocked({ unlock: { type: 'sprint', wins: 2 } }, { sprintWins: 1 })).toBe(false);
+    expect(isUnlocked({ unlock: { type: 'sprint', wins: 2 } }, { sprintWins: 2 })).toBe(true);
+  });
+
+  it('supports existing achievement, level and quest unlocks', () => {
+    expect(isUnlocked({ unlock: { type: 'achievement', id: 'first-capture' } }, { achievements: [] })).toBe(false);
+    expect(isUnlocked({ unlock: { type: 'achievement', id: 'first-capture' } }, { achievements: ['first-capture'] })).toBe(true);
+    expect(isUnlocked({ unlock: { type: 'level', level: 3 } }, { level: 2 })).toBe(false);
+    expect(isUnlocked({ unlock: { type: 'level', level: 3 } }, { level: 3 })).toBe(true);
+    expect(isUnlocked({ unlock: { type: 'quest', captured: 100 } }, { totalTerritory: 99 })).toBe(false);
+    expect(isUnlocked({ unlock: { type: 'quest', captured: 100 } }, { totalTerritory: 100 })).toBe(true);
+    expect(isUnlocked({ unlock: { type: 'unknown' } }, {})).toBe(false);
   });
 });
