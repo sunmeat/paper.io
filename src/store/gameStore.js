@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { HATS, SKINS, TRAIL_EFFECTS } from '../engine/skins.js';
+import { HATS, isUnlocked, SKINS, TRAIL_EFFECTS } from '../engine/skins.js';
+import { mulberry32 } from '../engine/random.js';
 import { DEFAULT_WORLD_PROGRESS, advanceWorldProgress, isCountryUnlocked, restoreWorldProgress, WORLD_COUNTRIES } from '../engine/world.js';
 
 const walletChecksum = coins => {
@@ -12,12 +13,20 @@ const walletChecksum = coins => {
 
 export const getDailyQuests = (date = new Date()) => {
   const day = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
-  const rotations = [
-    [{ id: 'kills-3', type: 'kills', target: 3, reward: 90 }, { id: 'territory-30', type: 'territory', target: 30, reward: 110 }],
-    [{ id: 'play-1', type: 'rounds', target: 1, reward: 60 }, { id: 'kills-3', type: 'kills', target: 3, reward: 90 }],
-    [{ id: 'territory-30', type: 'territory', target: 30, reward: 110 }, { id: 'play-1', type: 'rounds', target: 1, reward: 60 }]
+  const random = mulberry32(day ^ 0x51f15e);
+  const pool = [
+    { id: 'kills-3', type: 'kills', target: 3, reward: 90 },
+    { id: 'territory-30', type: 'territory', target: 30, reward: 110 },
+    { id: 'play-1', type: 'rounds', target: 1, reward: 60 },
+    { id: 'kills-5', type: 'kills', target: 5, reward: 140 },
+    { id: 'territory-50', type: 'territory', target: 50, reward: 160 },
+    { id: 'sprint-1', type: 'sprint', target: 1, reward: 100 }
   ];
-  return rotations[((day % rotations.length) + rotations.length) % rotations.length];
+  for (let index = pool.length - 1; index > 0; index--) {
+    const swap = Math.floor(random() * (index + 1));
+    [pool[index], pool[swap]] = [pool[swap], pool[index]];
+  }
+  return pool.slice(0, 2);
 };
 
 const base = {
@@ -35,6 +44,15 @@ const base = {
   lastDailyClaimAt: 0,
   dailyStreak: 0,
   bestTerritory: 0,
+  totalKills: 0,
+  bestRoundKills: 0,
+  bestRoundTerritory: 0,
+  wins: 0,
+  winStreak: 0,
+  sprintWins: 0,
+  lastRoundKills: 0,
+  lastRoundTerritory: 0,
+  lastMode: 'classic',
   roundsPlayed: 0,
   selectedMode: 'classic',
   modeRecords: {},
@@ -51,20 +69,7 @@ const dateKey = (date = new Date()) =>
 
 const snapshot = { territory: 0, score: 0, sessionScore: 0, bots: 10, over: false, paused: false, respawning: false, top5: [] };
 
-function meetsUnlockRequirement(item, state) {
-  const unlock = item.unlock;
-  if (!unlock || unlock.type === 'free') return true;
-  if (unlock.type === 'achievement') return state.achievements.includes(unlock.id);
-  if (unlock.type === 'level') {
-    const level = Math.max(1, Number(localStorage.getItem('paper-io-player-level')) || 1);
-    return level >= unlock.level;
-  }
-  if (unlock.type === 'quest') {
-    const captured = Math.max(0, Number(localStorage.getItem('paper-io-total-captured')) || 0);
-    return captured >= unlock.captured;
-  }
-  return false;
-}
+const meetsUnlockRequirement = (item, state) => isUnlocked(item, state);
 
 export const useGameStore = create(persist((set, get) => ({
   screen: 'menu',
@@ -119,27 +124,56 @@ export const useGameStore = create(persist((set, get) => ({
     const today = dateKey();
     const dailyQuestProgress = { ...(state.dailyQuestProgress || {}) };
     const previous = dailyQuestProgress[today] || {};
-    dailyQuestProgress[today] = {
-      'kills-3': Math.max(Number(previous['kills-3']) || 0, kills),
-      'territory-30': Math.max(Number(previous['territory-30']) || 0, territory),
-      'play-1': Math.max(Number(previous['play-1']) || 0, 1)
-    };
     const modeId = round.modeId || state.selectedMode || 'classic';
+    for (const quest of getDailyQuests()) {
+      const value = quest.type === 'kills' ? kills : quest.type === 'territory' ? territory : quest.type === 'sprint' ? (modeId === 'sprint' ? 1 : 0) : 1;
+      dailyQuestProgress[today][quest.id] = Math.max(Number(previous[quest.id]) || 0, value);
+    }
     const countryId = round.countryId || state.selectedCountryId || 'ukraine';
     const xpGained = Math.max(10, Math.floor(territory * 2) + kills * 15 + (victory ? 50 : 0));
     const worldProgress = advanceWorldProgress({ completed: state.completedCountries || [], selectedCountryId: state.selectedCountryId || 'ukraine', prestige: state.prestige || 0, experience: state.experience || 0, level: state.level || 1, gamesPlayed: state.gamesPlayed || 0, totalTerritory: state.totalTerritory || 0, bestTerritory: state.bestTerritory || 0, countryRecords: state.countryRecords || {}, rank: state.rank || 'recruit' }, { countryId, territory, experience: xpGained });
     const modeRecords = { ...(state.modeRecords || {}) };
+    const totalKills = (Number(state.totalKills) || 0) + kills;
+    const bestRoundKills = Math.max(Number(state.bestRoundKills) || 0, kills);
+    const bestRoundTerritory = Math.max(Number(state.bestRoundTerritory) || 0, territory);
+    const wins = (Number(state.wins) || 0) + (victory ? 1 : 0);
+    const winStreak = victory ? (Number(state.winStreak) || 0) + 1 : 0;
+    const sprintWins = (Number(state.sprintWins) || 0) + (modeId === 'sprint' && victory ? 1 : 0);
     if (!achievements.includes('first-round')) achievements.push('first-round');
     if (roundsPlayed >= 10 && !achievements.includes('rounds-10')) achievements.push('rounds-10');
     if (kills >= 3 && !achievements.includes('killer-3')) achievements.push('killer-3');
     if (territory >= 30 && !achievements.includes('territory-30')) achievements.push('territory-30');
+    if (totalKills >= 25 && !achievements.includes('kills-25')) achievements.push('kills-25');
+    if (territory >= 75 && !achievements.includes('territory-75')) achievements.push('territory-75');
     if (totalRoundCoins >= 1000 && !achievements.includes('coins-1000')) achievements.push('coins-1000');
     if (modeId === 'sprint' && territory >= 20 && !achievements.includes('sprint-winner')) achievements.push('sprint-winner');
     modeRecords[modeId] = Math.max(Number(modeRecords[modeId]) || 0, territory);
+    const profile = {
+      ...state, achievements, level: worldProgress.level, completedCountries: worldProgress.completed,
+      totalTerritory: worldProgress.totalTerritory, roundTerritory: territory, lastRoundTerritory: territory,
+      roundKills: kills, lastRoundKills: kills, totalKills, bestRoundKills, bestRoundTerritory,
+      wins, winStreak, sprintWins, lastMode: modeId
+    };
+    const newlyUnlockedItems = [];
+    const ownedSkins = [...(state.ownedSkins || [])];
+    const ownedHats = [...(state.ownedHats || [])];
+    const ownedTrails = [...(state.ownedTrails || [])];
+    for (const [kind, catalog, owned] of [
+      ['skin', SKINS, ownedSkins], ['hat', HATS, ownedHats], ['trail', TRAIL_EFFECTS, ownedTrails]
+    ]) {
+      for (const item of catalog) {
+        if (!item.unlock || item.unlock.type === 'free' || owned.includes(item.id) || !isUnlocked(item, profile)) continue;
+        owned.push(item.id);
+        newlyUnlockedItems.push({ id: item.id, kind, name: item.name, icon: item.icon || (kind === 'skin' ? '●' : '✦'), color: item.color || (kind === 'skin' ? item.color : null), rarity: item.rarity });
+      }
+    }
     return {
       roundsPlayed, coins, walletChecksum: walletChecksum(coins), totalRoundCoins, dailyQuestProgress,
+      totalKills, bestRoundKills, bestRoundTerritory, wins, winStreak, sprintWins,
+      lastRoundKills: kills, lastRoundTerritory: territory, lastMode: modeId,
+      ownedSkins, ownedHats, ownedTrails,
       completedCountries: worldProgress.completed, selectedCountryId: worldProgress.selectedCountryId, prestige: worldProgress.prestige, experience: worldProgress.experience, level: worldProgress.level, gamesPlayed: worldProgress.gamesPlayed, totalTerritory: worldProgress.totalTerritory, bestTerritory: worldProgress.bestTerritory, countryRecords: worldProgress.countryRecords, rank: worldProgress.rank, lastExperienceGained: xpGained, selectedMap: WORLD_COUNTRIES.find(country => country.id === worldProgress.selectedCountryId)?.mapId || state.selectedMap,
-      snapshot: { ...round, roundCoinsEarned, experienceGained: xpGained },
+      snapshot: { ...round, roundCoinsEarned, experienceGained: xpGained, newlyUnlockedItems },
       modeRecords, achievements
     };
   }),
@@ -186,6 +220,7 @@ export const useGameStore = create(persist((set, get) => ({
     const item = catalog.find(entry => entry.id === id);
     if (!item) return { ok: false, reason: 'missing' };
     if (state[ownedKey].includes(id)) return { ok: false, reason: 'owned' };
+    if (item.unlock && item.unlock.type !== 'free') return { ok: false, reason: 'unlock' };
     if (state.coins < item.price) return { ok: false, reason: 'coins' };
     const coins = state.coins - item.price;
     set({ coins, walletChecksum: walletChecksum(coins), [ownedKey]: [...state[ownedKey], id], [equippedKey]: id });
@@ -218,6 +253,9 @@ export const useGameStore = create(persist((set, get) => ({
     ownedHats: state.ownedHats, equippedHat: state.equippedHat, ownedTrails: state.ownedTrails, equippedTrail: state.equippedTrail,
     achievements: state.achievements, lastDailyClaimDate: state.lastDailyClaimDate, lastDailyClaimAt: state.lastDailyClaimAt,
     dailyStreak: state.dailyStreak, roundsPlayed: state.roundsPlayed,
+    totalKills: state.totalKills, bestRoundKills: state.bestRoundKills, bestRoundTerritory: state.bestRoundTerritory,
+    wins: state.wins, winStreak: state.winStreak, sprintWins: state.sprintWins,
+    lastRoundKills: state.lastRoundKills, lastRoundTerritory: state.lastRoundTerritory, lastMode: state.lastMode,
     selectedMode: state.selectedMode, modeRecords: state.modeRecords, dailyQuestProgress: state.dailyQuestProgress, dailyQuestClaims: state.dailyQuestClaims, walletChecksum: state.walletChecksum, totalRoundCoins: state.totalRoundCoins,
     completedCountries: state.completedCountries, selectedCountryId: state.selectedCountryId, prestige: state.prestige, experience: state.experience, level: state.level, gamesPlayed: state.gamesPlayed, totalTerritory: state.totalTerritory, bestTerritory: state.bestTerritory, countryRecords: state.countryRecords, rank: state.rank, lastExperienceGained: state.lastExperienceGained
   }),
@@ -229,6 +267,15 @@ export const useGameStore = create(persist((set, get) => ({
       coins: saved.walletChecksum && saved.walletChecksum === walletChecksum(saved.coins) ? Math.max(0, Math.floor(Number(saved.coins) || 0)) : (saved.walletChecksum ? 0 : Math.max(0, Math.floor(Number(saved.coins) || 0))),
       walletChecksum: walletChecksum(saved.walletChecksum && saved.walletChecksum === walletChecksum(saved.coins) ? saved.coins : (saved.walletChecksum ? 0 : saved.coins)),
       totalRoundCoins: Math.max(0, Number(saved.totalRoundCoins) || 0),
+      totalKills: Math.max(0, Number(saved.totalKills) || 0),
+      bestRoundKills: Math.max(0, Number(saved.bestRoundKills) || 0),
+      bestRoundTerritory: Math.max(0, Number(saved.bestRoundTerritory) || 0),
+      wins: Math.max(0, Number(saved.wins) || 0),
+      winStreak: Math.max(0, Number(saved.winStreak) || 0),
+      sprintWins: Math.max(0, Number(saved.sprintWins) || 0),
+      lastRoundKills: Math.max(0, Number(saved.lastRoundKills) || 0),
+      lastRoundTerritory: Math.max(0, Number(saved.lastRoundTerritory) || 0),
+      lastMode: saved.lastMode === 'sprint' ? 'sprint' : 'classic',
       revivesPurchased: Math.max(0, Math.floor(Number(saved.revivesPurchased) || 0)),
       dailyQuestProgress: saved.dailyQuestProgress && typeof saved.dailyQuestProgress === 'object' ? saved.dailyQuestProgress : {},
       dailyQuestClaims: saved.dailyQuestClaims && typeof saved.dailyQuestClaims === 'object' ? saved.dailyQuestClaims : {},
