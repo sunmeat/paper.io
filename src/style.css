@@ -437,3 +437,8 @@ kbd {
 .leader-toast { position: absolute; z-index: 5; top: calc(max(14px, env(safe-area-inset-top)) + 58px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 9px; padding: 11px 17px; border: 1px solid #ffd34f80; border-radius: 12px; background: #19180ff2; color: #ffe19a; box-shadow: 0 8px 30px #0005; font-size: 12px; font-weight: 800; white-space: nowrap; animation: leader-toast-in .2s ease-out; pointer-events: none; }
 .leader-toast svg { color: #ffd34f; }
 @keyframes leader-toast-in { from { opacity: 0; transform: translate(-50%, -7px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+.near-record { display: flex; align-items: center; justify-content: center; margin: 10px 0; padding: 11px 13px; border: 1px solid #ffd34f55; border-radius: 12px; background: #ffd34f0d; color: #ffdf7d; font-size: 12px; font-weight: 800; text-align: center; }
+.killer-result { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0 14px; padding: 11px 13px; border: 1px solid #ffffff12; border-radius: 12px; background: #ffffff05; }
+.killer-result span { color: #959cb1; font: 10px monospace; }
+.killer-result strong { font-size: 12px; }
