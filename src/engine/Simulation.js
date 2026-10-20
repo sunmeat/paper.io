@@ -191,7 +191,7 @@ export class Simulation {
       turnTimer: 0, respawnTimer: 0, lifetime: 0, currentLifeTicks: 0, totalLifeTicks: 0, livesCompleted: 0, deaths: 0, kills: 0,
       startWidth: human ? this.config.playerStartWidth : this.config.botStartWidth,
       startHeight: human ? this.config.playerStartHeight : this.config.botStartHeight,
-      lastHitBy: null, invulnerableTicks: 18, edgeTicks: 0, effects: { speed: 0, shield: 0, bigCapture: 0, freeze: 0 }, frozenTicks: 0
+      lastHitBy: null, invulnerableTicks: 18, edgeTicks: 0, closedLoop: false, effects: { speed: 0, shield: 0, bigCapture: 0, freeze: 0 }, frozenTicks: 0
     };
     this.players.set(id, player);
     return player;
@@ -338,19 +338,20 @@ export class Simulation {
       if (this.over) break;
     }
     this.resolvingTick = false;
-    // Edge-boost substeps happen after the simultaneous movement phase.
+    // Speed powerups grant one extra cell; hugging the border no longer accelerates every character.
     for (const player of active) {
-      if (!player.alive) continue;
-      const bonusMoves = Math.min(2, Math.floor((player.edgeTicks || 0) / 8)) + (player.effects?.speed > 0 ? 1 : 0);
-      for (let bonus = 0; bonus < bonusMoves && player.alive; bonus++) this.movePlayer(player);
+      if (!player.alive || player.effects?.speed <= 0) continue;
+      this.movePlayer(player);
       if (this.over) break;
     }
 
-    // Resolve every completed loop only after all participants have moved.
+    // A loop closes when a player returns to territory or crosses their own trail.
     for (const player of active) {
-      if (!player.alive || !player.trailCells.length || this.grid.ownerAt(player.x, player.y) !== player.id) continue;
+      if (!player.alive || !player.trailCells.length ||
+          (!player.closedLoop && this.grid.ownerAt(player.x, player.y) !== player.id)) continue;
       const captured = captureArea(this.grid, player.id, player.trailCells);
       player.trailCells = [];
+      player.closedLoop = false;
       if (player.human) this.sessionScore += captured;
       this.events.emit('capture', { playerId: player.id, human: player.human, captured, x: player.x, y: player.y });
       for (const victimId of this.grid.capturedTrailOwners ?? []) {
@@ -482,6 +483,7 @@ export class Simulation {
 
     player.x = nx;
     player.y = ny;
+    if (trailOwnerId === player.id && player.trailCells.length) player.closedLoop = true;
     this.collectPickupAt(player, nx, ny);
     player.lifetime++;
     player.currentLifeTicks++;
@@ -495,10 +497,11 @@ export class Simulation {
       return;
     }
 
-    if (this.grid.ownerAt(nx, ny) === player.id) {
+    if (this.grid.ownerAt(nx, ny) === player.id || (trailOwnerId === player.id && player.trailCells.length)) {
       if (player.trailCells.length) {
         const captured = captureArea(this.grid, player.id, player.trailCells);
         player.trailCells = [];
+        player.closedLoop = false;
         for (const victimId of this.grid.capturedTrailOwners ?? []) {
           const victim = this.players.get(victimId);
           if (victim?.alive && victim.id !== player.id) this.eliminatePlayer(victim, player);
