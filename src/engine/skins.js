@@ -10,7 +10,7 @@ export const SKINS = Object.freeze([
   { id: 'coral', name: { ru: 'Коралл', en: 'Coral' }, price: 300, color: '#ff6685', pattern: 'stripes', trailShape: 'diamond', rarity: 'common' },
   { id: 'ice', name: { ru: 'Лёд', en: 'Ice' }, price: 900, color: '#65dfff', pattern: 'grid', trailShape: 'square', rarity: 'rare' },
   { id: 'royal', name: { ru: 'Королевский', en: 'Royal' }, price: 1600, color: '#ffbd59', pattern: 'rings', trailShape: 'circle', rarity: 'epic', unlock: { type: 'sprint', wins: 1 } },
-  { id: 'mint', name: { ru: 'Мята', en: 'Mint' }, price: 0, color: '#58e6ad', pattern: 'diagonal', trailShape: 'square', rarity: 'common', unlock: { type: 'round-territory', target: 37 } },
+  { id: 'mint', name: { ru: 'Мята', en: 'Mint' }, price: 0, color: '#58e6ad', pattern: 'diagonal', trailShape: 'square', rarity: 'common', unlock: { type: 'round-territory', target: 75 } },
   { id: 'sunset', name: { ru: 'Закат', en: 'Sunset' }, price: 0, color: '#ff895e', pattern: 'solid', trailShape: 'diamond', rarity: 'common', unlock: { type: 'achievement', id: 'first-capture' } },
   { id: 'pixel', name: { ru: 'Пиксель', en: 'Pixel' }, price: 0, color: '#8ca7ff', pattern: 'pixels', trailShape: 'square', rarity: 'rare', unlock: { type: 'total-kills', target: 25 } },
   { id: 'lava', name: { ru: 'Лава', en: 'Lava' }, price: 1000, color: '#ff704d', pattern: 'diagonal', trailShape: 'diamond', rarity: 'rare' },
