@@ -104,6 +104,17 @@ export class Simulation {
 
     for (let tick = 0; tick < 280; tick++) this.step();
 
+    for (const bot of this.bots) {
+      bot.invulnerableTicks = 18;
+      bot.kills = 0;
+      bot.deaths = 0;
+      bot.lastHitBy = null;
+      bot.lifetime = 0;
+      bot.currentLifeTicks = 0;
+      bot.totalLifeTicks = 0;
+      bot.livesCompleted = 0;
+    }
+
     if (this.humanPlayer) {
       const playerWidth = this.config.playerStartWidth;
       const playerHeight = this.config.playerStartHeight;
@@ -342,7 +353,7 @@ export class Simulation {
   }
 
   checkRoundOutcome() {
-    if (this.initializing || this.over || !this.humanPlayer || !this.player) return;
+    if (this.initializing || this.over || !this.humanPlayer || !this.player || !this.botCount) return;
     const total = this.grid.walkableCount || 1;
     const territoryPercent = player => this.grid.territoryCount(player.id) / total * 100;
     const playerTerritory = this.player ? territoryPercent(this.player) : 0;
