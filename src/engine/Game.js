@@ -38,6 +38,7 @@ export class Game {
     this.particlePool = [];
     this.cameraShake = 0;
     this.hitStopUntil = 0;
+    this.lossProgressTimer = null;
     this.qualityLevel = 2;
     this.fpsWindowStarted = performance.now();
     this.fpsFrames = 0;
@@ -68,10 +69,7 @@ export class Game {
       this.simulation.events.on('death', event => {
         const now = performance.now();
         const victim = this.players.get(event.playerId);
-        if (event.human) {
-          this.recordBotProgressAfterLoss();
-          this.hitStopUntil = now + 120;
-        }
+        if (event.human) this.hitStopUntil = now + 120;
         this.cameraShake = Math.max(this.cameraShake, event.human ? 9 : 3);
         const skin = getSkinById(this.callbacks.getSkin?.() || 'classic');
         this.addEffect({
@@ -86,15 +84,22 @@ export class Game {
         });
       }),
       this.simulation.events.on('gameOver', snapshot => {
-        if (snapshot.outcome !== 'victory') return;
-        this.addEffect({
-          type: 'victory-confetti',
-          x: this.cellsWide / 2,
-          y: this.cellsHigh / 2,
-          started: performance.now(),
-          duration: 1200,
-          particles: this.createParticles(72, true)
-        });
+        if (snapshot.outcome === 'victory') {
+          this.addEffect({
+            type: 'victory-confetti',
+            x: this.cellsWide / 2,
+            y: this.cellsHigh / 2,
+            started: performance.now(),
+            duration: 1200,
+            particles: this.createParticles(72, true)
+          });
+        } else if (snapshot.outcome === 'defeat') {
+          if (this.lossProgressTimer !== null) window.clearTimeout(this.lossProgressTimer);
+          this.lossProgressTimer = window.setTimeout(() => {
+            if (this.simulation.over && !this.player?.alive && this.simulation.outcome === 'defeat') this.recordBotProgressAfterLoss();
+            this.lossProgressTimer = null;
+          }, 6200);
+        }
       }),
     ];
 
@@ -224,6 +229,23 @@ export class Game {
     this.measureRenderPerformance(time);
     if (time - this.lastStatsAt >= GAME_CONFIG.statsIntervalMs) this.emitStats();
     this.frame = requestAnimationFrame(next => this.loop(next));
+  }
+
+  revive() {
+    if (this.lossProgressTimer !== null) window.clearTimeout(this.lossProgressTimer);
+    this.lossProgressTimer = null;
+    const revived = this.simulation.revive();
+    if (!revived) return false;
+    this.hitStopUntil = 0;
+    this.accumulator = 0;
+    this.lastTime = 0;
+    this.camera.x = this.player.x + 0.5;
+    this.camera.y = this.player.y + 0.5;
+    this.camera.zoom = 1;
+    this.terrainDirty = true;
+    this.minimapVersion = -1;
+    this.emitStats();
+    return true;
   }
 
   update(deltaMs) { this.simulation.update(deltaMs); }
@@ -764,6 +786,7 @@ export class Game {
     cancelAnimationFrame(this.frame);
     this.resizeObserver.disconnect();
     this.unbindInput?.();
+    if (this.lossProgressTimer !== null) window.clearTimeout(this.lossProgressTimer);
     document.removeEventListener('visibilitychange', this.onVisibility);
     for (const unsubscribe of this.unsubscribeEvents) unsubscribe();
     this.callbacks = {};
