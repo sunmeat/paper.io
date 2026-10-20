@@ -206,7 +206,7 @@ export const useGameStore = create(persist((set, get) => ({
     selectedMap: state.selectedMap, coins: state.coins, ownedSkins: state.ownedSkins, equippedSkin: state.equippedSkin,
     ownedHats: state.ownedHats, equippedHat: state.equippedHat, ownedTrails: state.ownedTrails, equippedTrail: state.equippedTrail,
     achievements: state.achievements, lastDailyClaimDate: state.lastDailyClaimDate, lastDailyClaimAt: state.lastDailyClaimAt,
-    dailyStreak: state.dailyStreak, bestTerritory: state.bestTerritory, roundsPlayed: state.roundsPlayed,
+    dailyStreak: state.dailyStreak, roundsPlayed: state.roundsPlayed,
     selectedMode: state.selectedMode, modeRecords: state.modeRecords, dailyQuestProgress: state.dailyQuestProgress, dailyQuestClaims: state.dailyQuestClaims, walletChecksum: state.walletChecksum, totalRoundCoins: state.totalRoundCoins,
     completedCountries: state.completedCountries, selectedCountryId: state.selectedCountryId, prestige: state.prestige, experience: state.experience, level: state.level, gamesPlayed: state.gamesPlayed, totalTerritory: state.totalTerritory, bestTerritory: state.bestTerritory, countryRecords: state.countryRecords, rank: state.rank, lastExperienceGained: state.lastExperienceGained
   }),
