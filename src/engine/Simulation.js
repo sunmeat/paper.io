@@ -635,14 +635,17 @@ export class Simulation {
     if (powerup.id === 'shield') player.invulnerableTicks = 100;
     if (powerup.id === 'bigCapture') {
       const radius = 5;
+      let captured = 0;
       for (let y = player.y - radius; y <= player.y + radius; y++) {
         for (let x = player.x - radius; x <= player.x + radius; x++) {
           if ((x - player.x) ** 2 + (y - player.y) ** 2 > radius ** 2 || !this.grid.inside(x, y)) continue;
-          this.grid.setOwnerAt(this.grid.index(x, y), player.id);
+          const index = this.grid.index(x, y);
+          if (this.grid.owners[index] !== player.id) captured++;
+          this.grid.setOwnerAt(index, player.id);
         }
       }
       this.updateMaxTerritory();
-      this.events.emit('capture', { playerId, human: player.human, captured: this.grid.territoryCount(playerId), x: player.x, y: player.y, powerup: true });
+      this.events.emit('capture', { playerId, human: player.human, captured, x: player.x, y: player.y, powerup: true });
     }
     if (powerup.id === 'freeze') {
       for (const other of this.players.values()) if (other.alive && other.id !== playerId) other.frozenTicks = Math.max(other.frozenTicks || 0, powerup.durationTicks);
