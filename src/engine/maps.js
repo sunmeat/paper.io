@@ -6,7 +6,7 @@ export const MAPS = Object.freeze([
   { id: 'diamond', name: { ru: 'Алмаз', en: 'Diamond' } },
   { id: 'hexagon', name: { ru: 'Гексагон', en: 'Hexagon' } },
   { id: 'cross', name: { ru: 'Крест', en: 'Cross' } },
-  { id: 'clover', name: { ru: 'Клевер', en: 'Clover' } }
+  { id: 'australia', name: { ru: 'Австралия', en: 'Australia' } }
 ]);
 
 function pointInPolygon(x, y, points) {
@@ -32,6 +32,7 @@ function polygonPoints(kind) {
     return [0.5 + Math.cos(angle) * 0.46, 0.5 + Math.sin(angle) * 0.46];
   });
   if (kind === 'cross') return [[0.36,0.06],[0.64,0.06],[0.64,0.36],[0.94,0.36],[0.94,0.64],[0.64,0.64],[0.64,0.94],[0.36,0.94],[0.36,0.64],[0.06,0.64],[0.06,0.36],[0.36,0.36]];
+  if (kind === 'australia') return [[0.15,0.35],[0.24,0.23],[0.38,0.18],[0.48,0.25],[0.58,0.22],[0.7,0.3],[0.84,0.38],[0.8,0.49],[0.72,0.56],[0.65,0.7],[0.53,0.77],[0.43,0.68],[0.31,0.72],[0.22,0.61],[0.16,0.49]];
   return null;
 }
 
@@ -44,9 +45,6 @@ function insideShape(kind, nx, ny) {
     const x = (nx - 0.5) * 2.6;
     const y = (0.38 - ny) * 2.6;
     return (x * x + y * y - 1) ** 3 - x * x * y ** 3 <= 0;
-  }
-  if (kind === 'clover') {
-    return [[0.36,0.36],[0.64,0.36],[0.36,0.64],[0.64,0.64]].some(([cx,cy]) => (nx-cx)**2+(ny-cy)**2 <= 0.16**2);
   }
   return dx * dx / 0.225 + dy * dy / 0.225 <= 1;
 }
