@@ -8,6 +8,7 @@ import { resolveHeadCollision, resolveTrailCrossing } from './rules.js';
 import { BasicBot, BOT_PERSONALITY_IDS, getBotDifficulty } from './bots/index.js';
 import { GAME_CONFIG } from './config.js';
 import { evaluateRoundOutcome, GAME_MODES } from './modes.js';
+import { POWERUPS, POWERUP_IDS, POWERUP_SPAWN_INTERVAL, POWERUP_MAX_PICKUPS, POWERUP_LIFETIME_TICKS } from './powerups.js';
 
 const DIRECTIONS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
@@ -76,6 +77,8 @@ export class Simulation {
     this.deathKillerId = null;
     this.revivesUsed = 0;
     this.deathReason = null;
+    this.pickups = [];
+    this.nextPowerupId = 1;
 
     this.initializing = true;
     this.botCount = this.config.botCount;
@@ -188,7 +191,7 @@ export class Simulation {
       turnTimer: 0, respawnTimer: 0, lifetime: 0, currentLifeTicks: 0, totalLifeTicks: 0, livesCompleted: 0, deaths: 0, kills: 0,
       startWidth: human ? this.config.playerStartWidth : this.config.botStartWidth,
       startHeight: human ? this.config.playerStartHeight : this.config.botStartHeight,
-      lastHitBy: null, invulnerableTicks: 18, edgeTicks: 0
+      lastHitBy: null, invulnerableTicks: 18, edgeTicks: 0, effects: { speed: 0, shield: 0, bigCapture: 0, freeze: 0 }, frozenTicks: 0
     };
     this.players.set(id, player);
     return player;
@@ -238,6 +241,11 @@ export class Simulation {
   step() {
     if (this.paused || this.over) return;
     this.tick++;
+    for (const player of this.players.values()) {
+      for (const id of POWERUP_IDS) if (player.effects?.[id] > 0) player.effects[id]--;
+      if (player.frozenTicks > 0) player.frozenTicks--;
+    }
+    if (this.mode.powerups) this.updatePickups();
     if (this.tick % 30 === 0) this.reconcileBotPopulation();
     for (const player of this.players.values()) {
       if (player.alive) continue;
@@ -246,7 +254,7 @@ export class Simulation {
     }
 
     // Prepare all directions before checking collisions, so iteration order cannot decide a head-on race.
-    const active = [...this.players.values()].filter(player => player.alive);
+    const active = [...this.players.values()].filter(player => player.alive && player.frozenTicks <= 0);
     for (const player of active) {
       if (!player.human) {
         player.turnTimer--;
@@ -333,7 +341,7 @@ export class Simulation {
     // Edge-boost substeps happen after the simultaneous movement phase.
     for (const player of active) {
       if (!player.alive) continue;
-      const bonusMoves = Math.min(2, Math.floor((player.edgeTicks || 0) / 8));
+      const bonusMoves = Math.min(2, Math.floor((player.edgeTicks || 0) / 8)) + (player.effects?.speed > 0 ? 1 : 0);
       for (let bonus = 0; bonus < bonusMoves && player.alive; bonus++) this.movePlayer(player);
       if (this.over) break;
     }
@@ -474,6 +482,7 @@ export class Simulation {
 
     player.x = nx;
     player.y = ny;
+    this.collectPickupAt(player, nx, ny);
     player.lifetime++;
     player.currentLifeTicks++;
     player.edgeTicks = this.grid.isEdge(nx, ny) ? (player.edgeTicks || 0) + 1 : 0;
@@ -574,7 +583,7 @@ export class Simulation {
     const [dx, dy] = this.randomDirection(player);
     Object.assign(player, {
       x: spawn.x, y: spawn.y, prevX: spawn.x, prevY: spawn.y, dx, dy, next: null, turnQueue: [], trailCells: [],
-      alive: true, respawnTimer: 0, turnTimer: 0, invulnerableTicks: 18, edgeTicks: 0, lastHitBy: null
+      alive: true, respawnTimer: 0, turnTimer: 0, invulnerableTicks: 18, edgeTicks: 0, lastHitBy: null, effects: { speed: 0, shield: 0, bigCapture: 0, freeze: 0 }, frozenTicks: 0
     });
     player.homeX = spawn.x;
     player.homeY = spawn.y;
@@ -591,11 +600,54 @@ export class Simulation {
     }
   }
 
-  /** Adapter point for future powerups; gameplay and UI can subscribe without callbacks. */
-  collectPowerup(playerId, powerup) {
+  updatePickups() {
+    this.pickups = this.pickups.filter(pickup => pickup.expiresAtTick > this.tick);
+    if (this.tick % POWERUP_SPAWN_INTERVAL !== 0 || this.pickups.length >= POWERUP_MAX_PICKUPS) return;
+    const candidates = [];
+    for (let y = 1; y < this.cellsHigh - 1; y++) {
+      for (let x = 1; x < this.cellsWide - 1; x++) {
+        const index = this.grid.index(x, y);
+        if (this.grid.inside(x, y) && !this.grid.owners[index] && !this.grid.trail[index] &&
+          !this.pickups.some(pickup => pickup.x === x && pickup.y === y)) candidates.push({ x, y });
+      }
+    }
+    if (!candidates.length) return;
+    const cell = candidates[Math.floor(this.random() * candidates.length)];
+    const powerup = POWERUPS[Math.floor(this.random() * POWERUPS.length)];
+    const pickup = { id: this.nextPowerupId++, powerup: powerup.id, x: cell.x, y: cell.y, expiresAtTick: this.tick + POWERUP_LIFETIME_TICKS };
+    this.pickups.push(pickup);
+    this.events.emit('pickupSpawn', pickup);
+  }
+
+  collectPickupAt(player, x, y) {
+    const index = this.pickups.findIndex(pickup => pickup.x === x && pickup.y === y);
+    if (index < 0) return false;
+    const [pickup] = this.pickups.splice(index, 1);
+    return this.collectPowerup(player.id, pickup.powerup);
+  }
+
+  collectPowerup(playerId, powerupId) {
     const player = this.players.get(playerId);
-    if (!player?.alive) return false;
-    this.events.emit('powerup', { playerId, powerup });
+    const powerup = POWERUPS.find(item => item.id === powerupId);
+    if (!player?.alive || !powerup) return false;
+    player.effects ||= { speed: 0, shield: 0, bigCapture: 0, freeze: 0 };
+    player.effects[powerup.id] = powerup.durationTicks;
+    if (powerup.id === 'shield') player.invulnerableTicks = 100;
+    if (powerup.id === 'bigCapture') {
+      const radius = 5;
+      for (let y = player.y - radius; y <= player.y + radius; y++) {
+        for (let x = player.x - radius; x <= player.x + radius; x++) {
+          if ((x - player.x) ** 2 + (y - player.y) ** 2 > radius ** 2 || !this.grid.inside(x, y)) continue;
+          this.grid.setOwnerAt(this.grid.index(x, y), player.id);
+        }
+      }
+      this.updateMaxTerritory();
+      this.events.emit('capture', { playerId, human: player.human, captured: this.grid.territoryCount(playerId), x: player.x, y: player.y, powerup: true });
+    }
+    if (powerup.id === 'freeze') {
+      for (const other of this.players.values()) if (other.alive && other.id !== playerId) other.frozenTicks = Math.max(other.frozenTicks || 0, powerup.durationTicks);
+    }
+    this.events.emit('powerup', { playerId, powerup: powerup.id });
     return true;
   }
 
@@ -661,6 +713,7 @@ export class Simulation {
       top5,
       leaderId: this._leaderId,
       kills: this.player?.kills || 0,
+      effects: this.player ? POWERUP_IDS.map(id => ({ id, ticksLeft: this.player.effects?.[id] || 0, durationTicks: POWERUPS.find(powerup => powerup.id === id).durationTicks })).filter(effect => effect.ticksLeft > 0) : [],
       playerStats
     };
   }
