@@ -53,7 +53,6 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       getLanguage: () => useGameStore.getState().language
     });
     const events = game.simulation.events;
-    let gameOverTimer = null;
     let earnedCoins = 0;
     const minimapCanvas = minimapRef.current;
     const minimapCtx = minimapCanvas?.getContext('2d');
@@ -146,15 +145,19 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         const roundReward = victoryReward + secretReward;
         if (roundReward) { earnedCoins += roundReward; useGameStore.getState().addCoins(roundReward); }
         if (secretReward) window.dispatchEvent(new CustomEvent('paperio:fullmap'));
-        const finalSnapshot = { ...snapshot, countryId, modeId, roundTimeMs: game.simulation.elapsedMs, roundCoinsEarned: earnedCoins, victoryReward, secretReward };
-        gameOverTimer = window.setTimeout(() => onGameOver?.(finalSnapshot), 900);
+        const killer = snapshot.killerId == null ? null : game.players.get(snapshot.killerId);
+        const skin = getSkinById(useGameStore.getState().equippedSkin);
+        const language = useGameStore.getState().language;
+        const killerColor = killer ? (killer.human ? skin.color : getPlayerColor(killer.id, skin.color)) : null;
+        const killerName = killer ? (killer.human ? (language === 'ru' ? 'Вы' : 'You') : killer.name || (language === 'ru' ? `Бот ${killer.id}` : `Bot ${killer.id}`)) : null;
+        const finalSnapshot = { ...snapshot, killerName, killerColor, countryId, modeId, roundTimeMs: game.simulation.elapsedMs, roundCoinsEarned: earnedCoins, victoryReward, secretReward };
+        onGameOver?.(finalSnapshot);
       })
     ];
 
     gameRef.current = game;
     return () => {
       for (const off of unsubscribe) off();
-      if (gameOverTimer !== null) window.clearTimeout(gameOverTimer);
       window.clearInterval(minimapTimer);
       game.destroy();
       if (gameRef.current === game) gameRef.current = null;
