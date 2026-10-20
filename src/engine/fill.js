@@ -14,7 +14,6 @@ export function retainLargestTerritoryComponents(grid) {
   const { labels, queue } = workspace;
   labels.fill(0);
   const largestByOwner = new Map();
-  const sizesByComponent = [0];
   let componentId = 0;
 
   for (let start = 0; start < owners.length; start++) {
@@ -45,7 +44,6 @@ export function retainLargestTerritoryComponents(grid) {
       }
     }
 
-    sizesByComponent[componentId] = tail;
     const previousLargest = largestByOwner.get(owner);
     if (!previousLargest || tail > previousLargest.size) {
       largestByOwner.set(owner, { id: componentId, size: tail });
