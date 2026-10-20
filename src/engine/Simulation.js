@@ -84,13 +84,13 @@ export class Simulation {
     this.botCount = this.config.botCount;
     const reserved = [];
     const difficulty = getBotDifficulty(this.playerProgress);
-    const ringRadius = Math.min(this.cellsWide, this.cellsHigh) * 0.32;
+    const ringRadius = Math.min(this.cellsWide, this.cellsHigh) * 0.36;
     for (let index = 0; index < this.botCount; index++) {
       const angle = (Math.PI * 2 * index) / this.botCount;
       const preferredX = Math.round(this.cellsWide / 2 + Math.cos(angle) * ringRadius);
       const preferredY = Math.round(this.cellsHigh / 2 + Math.sin(angle) * ringRadius);
-      const width = 4 + Math.floor(this.random() * 9);
-      const height = 4 + Math.floor(this.random() * 9);
+      const width = this.config.playerStartWidth;
+      const height = this.config.playerStartHeight;
       const spawn = this.findSpawn(preferredX, preferredY, width, height, reserved);
       reserved.push({ x: spawn.x, y: spawn.y, width, height });
       const horizontal = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle));
@@ -133,7 +133,7 @@ export class Simulation {
         playerWidth,
         playerHeight,
         [],
-        { minDistance: Math.max(16, Math.floor(Math.min(this.cellsWide, this.cellsHigh) * 0.2)), farFromPlayers: true }
+        { minDistance: Math.max(24, Math.floor(Math.min(this.cellsWide, this.cellsHigh) * 0.22)), farFromPlayers: true }
       );
       this.player = this.createPlayer(1, spawn.x, spawn.y, 1, 0, true);
       this.initializeTerritory(this.player, playerWidth, playerHeight);
