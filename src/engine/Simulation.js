@@ -232,6 +232,7 @@ export class Simulation {
     }
 
     const pendingDeaths = new Map();
+    const pendingTerritoryTransfers = new Set();
     const planList = [...plans.values()];
     for (let i = 0; i < planList.length; i++) {
       for (let j = i + 1; j < planList.length; j++) {
@@ -258,7 +259,10 @@ export class Simulation {
       const trailOwnerId = this.grid.trail[index];
       if (!trailOwnerId || trailOwnerId === plan.player.id || pendingDeaths.has(trailOwnerId)) continue;
       const trailOwner = this.players.get(trailOwnerId);
-      if (trailOwner?.alive && trailOwner.invulnerableTicks <= 0) pendingDeaths.set(trailOwnerId, plan.player);
+      if (trailOwner?.alive && trailOwner.invulnerableTicks <= 0) {
+        pendingDeaths.set(trailOwnerId, plan.player);
+        pendingTerritoryTransfers.add(trailOwnerId);
+      }
     }
 
     this.resolvingTick = true;
@@ -302,7 +306,7 @@ export class Simulation {
 
     for (const [victimId, killer] of pendingDeaths) {
       const victim = this.players.get(victimId);
-      if (victim?.alive) this.eliminatePlayer(victim, killer);
+      if (victim?.alive) this.eliminatePlayer(victim, killer, { transferTerritory: pendingTerritoryTransfers.has(victimId) });
     }
     if (!this.over) this.checkTerritoryLoss();
     for (const player of this.players.values()) if (player.alive && player.invulnerableTicks > 0) player.invulnerableTicks--;
@@ -388,7 +392,7 @@ export class Simulation {
       if (trailOwner?.alive) {
         const loserId = resolveTrailCrossing(player.id, trailOwnerId);
         const loser = this.players.get(loserId);
-        if (loser) this.eliminatePlayer(loser, player);
+        if (loser) this.eliminatePlayer(loser, player, { transferTerritory: loserId === trailOwnerId });
       }
       if (!player.alive) return;
     }
@@ -425,8 +429,14 @@ export class Simulation {
     }
   }
 
-  eliminatePlayer(player, killer = null) {
+  eliminatePlayer(player, killer = null, { transferTerritory = false } = {}) {
     if (!player?.alive) return;
+    const attributedKiller = killer ?? (player.lastHitBy ? this.players.get(player.lastHitBy) : null);
+    if (transferTerritory && attributedKiller && attributedKiller.id !== player.id) {
+      for (let index = 0; index < this.grid.owners.length; index++) {
+        if (this.grid.owners[index] === player.id) this.grid.setOwnerAt(index, attributedKiller.id);
+      }
+    }
     player.alive = false;
     player.deaths++;
     player.totalLifeTicks = (player.totalLifeTicks || 0) + (player.currentLifeTicks || 0);
@@ -438,7 +448,6 @@ export class Simulation {
     player.trailCells = [];
     player.next = null;
 
-    const attributedKiller = killer ?? (player.lastHitBy ? this.players.get(player.lastHitBy) : null);
     if (attributedKiller && attributedKiller.id !== player.id) {
       player.lastHitBy = attributedKiller.id;
       attributedKiller.kills = (attributedKiller.kills || 0) + 1;
