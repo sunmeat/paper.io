@@ -65,6 +65,35 @@ describe('collision rules', () => {
 });
 
 
+
+describe('pre-seeded match start', () => {
+  it('warms up the bots before creating the human player', () => {
+    const simulation = new Simulation({ config: { botCount: 6 } });
+
+    expect(simulation.tick).toBe(280);
+    expect(simulation.player).not.toBeNull();
+    expect(simulation.bots).toHaveLength(6);
+    for (const bot of simulation.bots) {
+      expect(bot.startWidth).toBeGreaterThanOrEqual(4);
+      expect(bot.startWidth).toBeLessThanOrEqual(12);
+      expect(bot.startHeight).toBeGreaterThanOrEqual(4);
+      expect(bot.startHeight).toBeLessThanOrEqual(12);
+      expect(bot.name).toBeTruthy();
+    }
+  });
+
+  it('keeps the initial player spawn away from the warmed-up bot territories', () => {
+    const simulation = new Simulation({ config: { botCount: 6 } });
+    const liveBots = simulation.bots.filter(bot => bot.alive);
+    expect(liveBots.length).toBeGreaterThan(0);
+
+    for (const bot of liveBots) {
+      const distance = Math.hypot(bot.x - simulation.player.x, bot.y - simulation.player.y);
+      expect(distance - Math.max(bot.startWidth, bot.startHeight) / 2).toBeGreaterThanOrEqual(16);
+    }
+  });
+});
+
 describe('territory transfer on direct trail kills', () => {
   function makeVictimTerritory(simulation, victim, count = 2) {
     const cells = [];
