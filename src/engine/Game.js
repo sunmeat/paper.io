@@ -57,6 +57,9 @@ export class Game {
     this.cachedOwnerVersion = -1;
 
     this.unsubscribeEvents = [
+      this.simulation.events.on('leaderChange', event => {
+        window.dispatchEvent(new CustomEvent('paperio:leader-change', { detail: event }));
+      }),
       this.simulation.events.on('capture', event => {
         if (event.human) this.recordBotProgressAfterCapture(event.captured);
         this.addEffect({ type: 'capture', x: event.x, y: event.y, started: performance.now(), duration: 620 });
@@ -115,6 +118,7 @@ export class Game {
   }
 
   get grid() { return this.simulation.grid; }
+  get leaderId() { return this.simulation.leaderId; }
   get players() { return this.simulation.players; }
   get player() { return this.simulation.player; }
   get bots() { return this.simulation.bots; }
@@ -507,6 +511,7 @@ export class Game {
       const cx = px + cellSize / 2, cy = py + cellSize / 2;
       const color = player.id === 1 ? skin.color : getPlayerColor(player.id, skin.color);
       const hat = player.human ? getHatById(this.callbacks.getHat?.() || 'none') : getHatById('none');
+      const isLeader = player.id === this.leaderId;
       const targetAngle = Math.atan2(player.dy, player.dx);
       const previousAngle = this.renderAngles.get(player.id) ?? targetAngle;
       const angleDelta = Math.atan2(Math.sin(targetAngle - previousAngle), Math.cos(targetAngle - previousAngle));
@@ -539,7 +544,7 @@ export class Game {
         ctx.lineJoin = 'round';
         ctx.lineWidth = Math.max(2, cellSize * 0.12);
         ctx.strokeStyle = '#10131c';
-        ctx.fillStyle = '#f4f6ff';
+        ctx.fillStyle = isLeader ? '#ffd76a' : '#f4f6ff';
         const labelY = py - cellSize * 0.08;
         ctx.strokeText(player.name, cx, labelY, 112);
         ctx.fillText(player.name, cx, labelY, 112);
@@ -550,6 +555,31 @@ export class Game {
         if (hat.id === 'halo') { ctx.beginPath(); ctx.ellipse(px + cellSize / 2, py + cellSize * 0.12, cellSize * 0.24, cellSize * 0.07, 0, 0, Math.PI * 2); ctx.stroke(); }
         else if (hat.id === 'crown' || hat.id === 'party') { ctx.beginPath(); ctx.moveTo(px + cellSize * 0.28, py + cellSize * 0.23); ctx.lineTo(px + cellSize * 0.36, py + (hat.id === 'crown' ? cellSize * 0.05 : cellSize * 0.02)); ctx.lineTo(px + cellSize * 0.5, py + cellSize * 0.2); ctx.lineTo(px + cellSize * 0.65, py + (hat.id === 'crown' ? cellSize * 0.05 : cellSize * 0.02)); ctx.lineTo(px + cellSize * 0.73, py + cellSize * 0.23); ctx.closePath(); ctx.fill(); }
         else { ctx.fillRect(px + cellSize * 0.22, py + cellSize * 0.1, cellSize * 0.56, cellSize * 0.12); ctx.fillRect(px + cellSize * 0.32, py + cellSize * 0.02, cellSize * 0.36, cellSize * 0.12); }
+        ctx.restore();
+      }
+      if (isLeader) {
+        const crownPath = new Path2D();
+        crownPath.moveTo(-0.32, 0);
+        crownPath.lineTo(-0.32, -0.24);
+        crownPath.lineTo(-0.16, -0.09);
+        crownPath.lineTo(-0.16, -0.31);
+        crownPath.lineTo(0, -0.11);
+        crownPath.lineTo(0.16, -0.31);
+        crownPath.lineTo(0.16, -0.09);
+        crownPath.lineTo(0.32, -0.24);
+        crownPath.lineTo(0.32, 0);
+        crownPath.closePath();
+        ctx.save();
+        ctx.translate(cx, py + cellSize * 0.02);
+        ctx.scale(cellSize, cellSize);
+        ctx.fillStyle = '#ffd76a';
+        ctx.globalAlpha = 0.2;
+        ctx.fill(crownPath);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#ffd34f';
+        ctx.lineWidth = 1.8 / cellSize;
+        ctx.lineJoin = 'round';
+        ctx.stroke(crownPath);
         ctx.restore();
       }
       if (player.human && now - this.startedAt < 5000) {
