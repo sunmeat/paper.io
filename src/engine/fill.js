@@ -1,15 +1,19 @@
 const workspaces = new Map();
 
 export function captureArea(grid, owner, trailCells) {
+  const capturedTrailOwners = new Set();
   for (const index of trailCells) {
-    if (!grid.walkable[index] || grid.trail[index] !== owner) continue;
+    if (!grid.walkable[index] || (grid.owners[index] && grid.owners[index] !== owner)) continue;
+    const trailOwner = grid.trail[index];
+    if (trailOwner && trailOwner !== owner) capturedTrailOwners.add(trailOwner);
     grid.setOwnerAt(index, owner);
-    grid.trail[index] = 0;
-    grid.version++;
+    if (trailOwner) {
+      grid.trail[index] = 0;
+      grid.version++;
+    }
   }
 
   const { width, height, owners, walkable } = grid;
-  const capturedTrailOwners = new Set();
   let workspace = workspaces.get(owners.length);
   if (!workspace) {
     workspace = { visited: new Uint8Array(owners.length), queue: new Int32Array(owners.length) };
