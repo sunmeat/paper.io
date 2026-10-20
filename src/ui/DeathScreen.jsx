@@ -68,6 +68,13 @@ export default function DeathScreen({ onAgain, onMenu, onRevive }) {
         <p>{stats.outcome === 'victory' ? (language === 'ru' ? 'Арена твоя. Награда за победу начислена.' : 'The arena is yours. Your victory reward has been added.') : t('deadText')}</p>
         {stats.secretConquered && stats.outcome === 'victory' && <div className="new-record secret-conquest">{language === 'ru' ? 'СЕКРЕТ: КАРТА ЗАХВАЧЕНА · +500 МОНЕТ' : 'SECRET: FULL MAP CONQUERED · +500 COINS'}</div>}
         {newRecord && <div className="new-record"><Crown size={16}/>{language === 'ru' ? 'НОВЫЙ РЕКОРД' : 'NEW RECORD'}</div>}
+        {(stats.newlyUnlockedItems || []).length > 0 && <section className="new-unlocks" aria-label={language === 'ru' ? 'Новые предметы' : 'New unlocks'}>
+          <span className="eyebrow">{language === 'ru' ? 'НОВАЯ НАГРАДА · ОТКРЫТО' : 'NEW REWARD · UNLOCKED'}</span>
+          <div className="new-unlocks-grid">{stats.newlyUnlockedItems.map(item => <div className="new-unlock-item" key={item.kind + '-' + item.id}>
+            <span className="new-unlock-icon" style={{ color: item.color || ({ common: '#9ca3b8', rare: '#59a8ff', epic: '#c084fc' }[item.rarity] || '#9b7bff'), borderColor: item.color || ({ common: '#9ca3b8', rare: '#59a8ff', epic: '#c084fc' }[item.rarity] || '#9b7bff') }}>{item.icon || '✦'}</span>
+            <span><strong>{item.name?.[language] || item.name?.ru || item.id}</strong><small>{language === 'ru' ? ({ skin: 'Скин', hat: 'Шапка', trail: 'След' }[item.kind] || 'Предмет') : ({ skin: 'Skin', hat: 'Hat', trail: 'Trail' }[item.kind] || 'Item')}</small></span>
+          </div>)}</div>
+        </section>}
         {stats.nearRecord && !newRecord && <div className="near-record">{language === 'ru' ? 'Чуть-чуть до рекорда!' : 'So close to a new record!'}</div>}
         {stats.killerName && stats.outcome !== 'victory' && <div className="killer-result"><span>{language === 'ru' ? 'Убийца' : 'Defeated by'}</span><strong style={{ color: stats.killerColor || '#c3c7d5' }}>{stats.killerName}</strong></div>}
         <div className="result-grid block8-results">
