@@ -67,13 +67,15 @@ describe('collision rules', () => {
 
 
 describe('pre-seeded match start', () => {
-  it('warms up the bots before creating the human player', () => {
+  it('creates the human player and bots without a warmup simulation', () => {
     const simulation = new Simulation({ config: { botCount: 6 } });
 
-    expect(simulation.tick).toBe(280);
+    expect(simulation.tick).toBe(0);
     expect(simulation.player).not.toBeNull();
     expect(simulation.bots).toHaveLength(6);
     for (const bot of simulation.bots) {
+      expect(bot.alive).toBe(true);
+      expect(bot.lifetime).toBe(0);
       expect(bot.startWidth).toBeGreaterThanOrEqual(4);
       expect(bot.startWidth).toBeLessThanOrEqual(12);
       expect(bot.startHeight).toBeGreaterThanOrEqual(4);
@@ -82,7 +84,7 @@ describe('pre-seeded match start', () => {
     }
   });
 
-  it('keeps the initial player spawn away from the warmed-up bot territories', () => {
+  it('keeps the initial player spawn away from the bot starting territories', () => {
     const simulation = new Simulation({ config: { botCount: 6 } });
     const liveBots = simulation.bots.filter(bot => bot.alive);
     expect(liveBots.length).toBeGreaterThan(0);
