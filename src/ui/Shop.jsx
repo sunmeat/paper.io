@@ -1,20 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Check, Coins, Lock, ShoppingBag, X, Trophy, Sparkles, Crown, Footprints, Eye, Gift } from 'lucide-react';
 import { getDailyQuests, useGameStore } from '../store/gameStore.js';
-import { HATS, RARITY, SKINS, TRAIL_EFFECTS, getSkinById } from '../engine/skins.js';
+import { HATS, isUnlocked, RARITY, SKINS, TRAIL_EFFECTS, getSkinById } from '../engine/skins.js';
 import { ACHIEVEMENTS } from '../engine/achievements.js';
 import { useT } from '../i18n.js';
-
-function readProgress() {
-  try {
-    return {
-      level: Math.max(1, Number(localStorage.getItem('paper-io-player-level')) || 1),
-      captured: Math.max(0, Number(localStorage.getItem('paper-io-total-captured')) || 0)
-    };
-  } catch {
-    return { level: 1, captured: 0 };
-  }
-}
 
 export default function Shop({ onClose }) {
   const t = useT();
@@ -27,6 +16,8 @@ export default function Shop({ onClose }) {
   const ownedTrails = useGameStore(state => state.ownedTrails);
   const equippedTrail = useGameStore(state => state.equippedTrail);
   const achievements = useGameStore(state => state.achievements);
+  const profile = useGameStore(state => ({ ...state, captured: state.totalTerritory || 0 }));
+  const claimCosmeticReward = useGameStore(state => state.claimCosmeticReward);
   const dailyStreak = useGameStore(state => state.dailyStreak);
   const lastDailyClaimDate = useGameStore(state => state.lastDailyClaimDate);
   const dailyQuestProgress = useGameStore(state => state.dailyQuestProgress);
@@ -43,7 +34,7 @@ export default function Shop({ onClose }) {
   const [previewId, setPreviewId] = useState(equipped);
   const [previewHatId, setPreviewHatId] = useState(equippedHat);
   const [previewTrailId, setPreviewTrailId] = useState(equippedTrail);
-  const progress = useMemo(readProgress, []);
+  const progress = useMemo(() => ({ level: profile.level || 1, captured: profile.totalTerritory || 0 }), [profile.level, profile.totalTerritory]);
   const now = new Date();
   const todayKey = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
   const todaysQuests = getDailyQuests();
@@ -52,11 +43,39 @@ export default function Shop({ onClose }) {
   const calendarClaimed = lastDailyClaimDate === todayKey;
   const previewSkin = getSkinById(previewId);
   const rarityName = rarity => RARITY[rarity]?.[language] || RARITY.common[language];
-  const unlockLabel = skin => {
-    if (skin.unlock?.type === 'level') return language === 'ru' ? `Уровень ${skin.unlock.level}` : `Level ${skin.unlock.level}`;
-    if (skin.unlock?.type === 'quest') return language === 'ru' ? `${skin.unlock.captured} клеток захвата` : `${skin.unlock.captured} cells captured`;
-    if (skin.unlock?.type === 'achievement') return language === 'ru' ? 'Первый захват' : 'First capture';
-    return language === 'ru' ? 'Бесплатно' : 'Free';
+  const unlockLabel = item => {
+    const unlock = item.unlock || {};
+    const labels = {
+      'round-territory': language === 'ru' ? `Территория за раунд: ${unlock.target}%` : `Round territory: ${unlock.target}%`,
+      'round-kills': language === 'ru' ? `Убийств за раунд: ${unlock.target}` : `Round kills: ${unlock.target}`,
+      'win-streak': language === 'ru' ? `Серия побед: ${unlock.target}` : `Win streak: ${unlock.target}`,
+      'total-kills': language === 'ru' ? `Всего убийств: ${unlock.target}` : `Total kills: ${unlock.target}`,
+      country: language === 'ru' ? `Страна: ${unlock.country}` : `Country: ${unlock.country}`,
+      sprint: language === 'ru' ? `Победы в спринте: ${unlock.wins}` : `Sprint wins: ${unlock.wins}`,
+      level: language === 'ru' ? `Уровень ${unlock.level}` : `Level ${unlock.level}`,
+      quest: language === 'ru' ? `${unlock.captured} клеток захвата` : `${unlock.captured} cells captured`,
+      achievement: language === 'ru' ? 'Достижение' : 'Achievement'
+    };
+    return labels[unlock.type] || (language === 'ru' ? 'Бесплатно' : 'Free');
+  };
+  const unlockProgress = item => {
+    const unlock = item.unlock || {};
+    const current = unlock.type === 'round-territory' ? (profile.lastRoundTerritory || 0)
+      : unlock.type === 'round-kills' ? (profile.lastRoundKills || 0)
+      : unlock.type === 'win-streak' ? (profile.winStreak || 0)
+      : unlock.type === 'total-kills' ? (profile.totalKills || 0)
+      : unlock.type === 'country' ? ((profile.completedCountries || []).includes(unlock.country) ? 1 : 0)
+      : unlock.type === 'sprint' ? (profile.sprintWins || 0)
+      : unlock.type === 'level' ? (profile.level || 1)
+      : unlock.type === 'quest' ? (profile.totalTerritory || 0) : 0;
+    const target = unlock.type === 'round-territory' ? unlock.target
+      : unlock.type === 'round-kills' || unlock.type === 'total-kills' || unlock.type === 'win-streak' ? unlock.target
+      : unlock.type === 'country' ? 1
+      : unlock.type === 'sprint' ? unlock.wins
+      : unlock.type === 'level' ? unlock.level
+      : unlock.type === 'quest' ? unlock.captured : 1;
+    const suffix = unlock.type === 'round-territory' ? '%' : '';
+    return `${Math.min(Number(target) || 0, Number(current) || 0)} / ${target}${suffix}`;
   };
   const report = result => {
     if (result.ok) setNotice(language === 'ru' ? 'Получено! Предмет экипирован.' : 'Unlocked! Item equipped.');
@@ -71,6 +90,8 @@ export default function Shop({ onClose }) {
   const renderCosmeticCard = item => {
     const has = ownedForTab.includes(item.id);
     const active = equippedForTab === item.id;
+    const unlockable = item.unlock && item.unlock.type !== 'free';
+    const canClaim = unlockable && isUnlocked(item, profile);
     return (
       <article className="skin-card cosmetic-card" key={item.id} style={{ '--rarity-color': RARITY[item.rarity]?.color || RARITY.common.color }}>
         <button type="button" className="skin-preview cosmetic-preview" style={{ '--skin-color': item.color || previewSkin.color }} onClick={() => tab === 'hats' ? setPreviewHatId(item.id) : setPreviewTrailId(item.id)} aria-label={(language === 'ru' ? 'Предпросмотр ' : 'Preview ') + item.name[language]}>
@@ -78,9 +99,10 @@ export default function Shop({ onClose }) {
         </button>
         <strong>{item.name[language] || item.name.ru}</strong>
         <span className="skin-rarity">{rarityName(item.rarity)}</span>
-        <span className="skin-price">{has ? <><Check size={13} />{active ? (language === 'ru' ? 'Выбрано' : 'Equipped') : (language === 'ru' ? 'Получено' : 'Owned')}</> : <><Coins size={13} />{item.price}</>}</span>
-        <button className="skin-action" disabled={active} onClick={() => report(has ? (equipCosmetic(cosmeticType, item.id), { ok: true }) : buyCosmetic(cosmeticType, item.id))}>
-          {active ? (language === 'ru' ? 'Выбрано' : 'Equipped') : has ? (language === 'ru' ? 'Выбрать' : 'Equip') : (language === 'ru' ? 'Купить' : 'Buy')}
+        <span className="skin-price">{has ? <><Check size={13} />{active ? (language === 'ru' ? 'Выбрано' : 'Equipped') : (language === 'ru' ? 'Получено' : 'Owned')}</> : unlockable ? <><Sparkles size={13} />{unlockLabel(item)}</> : <><Coins size={13} />{item.price}</>}</span>
+        {!has && unlockable && <small className="unlock-progress">{unlockProgress(item)}</small>}
+        <button className="skin-action" disabled={active} onClick={() => report(has ? (equipCosmetic(cosmeticType, item.id), { ok: true }) : canClaim ? claimCosmeticReward(cosmeticType, item.id) : unlockable ? { ok: false, reason: 'unlock' } : buyCosmetic(cosmeticType, item.id))}>
+          {active ? (language === 'ru' ? 'Выбрано' : 'Equipped') : has ? (language === 'ru' ? 'Выбрать' : 'Equip') : canClaim ? (language === 'ru' ? 'Забрать' : 'Claim') : unlockable ? <><Lock size={12}/>{language === 'ru' ? 'Условие' : 'Locked'}</> : (language === 'ru' ? 'Купить' : 'Buy')}
         </button>
       </article>
     );
@@ -92,6 +114,7 @@ export default function Shop({ onClose }) {
         <button className="close-button" onClick={onClose} aria-label={t('close')}><X size={19} /></button>
         <span className="eyebrow">CUSTOMIZE YOUR ARENA</span>
         <h1>{language === 'ru' ? 'Мастерская скинов' : 'Skin workshop'}</h1>
+        <div className="collection-count">{language === 'ru' ? 'Коллекция' : 'Collection'} <strong>{owned.length}/{SKINS.length}</strong></div>
         <div className="shop-wallet"><Coins size={18} /><strong>{coins}</strong> {language === 'ru' ? 'монет' : 'coins'}</div>
         <div className="shop-preview-stage">
           <div className={'shop-mini-arena pattern-' + previewSkin.pattern} style={{ '--skin-color': previewSkin.color }}>
@@ -121,17 +144,14 @@ export default function Shop({ onClose }) {
           const has = owned.includes(skin.id);
           const active = equipped === skin.id;
           const unlockable = skin.unlock && skin.unlock.type !== 'free';
-          const canClaim = unlockable && (
-            (skin.unlock.type === 'achievement' && achievements.includes(skin.unlock.id)) ||
-            (skin.unlock.type === 'level' && progress.level >= skin.unlock.level) ||
-            (skin.unlock.type === 'quest' && progress.captured >= skin.unlock.captured)
-          );
+          const canClaim = unlockable && isUnlocked(skin, profile);
           return (
             <article className={'skin-card rarity-' + skin.rarity + (previewId === skin.id ? ' skin-preview-selected' : '')} key={skin.id} style={{ '--rarity-color': RARITY[skin.rarity]?.color || RARITY.common.color }}>
               <button className={'skin-preview pattern-' + skin.pattern} style={{ '--skin-color': skin.color }} onClick={() => setPreviewId(skin.id)} aria-label={(language === 'ru' ? 'Предпросмотр ' : 'Preview ') + skin.name[language]}><span className={'trail-preview shape-' + skin.trailShape} /></button>
               <strong>{skin.name[language] || skin.name.ru}</strong>
               <span className="skin-rarity">{rarityName(skin.rarity)}</span>
               <span className="skin-price">{has ? <><Check size={13} />{active ? (language === 'ru' ? 'Выбран' : 'Equipped') : (language === 'ru' ? 'Куплен' : 'Owned')}</> : unlockable ? <><Sparkles size={13} />{unlockLabel(skin)}</> : <><Coins size={13} />{skin.price}</>}</span>
+              {!has && unlockable && <small className="unlock-progress">{unlockProgress(skin)}</small>}
               <button className="skin-action" disabled={active} onClick={() => {
                 if (has) { equip(skin.id); setNotice(language === 'ru' ? 'Скин выбран.' : 'Skin equipped.'); setPreviewId(skin.id); }
                 else if (canClaim) { report(claimSkinReward(skin.id)); setPreviewId(skin.id); }
