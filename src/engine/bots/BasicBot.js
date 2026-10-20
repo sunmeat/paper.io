@@ -57,6 +57,14 @@ export class BasicBot {
       const distanceHome = player.homeX == null ? 0 : Math.abs(nx - player.homeX) + Math.abs(ny - player.homeY);
       if (player.trailCells.length && distanceHome > this.params.expedition) score -= returningHome ? 8 : 4;
       if (game.grid.territoryCount && game.grid.territoryCount(player.id) < 8 && isHome) score += 3;
+      if (game.mode?.powerups && game.pickups?.length) {
+        let nearestPickupDistance = Infinity;
+        for (const pickup of game.pickups) {
+          const distance = Math.abs(nx - pickup.x) + Math.abs(ny - pickup.y);
+          if (distance <= this.params.vision && distance < nearestPickupDistance) nearestPickupDistance = distance;
+        }
+        if (nearestPickupDistance !== Infinity) score += Math.max(0, 5 - nearestPickupDistance * 0.65);
+      }
       for (let step = 1; step <= this.params.vision; step++) {
         const x = nx + direction[0] * step;
         const y = ny + direction[1] * step;
