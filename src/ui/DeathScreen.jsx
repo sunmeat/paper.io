@@ -28,10 +28,13 @@ function useCountUp(target, decimals = false) {
   return value;
 }
 
-export default function DeathScreen({ onAgain, onMenu }) {
+export default function DeathScreen({ onAgain, onMenu, onRevive }) {
   const t = useT();
   const stats = useGameStore(state => state.snapshot);
   const language = useGameStore(state => state.language);
+  const coinsBalance = useGameStore(state => state.coins);
+  const revivePrice = useGameStore(state => state.revivesPurchased > 0 ? 200 : 100);
+  const [reviveSeconds, setReviveSeconds] = useState(5);
   const territory = useCountUp(stats.territory, true);
   const peakTerritory = useCountUp(stats.maxTerritory ?? stats.territory, true);
   const score = useCountUp(stats.sessionScore || 0);
@@ -47,6 +50,15 @@ export default function DeathScreen({ onAgain, onMenu }) {
   const [newRecord, setNewRecord] = useState(false);
 
   useEffect(() => { setNewRecord(Boolean(stats.isNewRecord)); }, [stats.isNewRecord]);
+  useEffect(() => {
+    const started = Date.now();
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(0, 5 - Math.floor((Date.now() - started) / 1000));
+      setReviveSeconds(remaining);
+      if (remaining === 0) window.clearInterval(timer);
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, []);
 
   return (
     <div className="screen-overlay">
@@ -77,6 +89,7 @@ export default function DeathScreen({ onAgain, onMenu }) {
           {victoryReward > 0 && <div><small>{language === 'ru' ? 'Победа' : 'Victory'}</small><strong>+{victoryReward}</strong></div>}
           {secretReward > 0 && <div><small>{language === 'ru' ? 'Вся карта' : 'Full map'}</small><strong>+{secretReward}</strong></div>}
         </div>
+        {reviveSeconds > 0 && stats.outcome !== 'victory' && <button className="revive-button" onClick={() => { if (onRevive?.()) setReviveSeconds(0); }} disabled={coinsBalance < revivePrice}><Coins size={17}/>{language === 'ru' ? `Продолжить · ${revivePrice} · ${reviveSeconds}с` : `Continue · ${revivePrice} · ${reviveSeconds}s`}</button>}
         <button className="primary-button" onClick={onAgain}><RotateCcw size={17}/>{t('again')}</button>
         <button className="secondary-button" onClick={onMenu}><Home size={17}/>{t('menu')}</button>
       </section>
