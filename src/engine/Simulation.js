@@ -39,7 +39,7 @@ export class EventBus {
 
 /** Deterministic, DOM-free game world. All gameplay rules live here. */
 export class Simulation {
-  constructor({ seed = GAME_CONFIG.seed, config = null, humanPlayer = true, mapId = 'circle', playerLevel = 1, winStreak = 0, lossStreak = 0, modeId = 'classic' } = {}) {
+  constructor({ seed = GAME_CONFIG.seed, config = null, humanPlayer = true, mapId = 'ukraine', playerLevel = 1, winStreak = 0, lossStreak = 0, modeId = 'classic' } = {}) {
     this.modeId = GAME_MODES[modeId] ? modeId : 'classic';
     this.mode = GAME_MODES[this.modeId];
     this.config = { ...GAME_CONFIG, ...this.mode.config, ...(config || {}) };
@@ -89,8 +89,8 @@ export class Simulation {
       const angle = (Math.PI * 2 * index) / this.botCount;
       const preferredX = Math.round(this.cellsWide / 2 + Math.cos(angle) * ringRadius);
       const preferredY = Math.round(this.cellsHigh / 2 + Math.sin(angle) * ringRadius);
-      const width = this.config.playerStartWidth;
-      const height = this.config.playerStartHeight;
+      const width = this.config.botStartWidth;
+      const height = this.config.botStartHeight;
       const spawn = this.findSpawn(preferredX, preferredY, width, height, reserved);
       reserved.push({ x: spawn.x, y: spawn.y, width, height });
       const horizontal = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle));
@@ -101,8 +101,9 @@ export class Simulation {
       bot.homeY = spawn.y;
       bot.startWidth = width;
       bot.startHeight = height;
-      bot.alive = false;
-      bot.respawnTimer = 1 + Math.floor(this.random() * 90);
+      bot.alive = true;
+      bot.respawnTimer = 0;
+      this.initializeTerritory(bot, width, height);
       const personality = BOT_PERSONALITY_IDS[Math.floor(this.random() * BOT_PERSONALITY_IDS.length)];
       bot.strategy = new BasicBot({ random: this.random, difficulty, personality });
       bot.name = `${bot.strategy.name} ${index + 1}`;
@@ -110,8 +111,6 @@ export class Simulation {
       bot.personality = personality;
       this.bots.push(bot);
     }
-
-    for (let tick = 0; tick < 280; tick++) this.step();
 
     for (const bot of this.bots) {
       bot.invulnerableTicks = 18;
@@ -198,10 +197,12 @@ export class Simulation {
   }
 
   initializeTerritory(player, width, height) {
-    const left = player.x - Math.floor(width / 2);
-    const top = player.y - Math.floor(height / 2);
-    for (let y = top; y < top + height; y++) {
-      for (let x = left; x < left + width; x++) {
+    const radius = 5;
+    for (let y = player.y - radius; y < player.y + radius; y++) {
+      for (let x = player.x - radius; x < player.x + radius; x++) {
+        const dx = x - player.x + 0.5;
+        const dy = y - player.y + 0.5;
+        if (dx * dx + dy * dy > radius * radius) continue;
         if (this.grid.inside(x, y) && !this.grid.ownerAt(x, y) && !this.grid.trailAt(x, y)) {
           this.grid.setOwner(x, y, player.id);
         }
