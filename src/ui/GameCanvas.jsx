@@ -134,6 +134,10 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
           useGameStore.getState().addCoins(25);
         }
       }),
+      events.on('powerup', event => {
+        const player = game.players.get(event.playerId);
+        window.dispatchEvent(new CustomEvent('paperio:powerup', { detail: { ...event, human: Boolean(player?.human) } }));
+      }),
       events.on('death', event => {
         if (!event.human) return;
         playDeath();
