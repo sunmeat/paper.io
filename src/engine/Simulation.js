@@ -39,7 +39,7 @@ export class EventBus {
 
 /** Deterministic, DOM-free game world. All gameplay rules live here. */
 export class Simulation {
-  constructor({ seed = GAME_CONFIG.seed, config = null, humanPlayer = true, mapId = 'ukraine', playerLevel = 1, winStreak = 0, lossStreak = 0, modeId = 'classic' } = {}) {
+  constructor({ seed = GAME_CONFIG.seed, config = null, humanPlayer = true, mapId = 'circle', playerLevel = 1, winStreak = 0, lossStreak = 0, modeId = 'classic' } = {}) {
     this.modeId = GAME_MODES[modeId] ? modeId : 'classic';
     this.mode = GAME_MODES[this.modeId];
     this.config = { ...GAME_CONFIG, ...this.mode.config, ...(config || {}) };
