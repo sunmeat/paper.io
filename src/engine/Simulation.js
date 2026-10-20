@@ -196,7 +196,7 @@ export class Simulation {
     return player;
   }
 
-  initializeTerritory(player, width, height) {
+  initializeTerritory(player, _width, _height) {
     const radius = 5;
     for (let y = player.y - radius; y < player.y + radius; y++) {
       for (let x = player.x - radius; x < player.x + radius; x++) {
