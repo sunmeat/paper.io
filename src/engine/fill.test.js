@@ -108,11 +108,14 @@ describe('captureArea', () => {
       grid.setOwner(1, y, 1);
       grid.setOwner(5, y, 1);
     }
+    // Enemy territory inside the closed loop must transfer with the captured area.
+    grid.setOwner(3, 3, 2);
 
     const captured = captureArea(grid, 1, []);
 
     expect(captured).toBe(9);
     expect(grid.ownerAt(3, 3)).toBe(1);
+    expect(grid.territoryCount(2)).toBe(0);
   });
 
   it('leaves an enclosed-looking area unclaimed when a hole connects it to the edge', () => {
