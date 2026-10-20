@@ -69,32 +69,29 @@ export class Simulation {
     this.winnerId = null;
     this.secretConquered = false;
 
+    this.initializing = true;
+    this.botCount = this.config.botCount;
     const reserved = [];
-    const playerWidth = this.config.playerStartWidth;
-    const playerHeight = this.config.playerStartHeight;
-    if (this.humanPlayer) {
-      const spawn = this.findSpawn(Math.round(this.cellsWide * 0.18), Math.floor(this.cellsHigh / 2), playerWidth, playerHeight, reserved);
-      this.player = this.createPlayer(1, spawn.x, spawn.y, 1, 0, true);
-      reserved.push(spawn);
-    }
-
-    const botCount = this.config.botCount;
     const difficulty = getBotDifficulty(this.playerProgress);
     const ringRadius = Math.min(this.cellsWide, this.cellsHigh) * 0.32;
-    for (let index = 0; index < botCount; index++) {
-      const angle = (Math.PI * 2 * index) / botCount;
+    for (let index = 0; index < this.botCount; index++) {
+      const angle = (Math.PI * 2 * index) / this.botCount;
       const preferredX = Math.round(this.cellsWide / 2 + Math.cos(angle) * ringRadius);
       const preferredY = Math.round(this.cellsHigh / 2 + Math.sin(angle) * ringRadius);
-      const width = this.config.botStartWidth;
-      const height = this.config.botStartHeight;
+      const width = 4 + Math.floor(this.random() * 9);
+      const height = 4 + Math.floor(this.random() * 9);
       const spawn = this.findSpawn(preferredX, preferredY, width, height, reserved);
-      reserved.push(spawn);
+      reserved.push({ x: spawn.x, y: spawn.y, width, height });
       const horizontal = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle));
       const dx = horizontal ? -Math.sign(Math.cos(angle)) : 0;
       const dy = horizontal ? 0 : -Math.sign(Math.sin(angle));
       const bot = this.createPlayer(index + (this.humanPlayer ? 2 : 1), spawn.x, spawn.y, dx || (dy ? 0 : 1), dy, false);
       bot.homeX = spawn.x;
       bot.homeY = spawn.y;
+      bot.startWidth = width;
+      bot.startHeight = height;
+      bot.alive = false;
+      bot.respawnTimer = 1 + Math.floor(this.random() * 90);
       const personality = BOT_PERSONALITY_IDS[Math.floor(this.random() * BOT_PERSONALITY_IDS.length)];
       bot.strategy = new BasicBot({ random: this.random, difficulty, personality });
       bot.name = `${bot.strategy.name} ${index + 1}`;
@@ -102,14 +99,31 @@ export class Simulation {
       bot.personality = personality;
       this.bots.push(bot);
     }
-    if (this.player) this.initializeTerritory(this.player, this.config.playerStartWidth, this.config.playerStartHeight);
-    for (const bot of this.bots) this.initializeTerritory(bot, this.config.botStartWidth, this.config.botStartHeight);
+
+    for (let tick = 0; tick < 280; tick++) this.step();
+
+    if (this.humanPlayer) {
+      const playerWidth = this.config.playerStartWidth;
+      const playerHeight = this.config.playerStartHeight;
+      const spawn = this.findSpawn(
+        Math.round(this.cellsWide * 0.18),
+        Math.floor(this.cellsHigh / 2),
+        playerWidth,
+        playerHeight,
+        [],
+        { minDistance: Math.max(16, Math.floor(Math.min(this.cellsWide, this.cellsHigh) * 0.2)), farFromPlayers: true }
+      );
+      this.player = this.createPlayer(1, spawn.x, spawn.y, 1, 0, true);
+      this.initializeTerritory(this.player, playerWidth, playerHeight);
+    }
+    this.initializing = false;
   }
 
-  findSpawn(preferredX, preferredY, width, height, reserved = []) {
+  findSpawn(preferredX, preferredY, width, height, reserved = [], { minDistance = 0, farFromPlayers = false, ignorePlayerId = null } = {}) {
     const halfWidth = Math.floor(width / 2);
     const halfHeight = Math.floor(height / 2);
     const candidates = [];
+    const others = [...this.players.values()].filter(other => other.alive && other.id !== ignorePlayerId);
     for (let y = halfHeight + 1; y < this.cellsHigh - halfHeight - 1; y++) {
       for (let x = halfWidth + 1; x < this.cellsWide - halfWidth - 1; x++) {
         let safe = true;
@@ -123,13 +137,22 @@ export class Simulation {
         }
         if (!safe) continue;
         const separation = Math.max(width, height) + 2;
-        if (reserved.some(point => Math.abs(point.x - x) < separation && Math.abs(point.y - y) < separation)) continue;
-        const distance = (x - preferredX) ** 2 + (y - preferredY) ** 2;
-        candidates.push({ x, y, distance });
+        if (reserved.some(point => Math.abs(point.x - x) < Math.max(separation, (point.width || 0) / 2 + width / 2 + 2) &&
+          Math.abs(point.y - y) < Math.max(separation, (point.height || 0) / 2 + height / 2 + 2))) continue;
+        const nearest = others.reduce((distance, other) => {
+          const territoryRadius = Math.max(other.startWidth || 0, other.startHeight || 0) / 2;
+          return Math.min(distance, Math.hypot(other.x - x, other.y - y) - territoryRadius);
+        }, Infinity);
+        if (nearest < minDistance) continue;
+        candidates.push({ x, y, distance: (x - preferredX) ** 2 + (y - preferredY) ** 2, nearest });
       }
     }
-    if (!candidates.length && reserved.length) return this.findSpawn(preferredX, preferredY, width, height, []);
-    candidates.sort((a, b) => a.distance - b.distance);
+    if (!candidates.length && (reserved.length || minDistance > 0)) {
+      return this.findSpawn(preferredX, preferredY, width, height, [], { minDistance: 0, farFromPlayers, ignorePlayerId });
+    }
+    candidates.sort((a, b) => farFromPlayers
+      ? b.nearest - a.nearest || a.distance - b.distance
+      : a.distance - b.distance);
     if (candidates.length) return candidates[0];
     for (let y = 1; y < this.cellsHigh - 1; y++) {
       for (let x = 1; x < this.cellsWide - 1; x++) {
@@ -193,6 +216,7 @@ export class Simulation {
   step() {
     if (this.paused || this.over) return;
     this.tick++;
+    if (this.tick % 30 === 0) this.reconcileBotPopulation();
     for (const player of this.players.values()) {
       if (player.alive) continue;
       player.respawnTimer--;
@@ -314,7 +338,7 @@ export class Simulation {
   }
 
   checkRoundOutcome() {
-    if (this.over || !this.humanPlayer) return;
+    if (this.initializing || this.over || !this.humanPlayer || !this.player) return;
     const total = this.grid.walkableCount || 1;
     const territoryPercent = player => this.grid.territoryCount(player.id) / total * 100;
     const playerTerritory = this.player ? territoryPercent(this.player) : 0;
@@ -442,7 +466,7 @@ export class Simulation {
     player.totalLifeTicks = (player.totalLifeTicks || 0) + (player.currentLifeTicks || 0);
     player.livesCompleted = (player.livesCompleted || 0) + 1;
     player.currentLifeTicks = 0;
-    player.respawnTimer = player.human ? 0 : this.config.respawnSteps;
+    player.respawnTimer = player.human ? 0 : 30 + Math.floor(this.random() * 31);
     this.grid.clearTerritory(player.id);
     this.grid.clearTrail(player.id);
     player.trailCells = [];
@@ -473,51 +497,39 @@ export class Simulation {
   }
 
   respawnPlayer(player) {
-    const width = player.human ? this.config.playerStartWidth : this.config.botStartWidth;
-    const height = player.human ? this.config.playerStartHeight : this.config.botStartHeight;
-    const marginX = Math.ceil(width / 2) + 1;
-    const marginY = Math.ceil(height / 2) + 1;
-    let spawn = null;
-    const safeCandidates = [];
-    const start = Math.floor(this.random() * this.grid.owners.length);
-    const minDistance = player.human ? 0 : Math.max(12, Math.floor(Math.min(this.cellsWide, this.cellsHigh) * 0.18));
-
-    for (let offset = 0; offset < this.grid.owners.length; offset++) {
-      const index = (start + offset) % this.grid.owners.length;
-      const x = index % this.cellsWide;
-      const y = Math.floor(index / this.cellsWide);
-      if (x < marginX || y < marginY || x >= this.cellsWide - marginX || y >= this.cellsHigh - marginY || !this.grid.inside(x, y)) continue;
-      let free = true;
-      for (let yy = y - Math.floor(height / 2); yy < y - Math.floor(height / 2) + height && free; yy++) {
-        for (let xx = x - Math.floor(width / 2); xx < x - Math.floor(width / 2) + width; xx++) {
-          const cell = this.grid.index(xx, yy);
-          if (!this.grid.inside(xx, yy) || this.grid.owners[cell] || this.grid.trail[cell]) { free = false; break; }
-        }
+    const width = player.human ? this.config.playerStartWidth : (player.startWidth || this.config.botStartWidth);
+    const height = player.human ? this.config.playerStartHeight : (player.startHeight || this.config.botStartHeight);
+    const spawn = this.findSpawn(
+      player.homeX ?? Math.floor(this.cellsWide / 2),
+      player.homeY ?? Math.floor(this.cellsHigh / 2),
+      width,
+      height,
+      [],
+      {
+        minDistance: player.human ? 0 : Math.max(12, Math.floor(Math.min(this.cellsWide, this.cellsHigh) * 0.18)),
+        farFromPlayers: true,
+        ignorePlayerId: player.id
       }
-      if (free) {
-        const nearest = [...this.players.values()]
-          .filter(other => other.id !== player.id && other.alive)
-          .reduce((distance, other) => Math.min(distance, Math.hypot(other.x - x, other.y - y)), Infinity);
-        safeCandidates.push({ x, y, nearest });
-        if (nearest >= minDistance) { spawn = { x, y }; break; }
-      }
-    }
-    if (!spawn && safeCandidates.length) {
-      safeCandidates.sort((a, b) => b.nearest - a.nearest);
-      spawn = safeCandidates[0];
-    }
-
-    if (!spawn) {
-      player.respawnTimer = 1;
-      return;
-    }
+    );
 
     const [dx, dy] = this.randomDirection(player);
     Object.assign(player, {
       x: spawn.x, y: spawn.y, prevX: spawn.x, prevY: spawn.y, dx, dy, next: null, turnQueue: [], trailCells: [],
       alive: true, respawnTimer: 0, turnTimer: 0, invulnerableTicks: 18, edgeTicks: 0, lastHitBy: null
     });
+    player.homeX = spawn.x;
+    player.homeY = spawn.y;
     this.initializeTerritory(player, width, height);
+  }
+
+  reconcileBotPopulation() {
+    const aliveBots = this.bots.filter(bot => bot.alive).length;
+    if (aliveBots >= this.botCount) return;
+    const waiting = this.bots.filter(bot => !bot.alive);
+    const missing = this.botCount - aliveBots;
+    for (const bot of waiting.slice(0, missing)) {
+      if (bot.respawnTimer <= 0) bot.respawnTimer = 1 + Math.floor(this.random() * 30);
+    }
   }
 
   /** Adapter point for future powerups; gameplay and UI can subscribe without callbacks. */
