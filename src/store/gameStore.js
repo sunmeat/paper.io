@@ -30,7 +30,7 @@ export const getDailyQuests = (date = new Date()) => {
 };
 
 const base = {
-  selectedMap: 'ukraine',
+  selectedMap: 'circle',
   coins: 0,
   revivesPurchased: 0,
   ownedSkins: ['classic'],
@@ -78,7 +78,7 @@ export const useGameStore = create(persist((set, get) => ({
   selectedMode: 'classic',
   setSelectedMode: modeId => set({ selectedMode: modeId === 'sprint' ? 'sprint' : 'classic' }),
   setSelectedMap: selectedMap => set({ selectedMap }),
-  setSelectedCountry: countryId => set(state => isCountryUnlocked(countryId, state.completedCountries, WORLD_COUNTRIES) ? { selectedCountryId: countryId, selectedMap: WORLD_COUNTRIES.find(country => country.id === countryId)?.mapId || 'circle' } : {}),
+  setSelectedCountry: countryId => set(state => isCountryUnlocked(countryId, state.completedCountries, WORLD_COUNTRIES) ? { selectedCountryId: countryId } : {}),
   language: localStorage.getItem('paper-io-language') || 'ru',
   settingsOpen: false,
   snapshot,
@@ -173,7 +173,7 @@ export const useGameStore = create(persist((set, get) => ({
       totalKills, bestRoundKills, bestRoundTerritory, wins, winStreak, sprintWins,
       lastRoundKills: kills, lastRoundTerritory: territory, lastMode: modeId,
       ownedSkins, ownedHats, ownedTrails,
-      completedCountries: worldProgress.completed, selectedCountryId: worldProgress.selectedCountryId, prestige: worldProgress.prestige, experience: worldProgress.experience, level: worldProgress.level, gamesPlayed: worldProgress.gamesPlayed, totalTerritory: worldProgress.totalTerritory, bestTerritory: worldProgress.bestTerritory, countryRecords: worldProgress.countryRecords, rank: worldProgress.rank, lastExperienceGained: xpGained, selectedMap: WORLD_COUNTRIES.find(country => country.id === worldProgress.selectedCountryId)?.mapId || state.selectedMap,
+      completedCountries: worldProgress.completed, selectedCountryId: worldProgress.selectedCountryId, prestige: worldProgress.prestige, experience: worldProgress.experience, level: worldProgress.level, gamesPlayed: worldProgress.gamesPlayed, totalTerritory: worldProgress.totalTerritory, bestTerritory: worldProgress.bestTerritory, countryRecords: worldProgress.countryRecords, rank: worldProgress.rank, lastExperienceGained: xpGained,
       snapshot: { ...round, roundCoinsEarned, experienceGained: xpGained, newlyUnlockedItems },
       modeRecords, achievements
     };
@@ -258,7 +258,7 @@ export const useGameStore = create(persist((set, get) => ({
   }
 }), {
   name: 'paper-io-meta',
-  version: 6,
+  version: 7,
   storage: createJSONStorage(() => localStorage),
   partialize: state => ({
     selectedMap: state.selectedMap, coins: state.coins, revivesPurchased: state.revivesPurchased, ownedSkins: state.ownedSkins, equippedSkin: state.equippedSkin,
@@ -301,7 +301,7 @@ export const useGameStore = create(persist((set, get) => ({
       modeRecords: saved.modeRecords && typeof saved.modeRecords === 'object' ? saved.modeRecords : {},
       selectedMode: saved.selectedMode === 'sprint' ? 'sprint' : 'classic',
       ...restoreWorldProgress(saved),
-      selectedMap: WORLD_COUNTRIES.find(country => country.id === restoreWorldProgress(saved).selectedCountryId)?.mapId || 'circle'
+      selectedMap: saved.selectedMap === 'ukraine' ? 'circle' : (saved.selectedMap || 'circle')
     };
   },
   merge: (saved, current) => { const valid = Boolean(saved && saved.walletChecksum && saved.walletChecksum === walletChecksum(saved.coins)); const coins = valid ? Math.max(0, Math.floor(Number(saved.coins) || 0)) : 0; return { ...current, ...saved, coins, walletChecksum: walletChecksum(coins) }; }
