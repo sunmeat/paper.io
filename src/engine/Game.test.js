@@ -33,8 +33,9 @@ describe('Simulation', () => {
     expect(Object.keys(BOT_PERSONALITIES)).toEqual(['greedy', 'cautious', 'hunter']);
   });
 
-  it('provides eight built-in arena shapes', () => {
-    expect(MAPS).toHaveLength(8);
+  it('provides nine built-in arena shapes including Ukraine', () => {
+    expect(MAPS).toHaveLength(9);
+    expect(MAPS.some(map => map.id === 'ukraine')).toBe(true);
     expect(MAPS.some(map => map.id === 'island' || map.id === 'archipelago')).toBe(false);
     for (const map of MAPS) {
       const mask = createMapMask(90, 90, map.id);
@@ -48,6 +49,16 @@ describe('Simulation', () => {
     expect(new Set(simulation.bots.map(bot => bot.name)).size).toBe(6);
     expect(simulation.bots.every(bot => ['greedy', 'cautious', 'hunter'].includes(bot.personality))).toBe(true);
     expect(simulation.bots.every(bot => ['easy', 'normal', 'hard'].includes(bot.strategy.difficulty))).toBe(true);
+  });
+
+  it('starts every player with the same circular ten-by-ten base on the Ukraine map', () => {
+    const simulation = new Simulation({ mapId: 'ukraine' });
+    const counts = [...simulation.players.values()].map(player => simulation.grid.territoryCount(player.id));
+    expect(counts.length).toBe(simulation.botCount + 1);
+    expect(new Set(counts).size).toBe(1);
+    expect(simulation.bots.every(bot => bot.alive)).toBe(true);
+    expect(simulation.bots.every(bot => bot.lifetime === 0)).toBe(true);
+    expect(simulation.mapId).toBe('ukraine');
   });
 
   it('spawns every player and starting territory inside the selected mask', () => {
