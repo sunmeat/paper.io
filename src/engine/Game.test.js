@@ -207,8 +207,8 @@ describe('Simulation', () => {
   });
 
   it('uses the configured fixed world dimensions', () => {
-    expect(GAME_CONFIG.worldWidth).toBe(90);
-    expect(GAME_CONFIG.worldHeight).toBe(90);
+    expect(GAME_CONFIG.worldWidth).toBe(180);
+    expect(GAME_CONFIG.worldHeight).toBe(180);
   });
 
   it('reports territory as a percentage of world cells', () => {
@@ -236,6 +236,7 @@ describe('Simulation', () => {
 
     const sprint = new Simulation({ seed: 77, config, modeId: 'sprint' });
     const sprintMirror = new Simulation({ seed: 77, config, modeId: 'sprint' });
+    for (let tick = 0; tick < 180; tick++) { sprint.step(); sprintMirror.step(); }
     expect(sprint.pickups).toEqual(sprintMirror.pickups);
     expect(sprint.pickups.length).toBeGreaterThan(0);
     expect(sprint.pickups.length).toBeLessThanOrEqual(3);
@@ -291,8 +292,8 @@ describe('fixed world and viewport resizing', () => {
 
     expect(canvas.width).toBe(2400);
     expect(canvas.height).toBe(1400);
-    expect(game.cellsWide).toBe(90);
-    expect(game.cellsHigh).toBe(90);
+    expect(game.cellsWide).toBe(180);
+    expect(game.cellsHigh).toBe(180);
     expect(simulation.grid.owners).toEqual(Uint8Array.from(stateBefore.owners));
     expect(simulation.grid.trail).toEqual(Uint8Array.from(stateBefore.trail));
     expect(simulation.player).toEqual(stateBefore.player);
