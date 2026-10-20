@@ -73,8 +73,33 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         image.data[offset] = color[0]; image.data[offset + 1] = color[1]; image.data[offset + 2] = color[2]; image.data[offset + 3] = 255;
       }
       minimapCtx.putImageData(image, 0, 0);
+      const leaderId = game.leaderId;
+      if (leaderId != null) {
+        minimapCtx.save();
+        minimapCtx.strokeStyle = '#ffd34f';
+        minimapCtx.lineWidth = 0.7;
+        minimapCtx.beginPath();
+        for (let i = 0; i < grid.owners.length; i++) {
+          if (grid.owners[i] !== leaderId || !grid.walkable[i]) continue;
+          const x = i % width, y = Math.floor(i / width);
+          if (x === 0 || grid.owners[i - 1] !== leaderId) { minimapCtx.moveTo(x, y); minimapCtx.lineTo(x, y + 1); }
+          if (x === width - 1 || grid.owners[i + 1] !== leaderId) { minimapCtx.moveTo(x + 1, y); minimapCtx.lineTo(x + 1, y + 1); }
+          if (y === 0 || grid.owners[i - width] !== leaderId) { minimapCtx.moveTo(x, y); minimapCtx.lineTo(x + 1, y); }
+          if (y === height - 1 || grid.owners[i + width] !== leaderId) { minimapCtx.moveTo(x, y + 1); minimapCtx.lineTo(x + 1, y + 1); }
+        }
+        minimapCtx.stroke();
+        minimapCtx.restore();
+      }
       minimapCtx.fillStyle = '#fff';
-      for (const player of game.players.values()) if (player.alive) { minimapCtx.fillStyle = player.id === 1 ? getSkinById(useGameStore.getState().equippedSkin).color : getPlayerColor(player.id, getSkinById(useGameStore.getState().equippedSkin).color); minimapCtx.fillRect(player.x, player.y, 1, 1); }
+      for (const player of game.players.values()) if (player.alive) {
+        minimapCtx.fillStyle = player.id === 1 ? getSkinById(useGameStore.getState().equippedSkin).color : getPlayerColor(player.id, getSkinById(useGameStore.getState().equippedSkin).color);
+        minimapCtx.fillRect(player.x, player.y, 1, 1);
+        if (player.id === leaderId) {
+          minimapCtx.strokeStyle = '#ffd34f';
+          minimapCtx.lineWidth = 0.45;
+          minimapCtx.strokeRect(player.x - 0.25, player.y - 0.25, 1.5, 1.5);
+        }
+      }
     };
     const minimapTimer = window.setInterval(drawMinimap, 200);
     const unsubscribe = [
