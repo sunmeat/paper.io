@@ -1,7 +1,7 @@
 /** Shared gameplay tuning values. */
 export const GAME_CONFIG = Object.freeze({
-  worldWidth: 90,
-  worldHeight: 90,
+  worldWidth: 180,
+  worldHeight: 180,
   moveIntervalMs: 125,
   fixedStepMs: 1000 / 30,
   maxFrameDeltaMs: 250,
