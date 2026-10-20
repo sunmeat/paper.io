@@ -33,6 +33,7 @@ export default function DeathScreen({ onAgain, onMenu }) {
   const stats = useGameStore(state => state.snapshot);
   const language = useGameStore(state => state.language);
   const territory = useCountUp(stats.territory, true);
+  const peakTerritory = useCountUp(stats.maxTerritory ?? stats.territory, true);
   const score = useCountUp(stats.sessionScore || 0);
   const kills = useCountUp(stats.kills || 0);
   const coins = useCountUp(stats.roundCoinsEarned || 0);
@@ -55,8 +56,11 @@ export default function DeathScreen({ onAgain, onMenu }) {
         <p>{stats.outcome === 'victory' ? (language === 'ru' ? 'Арена твоя. Награда за победу начислена.' : 'The arena is yours. Your victory reward has been added.') : t('deadText')}</p>
         {stats.secretConquered && stats.outcome === 'victory' && <div className="new-record secret-conquest">{language === 'ru' ? 'СЕКРЕТ: КАРТА ЗАХВАЧЕНА · +500 МОНЕТ' : 'SECRET: FULL MAP CONQUERED · +500 COINS'}</div>}
         {newRecord && <div className="new-record"><Crown size={16}/>{language === 'ru' ? 'НОВЫЙ РЕКОРД' : 'NEW RECORD'}</div>}
+        {stats.nearRecord && !newRecord && <div className="near-record">{language === 'ru' ? 'Чуть-чуть до рекорда!' : 'So close to a new record!'}</div>}
+        {stats.killerName && stats.outcome !== 'victory' && <div className="killer-result"><span>{language === 'ru' ? 'Убийца' : 'Defeated by'}</span><strong style={{ color: stats.killerColor || '#c3c7d5' }}>{stats.killerName}</strong></div>}
         <div className="result-grid block8-results">
           <div><span>{t('territory')}</span><strong>{formatPercent(territory)}%</strong></div>
+          <div><span>{language === 'ru' ? 'Пик территории' : 'Peak territory'}</span><strong>{formatPercent(peakTerritory)}%</strong></div>
           <div><span>{t('score')}</span><strong>{score}</strong></div>
           <div><span><Skull size={12}/>{language === 'ru' ? 'Убийства' : 'Kills'}</span><strong>{kills}</strong></div>
           <div><span><Clock size={12}/>{language === 'ru' ? 'Время' : 'Time'}</span><strong>{formatTime(stats.roundTimeMs)}</strong></div>
