@@ -31,17 +31,33 @@ export function retainLargestTerritoryComponents(grid) {
       const index = queue[head++];
       const x = index % width;
       const y = Math.floor(index / width);
-      const neighbors = [
-        x > 0 ? index - 1 : -1,
-        x + 1 < width ? index + 1 : -1,
-        y > 0 ? index - width : -1,
-        y + 1 < height ? index + width : -1
-      ];
-
-      for (const neighbor of neighbors) {
-        if (neighbor < 0 || !walkable[neighbor] || owners[neighbor] !== owner || labels[neighbor]) continue;
-        labels[neighbor] = componentId;
-        queue[tail++] = neighbor;
+      if (x > 0) {
+        const neighbor = index - 1;
+        if (walkable[neighbor] && owners[neighbor] === owner && !labels[neighbor]) {
+          labels[neighbor] = componentId;
+          queue[tail++] = neighbor;
+        }
+      }
+      if (x + 1 < width) {
+        const neighbor = index + 1;
+        if (walkable[neighbor] && owners[neighbor] === owner && !labels[neighbor]) {
+          labels[neighbor] = componentId;
+          queue[tail++] = neighbor;
+        }
+      }
+      if (y > 0) {
+        const neighbor = index - width;
+        if (walkable[neighbor] && owners[neighbor] === owner && !labels[neighbor]) {
+          labels[neighbor] = componentId;
+          queue[tail++] = neighbor;
+        }
+      }
+      if (y + 1 < height) {
+        const neighbor = index + width;
+        if (walkable[neighbor] && owners[neighbor] === owner && !labels[neighbor]) {
+          labels[neighbor] = componentId;
+          queue[tail++] = neighbor;
+        }
       }
     }
 
