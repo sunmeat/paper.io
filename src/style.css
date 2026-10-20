@@ -431,3 +431,9 @@ kbd {
 .stats-record-list>div{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#b8bfd1;font-size:10px}
 .stats-record-list>div strong{color:#ffcf70;font:10px 'DM Mono',monospace}
 @media(max-width:390px){.world-panel,.player-stats-panel{padding:10px}.country-card{grid-template-columns:30px minmax(0,1fr) auto;gap:7px;padding:8px}.country-flag{width:29px;height:31px;font-size:19px}.country-info small{font-size:8px}.world-view-tabs button{font-size:9px}}
+
+.leader-row-current { color: #ffe19a; }
+.leader-crown { flex: 0 0 auto; color: #ffd34f; filter: drop-shadow(0 0 4px #ffd34f45); }
+.leader-toast { position: absolute; z-index: 5; top: calc(max(14px, env(safe-area-inset-top)) + 58px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 9px; padding: 11px 17px; border: 1px solid #ffd34f80; border-radius: 12px; background: #19180ff2; color: #ffe19a; box-shadow: 0 8px 30px #0005; font-size: 12px; font-weight: 800; white-space: nowrap; animation: leader-toast-in .2s ease-out; pointer-events: none; }
+.leader-toast svg { color: #ffd34f; }
+@keyframes leader-toast-in { from { opacity: 0; transform: translate(-50%, -7px); } to { opacity: 1; transform: translate(-50%, 0); } }
