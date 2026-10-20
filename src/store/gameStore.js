@@ -30,7 +30,7 @@ export const getDailyQuests = (date = new Date()) => {
 };
 
 const base = {
-  selectedMap: 'circle',
+  selectedMap: 'ukraine',
   coins: 0,
   revivesPurchased: 0,
   ownedSkins: ['classic'],
@@ -258,7 +258,7 @@ export const useGameStore = create(persist((set, get) => ({
   }
 }), {
   name: 'paper-io-meta',
-  version: 5,
+  version: 6,
   storage: createJSONStorage(() => localStorage),
   partialize: state => ({
     selectedMap: state.selectedMap, coins: state.coins, revivesPurchased: state.revivesPurchased, ownedSkins: state.ownedSkins, equippedSkin: state.equippedSkin,
