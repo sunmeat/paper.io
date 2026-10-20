@@ -99,7 +99,7 @@ export const useGameStore = create(persist((set, get) => ({
     const achievements = [...state.achievements];
     const round = state.snapshot || {};
     const roundsPlayed = state.roundsPlayed + 1;
-    const territory = Math.max(0, Number(round.territory) || 0);
+    const territory = Math.max(0, Number(round.maxTerritory ?? round.territory) || 0);
     const kills = Math.max(0, Number(round.kills) || 0);
     const elapsedMs = Math.max(0, Number(round.roundTimeMs ?? round.elapsedMs) || 0);
     const victory = round.outcome === 'victory';
