@@ -70,6 +70,33 @@ describe('captureArea', () => {
     expect(grid.ownerAt(0, 2)).toBe(2);
   });
 
+  it('closes a loop when an opponent trail occupies one of the recorded loop cells', () => {
+    const grid = new Grid(7, 7);
+    const trail = [];
+    for (let x = 1; x <= 5; x++) {
+      const top = grid.index(x, 1);
+      const bottom = grid.index(x, 5);
+      grid.setTrail(x, 1, 1);
+      grid.setTrail(x, 5, 1);
+      trail.push(top, bottom);
+    }
+    for (let y = 2; y <= 4; y++) {
+      const left = grid.index(1, y);
+      const right = grid.index(5, y);
+      grid.setTrail(1, y, 1);
+      grid.setTrail(5, y, 1);
+      trail.push(left, right);
+    }
+    grid.setTrail(3, 1, 2);
+
+    captureArea(grid, 1, trail);
+
+    expect(grid.ownerAt(3, 3)).toBe(1);
+    expect(grid.ownerAt(3, 1)).toBe(1);
+    expect(grid.trailAt(3, 1)).toBe(0);
+    expect(grid.capturedTrailOwners.has(2)).toBe(true);
+  });
+
   it('captures a simple enclosed square', () => {
     const grid = new Grid(7, 7);
     for (let x = 2; x <= 4; x++) {
