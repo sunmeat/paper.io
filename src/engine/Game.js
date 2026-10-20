@@ -516,6 +516,17 @@ export class Game {
     ctx.restore();
   }
 
+  getTrailColor(color) {
+    const hex = color.match(/^#([0-9a-f]{6})$/i);
+    if (!hex) return color;
+    const value = Number.parseInt(hex[1], 16);
+    const mix = (channel, target) => Math.round(channel * 0.78 + target * 0.22);
+    const r = mix((value >> 16) & 255, 255);
+    const g = mix((value >> 8) & 255, 255);
+    const b = mix(value & 255, 255);
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+
   renderTrail(ctx, cellSize, interpolation, skin) {
     const trailEffect = getTrailById(this.callbacks.getTrail?.() || 'none');
     ctx.save();
@@ -547,7 +558,8 @@ export class Game {
           y: points[0].y - player.dy * cellSize * 0.5
         };
       }
-      ctx.strokeStyle = player.id === 1 ? skin.color : getPlayerColor(player.id, skin.color);
+      const baseColor = player.id === 1 ? skin.color : getPlayerColor(player.id, skin.color);
+      ctx.strokeStyle = this.getTrailColor(baseColor);
       ctx.fillStyle = ctx.strokeStyle;
       if (player.human && trailEffect.id === 'glow') { ctx.shadowColor = trailEffect.color; ctx.shadowBlur = cellSize * 0.7; }
       else if (player.human && trailEffect.id === 'comet') { ctx.shadowColor = trailEffect.color; ctx.shadowBlur = cellSize * 1.2; }
