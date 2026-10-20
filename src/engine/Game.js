@@ -363,7 +363,6 @@ export class Game {
       const all = this.grid.owners.keys();
       this.paintOwnerCells(layer, cellSize, skin, all);
       const cells = Array.from(this.grid.owners.keys());
-      this.renderSkinPattern(layer, cellSize, skin, cells);
       this.renderTerritoryEdges(layer, cellSize, cells);
       this.terrainDirty = false;
       this.cachedOwnerVersion = this.grid.ownerVersion;
@@ -386,7 +385,6 @@ export class Game {
         layer.clearRect(x * cellSize - 1, y * cellSize - 1, cellSize + 2, cellSize + 2);
       }
       this.paintOwnerCells(layer, cellSize, skin, cells);
-      this.renderSkinPattern(layer, cellSize, skin, cells);
       this.renderTerritoryEdges(layer, cellSize, cells);
       this.cachedOwnerVersion = this.grid.ownerVersion;
       this.renderMetrics.incrementalTerrainRedraws++;
