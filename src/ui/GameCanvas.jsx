@@ -49,7 +49,8 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       },
       getSkin: () => useGameStore.getState().equippedSkin,
       getHat: () => useGameStore.getState().equippedHat,
-      getTrail: () => useGameStore.getState().equippedTrail
+      getTrail: () => useGameStore.getState().equippedTrail,
+      getLanguage: () => useGameStore.getState().language
     });
     const events = game.simulation.events;
     let gameOverTimer = null;
