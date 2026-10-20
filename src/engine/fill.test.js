@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { captureArea } from './fill.js';
 import { Grid } from './Grid.js';
+import { MAPS, createMapMask } from './maps.js';
 
 describe('Grid', () => {
   it('treats non-walkable mask cells as outside', () => {
@@ -198,5 +199,20 @@ describe('captureArea', () => {
 
     expect(grid.ownerAt(0, 0)).toBe(0);
     expect(grid.ownerAt(4, 4)).toBe(0);
+  });
+});
+
+
+describe('map catalog', () => {
+  it('replaces clover with a dedicated Australia map', () => {
+    expect(MAPS.some(map => map.id === 'clover')).toBe(false);
+    expect(MAPS.some(map => map.id === 'australia')).toBe(true);
+    const mask = createMapMask(40, 30, 'australia');
+    expect(mask.some(Boolean)).toBe(true);
+    expect(mask.every(value => value === 0 || value === 1)).toBe(true);
+  });
+
+  it('falls back to the circle for a saved unknown map id', () => {
+    expect(Array.from(createMapMask(12, 12, 'clover'))).toEqual(Array.from(createMapMask(12, 12, 'circle')));
   });
 });
