@@ -140,7 +140,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         vibrate([35, 30, 60]);
       }),
       events.on('gameOver', snapshot => {
-        if (roundFinished) return;
+        if (roundFinishedRef.current) return;
         roundFinishedRef.current = true;
         const victoryReward = snapshot.outcome === 'victory' ? 150 : 0;
         const secretReward = snapshot.outcome === 'victory' && snapshot.secretConquered ? 500 : 0;
