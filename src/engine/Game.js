@@ -443,20 +443,41 @@ export class Game {
   renderTerritoryEdges(ctx, cellSize, indices = null) {
     ctx.save();
     ctx.strokeStyle = '#10131c';
-    ctx.lineWidth = Math.max(0.7, cellSize * 0.055);
+    ctx.lineWidth = Math.max(0.8, cellSize * 0.065);
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.beginPath();
+
+    // Draw each territory boundary once, from the owned cell only.
+    // Neutral cells must not paint the reverse side of the same edge.
     for (const index of (indices || this.grid.owners.keys())) {
-      const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
-      if (!this.grid.walkable[index]) continue;
       const owner = this.grid.owners[index];
-      const px = x * cellSize, py = y * cellSize;
-      if (x === 0 || this.grid.owners[index - 1] !== owner || !this.grid.walkable[index - 1]) { ctx.moveTo(px, py); ctx.lineTo(px, py + cellSize); }
-      if (x === this.cellsWide - 1 || this.grid.owners[index + 1] !== owner || !this.grid.walkable[index + 1]) { ctx.moveTo(px + cellSize, py); ctx.lineTo(px + cellSize, py + cellSize); }
-      if (y === 0 || this.grid.owners[index - this.cellsWide] !== owner || !this.grid.walkable[index - this.cellsWide]) { ctx.moveTo(px, py); ctx.lineTo(px + cellSize, py); }
-      if (y === this.cellsHigh - 1 || this.grid.owners[index + this.cellsWide] !== owner || !this.grid.walkable[index + this.cellsWide]) { ctx.moveTo(px, py + cellSize); ctx.lineTo(px + cellSize, py + cellSize); }
+      if (!owner || !this.grid.walkable[index]) continue;
+
+      const x = index % this.cellsWide;
+      const y = Math.floor(index / this.cellsWide);
+      const px = x * cellSize;
+      const py = y * cellSize;
+      const differs = neighbor => !this.grid.walkable[neighbor] || this.grid.owners[neighbor] !== owner;
+
+      if (x === 0 || differs(index - 1)) {
+        ctx.moveTo(px, py);
+        ctx.lineTo(px, py + cellSize);
+      }
+      if (x === this.cellsWide - 1 || differs(index + 1)) {
+        ctx.moveTo(px + cellSize, py);
+        ctx.lineTo(px + cellSize, py + cellSize);
+      }
+      if (y === 0 || differs(index - this.cellsWide)) {
+        ctx.moveTo(px, py);
+        ctx.lineTo(px + cellSize, py);
+      }
+      if (y === this.cellsHigh - 1 || differs(index + this.cellsWide)) {
+        ctx.moveTo(px, py + cellSize);
+        ctx.lineTo(px + cellSize, py + cellSize);
+      }
     }
+
     ctx.stroke();
     ctx.restore();
   }
