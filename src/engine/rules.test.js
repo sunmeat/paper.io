@@ -110,10 +110,10 @@ describe('leader selection', () => {
 
     expect(simulation.getStats().leaderId).toBe(1);
     const margin = Math.ceil(simulation.grid.walkableCount * 0.005);
-    for (const index of cells.slice(199, 199 + margin - 1)) simulation.grid.setOwnerAt(index, 2);
+    for (const index of cells.slice(199, 199 + margin)) simulation.grid.setOwnerAt(index, 2);
     expect(simulation.getStats().leaderId).toBe(1);
 
-    simulation.grid.setOwnerAt(cells[199 + margin - 1], 2);
+    simulation.grid.setOwnerAt(cells[199 + margin], 2);
     expect(simulation.getStats().leaderId).toBe(2);
   });
 });
