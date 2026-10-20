@@ -445,3 +445,12 @@ kbd {
 
 .revive-button { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: center; gap: 9px; margin: 0 0 9px; border: 1px solid #ffd34f66; border-radius: 13px; background: linear-gradient(110deg,#ffd34f,#ffb84d); color: #20180a; font-size: 11px; font-weight: 900; letter-spacing: .25px; box-shadow: 0 5px 22px #ffd34f18; }
 .revive-button:disabled { cursor: not-allowed; opacity: .42; filter: saturate(.45); }
+
+.powerup-chip{position:relative;display:flex;align-items:center;gap:5px;min-height:29px;padding:4px 7px;border:1px solid #9beeff55;border-radius:10px;background:#101a2be8;color:#effbff;font-size:11px;box-shadow:0 0 14px #68eaff16}
+.powerup-chip>span{font-size:14px}
+.powerup-chip>small{font:10px 'DM Mono',monospace;color:#bfefff}
+.powerup-chip>i{position:absolute;left:0;bottom:0;height:2px;width:var(--effect-progress);background:#75e9ff;border-radius:99px;box-shadow:0 0 6px #75e9ff}
+.powerup-speed{border-color:#ffd76a66}.powerup-speed>i{background:#ffd76a}
+.powerup-shield{border-color:#70e9ff77}.powerup-bigCapture{border-color:#ff8ce577}.powerup-bigCapture>i{background:#ff8ce5}
+.powerup-freeze{border-color:#9bc8ff77}.powerup-freeze>i{background:#9bc8ff}
+.powerup-toast{position:absolute;z-index:6;top:calc(max(14px,env(safe-area-inset-top)) + 100px);left:50%;transform:translateX(-50%);padding:10px 15px;border:1px solid #9beeff77;border-radius:12px;background:#111827ed;color:#eafaff;font-size:12px;font-weight:900;box-shadow:0 8px 24px #0005;white-space:nowrap;animation:leader-toast-in .2s ease-out;pointer-events:none}
