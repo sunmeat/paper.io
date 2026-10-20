@@ -96,7 +96,7 @@ describe('Simulation', () => {
     expect([simulation.player.dx, simulation.player.dy]).toEqual([-1, 0]);
   });
 
-  it('does not eliminate a player when they cross their own trail', () => {
+  it('closes a capture when the player crosses their own trail without dying', () => {
     const config = { ...GAME_CONFIG, worldWidth: 30, worldHeight: 30, botCount: 0 };
     const simulation = new Simulation({ config });
     const player = simulation.player;
@@ -105,14 +105,17 @@ describe('Simulation', () => {
     player.dx = 1;
     player.dy = 0;
     simulation.grid.setTrail(13, 15, player.id);
-    player.trailCells = [simulation.grid.index(13, 15)];
+    simulation.grid.setTrail(14, 15, player.id);
+    player.trailCells = [simulation.grid.index(13, 15), simulation.grid.index(14, 15)];
 
     simulation.movePlayer(player);
 
     expect(player.alive).toBe(true);
     expect(player.x).toBe(13);
     expect(player.y).toBe(15);
-    expect(player.trailCells).toEqual([simulation.grid.index(13, 15)]);
+    expect(player.trailCells).toEqual([]);
+    expect(player.closedLoop).toBe(false);
+    expect(simulation.grid.ownerAt(13, 15)).toBe(player.id);
     expect(simulation.over).toBe(false);
   });
 
