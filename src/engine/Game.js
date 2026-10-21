@@ -272,7 +272,10 @@ export class Game {
     const viewportRatio = Math.min(width, height) / Math.max(width, height);
     const viewportZoom = Math.max(0.9, Math.min(1.08, 0.9 + viewportRatio * 0.18));
     const fullMapZoom = Math.min(width / (cellSize * this.cellsWide), height / (cellSize * this.cellsHigh));
-    const targetZoom = this.simulation.over
+    // Keep the geographic arena fully visible: camera-follow zoom cropped the
+    // northern/southern ends of the tall Ukraine mask during ordinary gameplay.
+    const keepCountryInView = this.simulation.mapId === 'ukraine' && !this.simulation.over;
+    const targetZoom = this.simulation.over || keepCountryInView
       ? fullMapZoom
       : Math.max(0.9, Math.min(1.08, viewportZoom * (1 - territory * 0.18)));
 
