@@ -375,10 +375,10 @@ export class Game {
 
     const skinId = this.callbacks.getSkin?.() || 'classic';
     const changed = this.grid.drainDirtyOwners();
-    const fullRedraw = this.terrainDirty || this.cachedSkinId !== skinId ||
-      changed.length > this.grid.owners.length * 0.08;
-
-    if (fullRedraw) {
+    // Rebuild the ownership layer as one image whenever cells change.
+    // Partial clears can leave stale edge fragments and hairline seams where
+    // newly captured cells meet the existing territory.
+    if (this.terrainDirty || changed.length || this.cachedSkinId !== skinId) {
       const layer = this.terrainCtx;
       layer.clearRect(0, 0, width, height);
       this.paintOwnerCells(layer, cellSize, skin, this.grid.owners.keys());
@@ -388,37 +388,6 @@ export class Game {
       this.cachedSkinId = skinId;
       this.renderMetrics.fullTerrainRedraws++;
       this.renderMetrics.cellsRedrawn += this.grid.owners.length;
-    } else if (changed.length) {
-      // Clear complete pixel-aligned patches and repaint a two-cell border around
-      // each change. This keeps shared territory fills solid without downscaling.
-      const affected = new Set();
-      for (const index of changed) {
-        const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
-        for (let dy = -2; dy <= 2; dy++) {
-          const ny = y + dy;
-          if (ny < 0 || ny >= this.cellsHigh) continue;
-          for (let dx = -2; dx <= 2; dx++) {
-            const nx = x + dx;
-            if (nx < 0 || nx >= this.cellsWide) continue;
-            affected.add(this.grid.index(nx, ny));
-          }
-        }
-      }
-      const cells = [...affected];
-      const layer = this.terrainCtx;
-      for (const index of cells) {
-        const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
-        const left = Math.floor(x * cellSize);
-        const top = Math.floor(y * cellSize);
-        const right = Math.ceil((x + 1) * cellSize);
-        const bottom = Math.ceil((y + 1) * cellSize);
-        layer.clearRect(left, top, right - left, bottom - top);
-      }
-      this.paintOwnerCells(layer, cellSize, skin, cells);
-      this.renderTerritoryEdges(layer, cellSize, cells);
-      this.cachedOwnerVersion = this.grid.ownerVersion;
-      this.renderMetrics.incrementalTerrainRedraws++;
-      this.renderMetrics.cellsRedrawn += cells.length;
     }
     this.ctx.drawImage(this.maskCanvas, 0, 0);
     this.ctx.drawImage(this.terrainCanvas, 0, 0);
@@ -472,7 +441,7 @@ export class Game {
   renderTerritoryEdges(ctx, cellSize, indices = null) {
     ctx.save();
     ctx.strokeStyle = '#10131c';
-    ctx.lineWidth = Math.max(0.8, cellSize * 0.065);
+    ctx.lineWidth = Math.max(1.2, cellSize * 0.075);
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -487,23 +456,23 @@ export class Game {
       const y = Math.floor(index / this.cellsWide);
       const px = x * cellSize;
       const py = y * cellSize;
-      const isNeutralOrOutside = neighbor =>
+      const hasDifferentOwner = neighbor =>
         neighbor < 0 || neighbor >= this.grid.owners.length ||
-        !this.grid.walkable[neighbor] || this.grid.owners[neighbor] === 0;
+        !this.grid.walkable[neighbor] || this.grid.owners[neighbor] !== owner;
 
-      if (x === 0 || isNeutralOrOutside(index - 1)) {
+      if (x === 0 || hasDifferentOwner(index - 1)) {
         ctx.moveTo(px, py);
         ctx.lineTo(px, py + cellSize);
       }
-      if (x === this.cellsWide - 1 || isNeutralOrOutside(index + 1)) {
+      if (x === this.cellsWide - 1 || hasDifferentOwner(index + 1)) {
         ctx.moveTo(px + cellSize, py);
         ctx.lineTo(px + cellSize, py + cellSize);
       }
-      if (y === 0 || isNeutralOrOutside(index - this.cellsWide)) {
+      if (y === 0 || hasDifferentOwner(index - this.cellsWide)) {
         ctx.moveTo(px, py);
         ctx.lineTo(px + cellSize, py);
       }
-      if (y === this.cellsHigh - 1 || isNeutralOrOutside(index + this.cellsWide)) {
+      if (y === this.cellsHigh - 1 || hasDifferentOwner(index + this.cellsWide)) {
         ctx.moveTo(px, py + cellSize);
         ctx.lineTo(px + cellSize, py + cellSize);
       }
