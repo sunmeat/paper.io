@@ -555,12 +555,14 @@ export class Simulation {
     for (let index = 0; index < this.grid.owners.length; index++) {
       if (this.grid.owners[index] !== player.id) continue;
       territoryCells.push(index);
-      // Collect and clear/transfer in the same pass instead of scanning the grid
-      // once for the effect, again for transfer, and again for clearTerritory().
-      this.grid.setOwnerAt(index, shouldTransfer ? attributedKiller.id : 0);
+      // Transfer in this scan; defer clearing until after the final snapshot.
+      if (shouldTransfer) this.grid.setOwnerAt(index, attributedKiller.id);
     }
     if (player.human) this.deathKillerId = attributedKiller?.id ?? null;
     if (player.human) this.finalTerritoryOwners = new Uint16Array(this.grid.owners);
+    if (!shouldTransfer) {
+      for (const index of territoryCells) this.grid.setOwnerAt(index, 0);
+    }
     player.alive = false;
     player.deaths++;
     player.totalLifeTicks = (player.totalLifeTicks || 0) + (player.currentLifeTicks || 0);
