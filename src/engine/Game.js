@@ -406,13 +406,12 @@ export class Game {
       }
       const cells = [...affected];
       const layer = this.terrainCtx;
-      const margin = Math.max(2, Math.ceil(cellSize * 0.12));
       for (const index of cells) {
         const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
-        const left = Math.floor(x * cellSize) - margin;
-        const top = Math.floor(y * cellSize) - margin;
-        const right = Math.ceil((x + 1) * cellSize) + margin;
-        const bottom = Math.ceil((y + 1) * cellSize) + margin;
+        const left = Math.floor(x * cellSize);
+        const top = Math.floor(y * cellSize);
+        const right = Math.ceil((x + 1) * cellSize);
+        const bottom = Math.ceil((y + 1) * cellSize);
         layer.clearRect(left, top, right - left, bottom - top);
       }
       this.paintOwnerCells(layer, cellSize, skin, cells);
