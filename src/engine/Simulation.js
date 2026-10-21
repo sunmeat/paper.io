@@ -143,56 +143,64 @@ export class Simulation {
   findSpawn(preferredX, preferredY, width, height, reserved = [], { minDistance = 0, farFromPlayers = false, ignorePlayerId = null } = {}) {
     const halfWidth = Math.floor(width / 2);
     const halfHeight = Math.floor(height / 2);
-    const candidates = [];
-    const others = [...this.players.values()].filter(other => other.alive && other.id !== ignorePlayerId);
+    let bestCandidate = null;
+    const others = [];
+    for (const other of this.players.values()) {
+      if (other.alive && other.id !== ignorePlayerId) others.push(other);
+    }
     const inspectCandidate = (x, y) => {
-      let safe = true;
-      for (let yy = y - halfHeight; yy < y - halfHeight + height && safe; yy++) {
+      for (let yy = y - halfHeight; yy < y - halfHeight + height; yy++) {
         for (let xx = x - halfWidth; xx < x - halfWidth + width; xx++) {
-          if (!this.grid.inside(xx, yy) || this.grid.ownerAt(xx, yy) || this.grid.trailAt(xx, yy)) {
-            safe = false;
-            break;
-          }
+          if (!this.grid.inside(xx, yy) || this.grid.ownerAt(xx, yy) || this.grid.trailAt(xx, yy)) return;
         }
       }
-      if (!safe) return;
       const separation = Math.max(width, height) + 2;
-      if (reserved.some(point => Math.abs(point.x - x) < Math.max(separation, (point.width || 0) / 2 + width / 2 + 2) &&
-        Math.abs(point.y - y) < Math.max(separation, (point.height || 0) / 2 + height / 2 + 2))) return;
-      const nearest = others.reduce((distance, other) => {
+      for (const point of reserved) {
+        if (Math.abs(point.x - x) < Math.max(separation, (point.width || 0) / 2 + width / 2 + 2) &&
+            Math.abs(point.y - y) < Math.max(separation, (point.height || 0) / 2 + height / 2 + 2)) return;
+      }
+      let nearest = Infinity;
+      for (const other of others) {
         const territoryRadius = Math.max(other.startWidth || 0, other.startHeight || 0) / 2;
-        return Math.min(distance, Math.hypot(other.x - x, other.y - y) - territoryRadius);
-      }, Infinity);
+        nearest = Math.min(nearest, Math.hypot(other.x - x, other.y - y) - territoryRadius);
+      }
       if (nearest < minDistance) return;
-      candidates.push({ x, y, distance: (x - preferredX) ** 2 + (y - preferredY) ** 2, nearest });
+      const distance = (x - preferredX) ** 2 + (y - preferredY) ** 2;
+      if (!bestCandidate ||
+          (farFromPlayers ? nearest > bestCandidate.nearest ||
+            (nearest === bestCandidate.nearest && distance < bestCandidate.distance)
+            : distance < bestCandidate.distance)) {
+        bestCandidate = { x, y, distance, nearest };
+      }
     };
 
-    // Sampling avoids scanning every possible start rectangle (and checking up to
-    // 100 cells per rectangle) for each bot on every respawn cycle.
     const minX = halfWidth + 1;
     const maxX = this.cellsWide - halfWidth - 2;
     const minY = halfHeight + 1;
     const maxY = this.cellsHigh - halfHeight - 2;
-    const attempts = Math.min(1800, Math.max(300, Math.floor(this.cellsWide * this.cellsHigh * 0.06)));
+    // A bounded sample avoids thousands of rectangle checks on every respawn.
+    // Keep a coarse fallback for unusual masks, and scan exhaustively only if needed.
+    const attempts = Math.min(480, Math.max(180, Math.floor(this.cellsWide * this.cellsHigh * 0.012)));
     for (let attempt = 0; attempt < attempts; attempt++) {
       const x = minX + Math.floor(this.random() * Math.max(1, maxX - minX + 1));
       const y = minY + Math.floor(this.random() * Math.max(1, maxY - minY + 1));
       inspectCandidate(x, y);
     }
 
-    // Small/custom arenas may not yield a safe sample; retain a complete fallback.
-    if (!candidates.length) {
+    if (!bestCandidate) {
+      for (let y = minY; y <= maxY; y += 3) {
+        for (let x = minX; x <= maxX; x += 3) inspectCandidate(x, y);
+      }
+    }
+    if (!bestCandidate && (reserved.length || minDistance > 0)) {
+      return this.findSpawn(preferredX, preferredY, width, height, [], { minDistance: 0, farFromPlayers, ignorePlayerId });
+    }
+    if (!bestCandidate) {
       for (let y = minY; y <= maxY; y++) {
         for (let x = minX; x <= maxX; x++) inspectCandidate(x, y);
       }
     }
-    if (!candidates.length && (reserved.length || minDistance > 0)) {
-      return this.findSpawn(preferredX, preferredY, width, height, [], { minDistance: 0, farFromPlayers, ignorePlayerId });
-    }
-    candidates.sort((a, b) => farFromPlayers
-      ? b.nearest - a.nearest || a.distance - b.distance
-      : a.distance - b.distance);
-    if (candidates.length) return candidates[0];
+    if (bestCandidate) return bestCandidate;
     for (let y = 1; y < this.cellsHigh - 1; y++) {
       for (let x = 1; x < this.cellsWide - 1; x++) {
         if (this.grid.inside(x, y)) return { x, y };
@@ -543,15 +551,15 @@ export class Simulation {
     const attributedKiller = killer ?? (player.lastHitBy ? this.players.get(player.lastHitBy) : null);
     this.updateMaxTerritory();
     const territoryCells = [];
+    const shouldTransfer = Boolean(transferTerritory && attributedKiller && attributedKiller.id !== player.id);
     for (let index = 0; index < this.grid.owners.length; index++) {
-      if (this.grid.owners[index] === player.id) territoryCells.push(index);
+      if (this.grid.owners[index] !== player.id) continue;
+      territoryCells.push(index);
+      // Collect and clear/transfer in the same pass instead of scanning the grid
+      // once for the effect, again for transfer, and again for clearTerritory().
+      this.grid.setOwnerAt(index, shouldTransfer ? attributedKiller.id : 0);
     }
     if (player.human) this.deathKillerId = attributedKiller?.id ?? null;
-    if (transferTerritory && attributedKiller && attributedKiller.id !== player.id) {
-      for (let index = 0; index < this.grid.owners.length; index++) {
-        if (this.grid.owners[index] === player.id) this.grid.setOwnerAt(index, attributedKiller.id);
-      }
-    }
     if (player.human) this.finalTerritoryOwners = new Uint16Array(this.grid.owners);
     player.alive = false;
     player.deaths++;
@@ -559,7 +567,6 @@ export class Simulation {
     player.livesCompleted = (player.livesCompleted || 0) + 1;
     player.currentLifeTicks = 0;
     player.respawnTimer = player.human ? 0 : 30 + Math.floor(this.random() * 31);
-    this.grid.clearTerritory(player.id);
     this.grid.clearTrail(player.id);
     player.trailCells = [];
     player.next = null;
