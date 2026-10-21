@@ -131,6 +131,28 @@ describe('Simulation', () => {
     expect(simulation.over).toBe(false);
   });
 
+  it('eliminates an exposed trail owner even when the attacker has spawn protection', () => {
+    const config = { ...GAME_CONFIG, worldWidth: 48, worldHeight: 48, botCount: 2 };
+    const simulation = new Simulation({ config, humanPlayer: false });
+    const [attacker, victim] = simulation.bots;
+
+    Object.assign(attacker, {
+      x: 10, y: 10, dx: 1, dy: 0, next: null, alive: true,
+      invulnerableTicks: 5, turnTimer: 10, trailCells: []
+    });
+    Object.assign(victim, {
+      x: 30, y: 30, dx: 0, dy: 1, next: null, alive: true,
+      invulnerableTicks: 0, turnTimer: 10, trailCells: [simulation.grid.index(11, 10)]
+    });
+    simulation.grid.setTrail(11, 10, victim.id);
+
+    simulation.step();
+
+    expect(attacker.alive).toBe(true);
+    expect(victim.alive).toBe(false);
+    expect(attacker.kills).toBe(1);
+  });
+
   it('does not kill a player when they hit a wall', () => {
     const config = { ...GAME_CONFIG, worldWidth: 30, worldHeight: 30, botCount: 0 };
     const simulation = new Simulation({ config });
