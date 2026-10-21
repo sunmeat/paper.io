@@ -44,7 +44,7 @@ export default function Menu({
       <div className="menu-content">
         <div className="menu-brand">
           <span className="brand-mark"><Zap size={22} fill="currentColor" /></span>
-          <span>PAPER<span className="brand-dot">.IO</span></span>
+          <span>SUNMEAT<span className="brand-dot">.IO</span></span>
         </div>
         <span className="eyebrow">CLAIM YOUR SPACE</span>
         <h1>{t('title')}</h1>

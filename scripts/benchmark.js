@@ -14,7 +14,7 @@ const elapsedMs = performance.now() - started;
 const completedSteps = Math.min(measuredSteps, simulation.tick - warmupSteps);
 const stepsPerSecond = Math.round(completedSteps / (elapsedMs / 1000));
 
-console.log('Paper.io simulation benchmark');
+console.log('sunmeat.io simulation benchmark');
 console.log(`World: ${config.worldWidth}x${config.worldHeight} | bots: ${config.botCount}`);
 console.log(`Measured steps: ${completedSteps} | elapsed: ${Math.round(elapsedMs)} ms`);
 console.log(`Simulation throughput: ${stepsPerSecond} steps/s`);

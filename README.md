@@ -1,4 +1,4 @@
-# paper.io
+# sunmeat.io
 
 A mobile-first territory-capture arcade game built with React, Vite, and Canvas.
 

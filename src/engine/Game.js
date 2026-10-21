@@ -62,7 +62,7 @@ export class Game {
 
     this.unsubscribeEvents = [
       this.simulation.events.on('leaderChange', event => {
-        window.dispatchEvent(new CustomEvent('paperio:leader-change', { detail: event }));
+        window.dispatchEvent(new CustomEvent('sunmeatio:leader-change', { detail: event }));
       }),
       this.simulation.events.on('capture', event => {
         if (event.human) this.recordBotProgressAfterCapture(event.captured);

@@ -37,7 +37,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       countryLevel,
       playerLevel,
       config: new URLSearchParams(window.location.search).get('benchmark') === '1' ? { worldWidth: 150, worldHeight: 150, botCount: 10 } : undefined,
-      onPerformance: metrics => { if (new URLSearchParams(window.location.search).get('benchmark') === '1') console.info('[paper.io benchmark]', metrics); },
+      onPerformance: metrics => { if (new URLSearchParams(window.location.search).get('benchmark') === '1') console.info('[sunmeat.io benchmark]', metrics); },
       observer: new URLSearchParams(window.location.search).get('observer') === '1',
       onStats: stats => {
         if (roundFinishedRef.current) return;
@@ -114,14 +114,14 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         useGameStore.getState().addCoins(reward);
         useGameStore.getState().awardAchievement('first-capture');
         const total = Math.max(1, game.grid.walkableCount || game.grid.owners.length);
-        window.dispatchEvent(new CustomEvent('paperio:capture', {
+        window.dispatchEvent(new CustomEvent('sunmeatio:capture', {
           detail: (() => { const rect = canvas.getBoundingClientRect(); const cellSize = Math.min(rect.width, rect.height) / 27; return { percent: Number((event.captured / total * 100).toFixed(3)), x: event.x, y: event.y, screenX: rect.width / 2 + (event.x + 0.5 - game.camera.x) * cellSize * game.camera.zoom, screenY: rect.height / 2 + (event.y + 0.5 - game.camera.y) * cellSize * game.camera.zoom }; })()
         }));
       }),
       events.on('kill', event => {
         const killer = game.players.get(event.killerId);
         const victim = game.players.get(event.victimId);
-        window.dispatchEvent(new CustomEvent('paperio:kill', {
+        window.dispatchEvent(new CustomEvent('sunmeatio:kill', {
           detail: {
             killerName: killer?.human ? 'Вы' : killer?.name || `Бот ${event.killerId}`,
             victimName: victim?.human ? 'Вы' : victim?.name || `Бот ${event.victimId}`,
@@ -136,7 +136,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       }),
       events.on('powerup', event => {
         const player = game.players.get(event.playerId);
-        window.dispatchEvent(new CustomEvent('paperio:powerup', { detail: { ...event, human: Boolean(player?.human) } }));
+        window.dispatchEvent(new CustomEvent('sunmeatio:powerup', { detail: { ...event, human: Boolean(player?.human) } }));
       }),
       events.on('death', event => {
         if (!event.human) return;
@@ -150,7 +150,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         const secretReward = snapshot.outcome === 'victory' && snapshot.secretConquered ? 500 : 0;
         const roundReward = victoryReward + secretReward;
         if (roundReward) { earnedCoins += roundReward; useGameStore.getState().addCoins(roundReward); }
-        if (secretReward) window.dispatchEvent(new CustomEvent('paperio:fullmap'));
+        if (secretReward) window.dispatchEvent(new CustomEvent('sunmeatio:fullmap'));
         const killer = snapshot.killerId == null ? null : game.players.get(snapshot.killerId);
         const skin = getSkinById(useGameStore.getState().equippedSkin);
         const language = useGameStore.getState().language;
@@ -170,7 +170,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
     };
   }, [onStats, onGameOver, mapId, modeId, countryId, countryLevel, playerLevel]);
 
-  return <><canvas ref={canvasRef} className="game-canvas" aria-label="Paper.io game arena" /><canvas ref={minimapRef} className="game-minimap" aria-label="Minimap" /></>;
+  return <><canvas ref={canvasRef} className="game-canvas" aria-label="sunmeat.io game arena" /><canvas ref={minimapRef} className="game-minimap" aria-label="Minimap" /></>;
 });
 
 export default GameCanvas;
