@@ -589,15 +589,8 @@ export class Game {
       const baseColor = player.id === 1 ? skin.color : getPlayerColor(player.id, skin.color);
       ctx.strokeStyle = this.getTrailColor(baseColor);
       ctx.fillStyle = ctx.strokeStyle;
-      if (player.human && trailEffect.id === 'glow') {
-        ctx.shadowColor = trailEffect.color;
-        ctx.shadowBlur = cellSize * 0.7;
-      } else if (player.human && trailEffect.id === 'comet') {
-        ctx.shadowColor = trailEffect.color;
-        ctx.shadowBlur = cellSize * 1.2;
-      } else {
-        ctx.shadowBlur = 0;
-      }
+      // Avoid expensive canvas blur filters on every trail segment.
+      ctx.shadowBlur = 0;
 
       ctx.beginPath();
       ctx.moveTo(firstPoint.x, firstPoint.y);
@@ -649,7 +642,7 @@ export class Game {
       ctx.strokeStyle = '#a7f3ff';
       ctx.lineWidth = Math.max(1, cellSize * 0.06);
       ctx.shadowColor = '#6ce8ff';
-      ctx.shadowBlur = cellSize * 0.45;
+      ctx.shadowBlur = 0;
       ctx.beginPath();
       ctx.arc(cx, cy, cellSize * 0.48 * pulse, 0, Math.PI * 2);
       ctx.fill();
@@ -674,16 +667,21 @@ export class Game {
       const px = x * cellSize, py = y * cellSize;
       const cx = px + cellSize / 2, cy = py + cellSize / 2;
       const color = player.id === 1 ? skin.color : getPlayerColor(player.id, skin.color);
-      const activeEffects = Object.entries(player.effects || {}).filter(([, ticks]) => ticks > 0);
-      if (activeEffects.length) {
+      const effects = player.effects;
+      const activeEffect = effects?.shield > 0 ? 'shield'
+        : effects?.speed > 0 ? 'speed'
+          : effects?.freeze > 0 ? 'freeze'
+            : effects?.bigCapture > 0 ? 'bigCapture' : null;
+      if (activeEffect) {
         ctx.save();
-        ctx.strokeStyle = player.effects.shield > 0 ? '#70e9ff' : player.effects.speed > 0 ? '#ffd76a' : player.effects.freeze > 0 ? '#9bc8ff' : '#ff8ce5';
+        ctx.strokeStyle = activeEffect === 'shield' ? '#70e9ff'
+          : activeEffect === 'speed' ? '#ffd76a'
+            : activeEffect === 'freeze' ? '#9bc8ff' : '#ff8ce5';
         ctx.lineWidth = Math.max(1.2, cellSize * 0.09);
-        ctx.globalAlpha = 0.6 + (Math.sin(performance.now() / 110) + 1) * 0.18;
-        ctx.shadowColor = ctx.strokeStyle;
-        ctx.shadowBlur = cellSize * 0.6;
+        ctx.globalAlpha = 0.6 + (Math.sin(now / 110) + 1) * 0.18;
+        ctx.shadowBlur = 0;
         ctx.beginPath();
-        ctx.arc(cx, cy, cellSize * 0.62 + Math.sin(performance.now() / 140) * cellSize * 0.06, 0, Math.PI * 2);
+        ctx.arc(cx, cy, cellSize * 0.62 + Math.sin(now / 140) * cellSize * 0.06, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       }
@@ -736,28 +734,28 @@ export class Game {
         ctx.restore();
       }
       if (isLeader) {
-        const crownPath = new window.Path2D();
-        crownPath.moveTo(-0.32, 0);
-        crownPath.lineTo(-0.32, -0.24);
-        crownPath.lineTo(-0.16, -0.09);
-        crownPath.lineTo(-0.16, -0.31);
-        crownPath.lineTo(0, -0.11);
-        crownPath.lineTo(0.16, -0.31);
-        crownPath.lineTo(0.16, -0.09);
-        crownPath.lineTo(0.32, -0.24);
-        crownPath.lineTo(0.32, 0);
-        crownPath.closePath();
         ctx.save();
         ctx.translate(cx, py + cellSize * 0.02);
         ctx.scale(cellSize, cellSize);
+        ctx.beginPath();
+        ctx.moveTo(-0.32, 0);
+        ctx.lineTo(-0.32, -0.24);
+        ctx.lineTo(-0.16, -0.09);
+        ctx.lineTo(-0.16, -0.31);
+        ctx.lineTo(0, -0.11);
+        ctx.lineTo(0.16, -0.31);
+        ctx.lineTo(0.16, -0.09);
+        ctx.lineTo(0.32, -0.24);
+        ctx.lineTo(0.32, 0);
+        ctx.closePath();
         ctx.fillStyle = '#ffd76a';
         ctx.globalAlpha = 0.2;
-        ctx.fill(crownPath);
+        ctx.fill();
         ctx.globalAlpha = 1;
         ctx.strokeStyle = '#ffd34f';
         ctx.lineWidth = 1.8 / cellSize;
         ctx.lineJoin = 'round';
-        ctx.stroke(crownPath);
+        ctx.stroke();
         ctx.restore();
       }
       if (player.human && now - this.startedAt < 5000) {
