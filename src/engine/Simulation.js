@@ -1,7 +1,6 @@
 import { captureArea } from './fill.js';
 import { Grid } from './Grid.js';
 import { createMapMask } from './maps.js';
-import { findTrailCollision } from './collisions.js';
 import { isReverseDirection } from './directions.js';
 import { mulberry32 } from './random.js';
 import { resolveHeadCollision, resolveTrailCrossing } from './rules.js';
@@ -327,11 +326,13 @@ export class Simulation {
     }
 
     for (const plan of planList) {
-      if (plan.blocked || plan.player.invulnerableTicks > 0) continue;
+      if (plan.blocked || pendingDeaths.has(plan.player.id)) continue;
       const index = this.grid.index(plan.x, plan.y);
       const trailOwnerId = this.grid.trail[index];
       if (!trailOwnerId || trailOwnerId === plan.player.id || pendingDeaths.has(trailOwnerId)) continue;
       const trailOwner = this.players.get(trailOwnerId);
+      // Invulnerability protects a player from being killed, but must not stop
+      // that player from eliminating an exposed rival trail they cross.
       if (trailOwner?.alive && trailOwner.invulnerableTicks <= 0) {
         pendingDeaths.set(trailOwnerId, plan.player);
         pendingTerritoryTransfers.add(trailOwnerId);
@@ -490,9 +491,11 @@ export class Simulation {
     }
 
     const trailOwnerId = this.grid.trail[nextIndex];
-    if (!this.resolvingTick && trailOwnerId && trailOwnerId !== player.id && player.invulnerableTicks <= 0) {
-      const trailOwner = findTrailCollision(nextIndex, player.id, this.players.values()) ?? this.players.get(trailOwnerId);
-      if (trailOwner?.alive) {
+    if (!this.resolvingTick && trailOwnerId && trailOwnerId !== player.id) {
+      // The grid is the authoritative trail index. Avoid scanning every rival's
+      // complete trail array here, and respect only the trail owner's protection.
+      const trailOwner = this.players.get(trailOwnerId);
+      if (trailOwner?.alive && trailOwner.invulnerableTicks <= 0) {
         const loserId = resolveTrailCrossing(player.id, trailOwnerId);
         const loser = this.players.get(loserId);
         if (loser) this.eliminatePlayer(loser, player, { transferTerritory: loserId === trailOwnerId });
