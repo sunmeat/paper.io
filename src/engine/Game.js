@@ -600,8 +600,13 @@ export class Game {
             skippedFirstPoint = true;
             continue;
           }
-          const point = i === lastPosition ? headPoint : cellPoint(index);
-          ctx.lineTo(point.x, point.y);
+          const pointX = i === lastPosition
+            ? headPoint.x
+            : (index % this.cellsWide + 0.5) * cellSize;
+          const pointY = i === lastPosition
+            ? headPoint.y
+            : (Math.floor(index / this.cellsWide) + 0.5) * cellSize;
+          ctx.lineTo(pointX, pointY);
         }
         ctx.stroke();
         ctx.beginPath();
