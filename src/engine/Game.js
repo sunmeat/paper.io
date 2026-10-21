@@ -268,7 +268,6 @@ export class Game {
     const playerY = this.player ? this.player.prevY + (this.player.y - this.player.prevY) * interpolation : this.cellsHigh / 2;
     const targetX = this.simulation.over ? this.cellsWide / 2 : this.player?.alive ? playerX + 0.5 : this.cellsWide / 2;
     const targetY = this.simulation.over ? this.cellsHigh / 2 : this.player?.alive ? playerY + 0.5 : this.cellsHigh / 2;
-    const territory = this.grid.territoryCount(1) / Math.max(1, this.grid.owners.length);
     const viewportRatio = Math.min(width, height) / Math.max(width, height);
     const viewportZoom = Math.max(0.9, Math.min(1.08, 0.9 + viewportRatio * 0.18));
     const fullMapZoom = Math.min(width / (cellSize * this.cellsWide), height / (cellSize * this.cellsHigh));
@@ -547,14 +546,14 @@ export class Game {
       // create thousands of short-lived objects and trigger visible GC pauses.
       let firstIndex = -1;
       let secondIndex = -1;
-      let lastIndex = -1;
+      let lastPosition = -1;
       let validCount = 0;
       for (let i = 0; i < trailCells.length; i++) {
         const index = trailCells[i];
         if (this.grid.trail[index] !== player.id) continue;
         if (validCount === 0) firstIndex = index;
         else if (validCount === 1) secondIndex = index;
-        lastIndex = index;
+        lastPosition = i;
         validCount++;
       }
       if (!validCount) continue;
@@ -593,10 +592,15 @@ export class Game {
       ctx.beginPath();
       ctx.moveTo(firstPoint.x, firstPoint.y);
       if (validCount > 1) {
+        let skippedFirstPoint = false;
         for (let i = 0; i < trailCells.length; i++) {
           const index = trailCells[i];
-          if (index === firstIndex || this.grid.trail[index] !== player.id) continue;
-          const point = index === lastIndex ? headPoint : cellPoint(index);
+          if (this.grid.trail[index] !== player.id) continue;
+          if (!skippedFirstPoint) {
+            skippedFirstPoint = true;
+            continue;
+          }
+          const point = i === lastPosition ? headPoint : cellPoint(index);
           ctx.lineTo(point.x, point.y);
         }
         ctx.stroke();
