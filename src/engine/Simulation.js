@@ -146,27 +146,45 @@ export class Simulation {
     const halfHeight = Math.floor(height / 2);
     const candidates = [];
     const others = [...this.players.values()].filter(other => other.alive && other.id !== ignorePlayerId);
-    for (let y = halfHeight + 1; y < this.cellsHigh - halfHeight - 1; y++) {
-      for (let x = halfWidth + 1; x < this.cellsWide - halfWidth - 1; x++) {
-        let safe = true;
-        for (let yy = y - halfHeight; yy < y - halfHeight + height && safe; yy++) {
-          for (let xx = x - halfWidth; xx < x - halfWidth + width; xx++) {
-            if (!this.grid.inside(xx, yy) || this.grid.ownerAt(xx, yy) || this.grid.trailAt(xx, yy)) {
-              safe = false;
-              break;
-            }
+    const inspectCandidate = (x, y) => {
+      let safe = true;
+      for (let yy = y - halfHeight; yy < y - halfHeight + height && safe; yy++) {
+        for (let xx = x - halfWidth; xx < x - halfWidth + width; xx++) {
+          if (!this.grid.inside(xx, yy) || this.grid.ownerAt(xx, yy) || this.grid.trailAt(xx, yy)) {
+            safe = false;
+            break;
           }
         }
-        if (!safe) continue;
-        const separation = Math.max(width, height) + 2;
-        if (reserved.some(point => Math.abs(point.x - x) < Math.max(separation, (point.width || 0) / 2 + width / 2 + 2) &&
-          Math.abs(point.y - y) < Math.max(separation, (point.height || 0) / 2 + height / 2 + 2))) continue;
-        const nearest = others.reduce((distance, other) => {
-          const territoryRadius = Math.max(other.startWidth || 0, other.startHeight || 0) / 2;
-          return Math.min(distance, Math.hypot(other.x - x, other.y - y) - territoryRadius);
-        }, Infinity);
-        if (nearest < minDistance) continue;
-        candidates.push({ x, y, distance: (x - preferredX) ** 2 + (y - preferredY) ** 2, nearest });
+      }
+      if (!safe) return;
+      const separation = Math.max(width, height) + 2;
+      if (reserved.some(point => Math.abs(point.x - x) < Math.max(separation, (point.width || 0) / 2 + width / 2 + 2) &&
+        Math.abs(point.y - y) < Math.max(separation, (point.height || 0) / 2 + height / 2 + 2))) return;
+      const nearest = others.reduce((distance, other) => {
+        const territoryRadius = Math.max(other.startWidth || 0, other.startHeight || 0) / 2;
+        return Math.min(distance, Math.hypot(other.x - x, other.y - y) - territoryRadius);
+      }, Infinity);
+      if (nearest < minDistance) return;
+      candidates.push({ x, y, distance: (x - preferredX) ** 2 + (y - preferredY) ** 2, nearest });
+    };
+
+    // Sampling avoids scanning every possible start rectangle (and checking up to
+    // 100 cells per rectangle) for each bot on every respawn cycle.
+    const minX = halfWidth + 1;
+    const maxX = this.cellsWide - halfWidth - 2;
+    const minY = halfHeight + 1;
+    const maxY = this.cellsHigh - halfHeight - 2;
+    const attempts = Math.min(1800, Math.max(300, Math.floor(this.cellsWide * this.cellsHigh * 0.06)));
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      const x = minX + Math.floor(this.random() * Math.max(1, maxX - minX + 1));
+      const y = minY + Math.floor(this.random() * Math.max(1, maxY - minY + 1));
+      inspectCandidate(x, y);
+    }
+
+    // Small/custom arenas may not yield a safe sample; retain a complete fallback.
+    if (!candidates.length) {
+      for (let y = minY; y <= maxY; y++) {
+        for (let x = minX; x <= maxX; x++) inspectCandidate(x, y);
       }
     }
     if (!candidates.length && (reserved.length || minDistance > 0)) {
