@@ -274,11 +274,13 @@ export class Game {
     const fullMapZoom = Math.min(width / (cellSize * this.cellsWide), height / (cellSize * this.cellsHigh));
     // Follow the player at normal gameplay zoom. Fitting the entire tall country
     // into the viewport made the player too small and steering hard to read.
+    // Keep gameplay zoom stable: tying zoom to territory growth made the camera
+    // pulse in and out, while slow easing made it lag behind each player step.
     const targetZoom = this.simulation.over
       ? fullMapZoom
-      : Math.max(0.9, Math.min(1.08, viewportZoom * (1 - territory * 0.18)));
+      : Math.max(0.96, Math.min(1.08, viewportZoom));
 
-    const cameraAlpha = 1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * (this.simulation.over ? 4 : 8));
+    const cameraAlpha = 1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * (this.simulation.over ? 4 : 14));
     this.camera.x += (targetX - this.camera.x) * cameraAlpha;
     this.camera.y += (targetY - this.camera.y) * cameraAlpha;
     this.camera.zoom += (targetZoom - this.camera.zoom) * (1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * 3.2));
@@ -534,52 +536,81 @@ export class Game {
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    // A full-cell stroke makes the exposed trail visually join the filled territory.
     ctx.lineWidth = cellSize * (1.02 + (Math.sin(performance.now() / 115) + 1) * 0.015);
+
     for (const player of this.players.values()) {
-      if (!player.alive || !player.trailCells.length) continue;
-      const points = player.trailCells.filter(index => this.grid.trail[index] === player.id).map(index => ({
+      const trailCells = player.trailCells;
+      if (!player.alive || !trailCells.length) continue;
+
+      // Draw trails directly from their index list instead of allocating filtered
+      // and mapped point arrays on every animation frame. Long bot trails used to
+      // create thousands of short-lived objects and trigger visible GC pauses.
+      let firstIndex = -1;
+      let secondIndex = -1;
+      let lastIndex = -1;
+      let validCount = 0;
+      for (let i = 0; i < trailCells.length; i++) {
+        const index = trailCells[i];
+        if (this.grid.trail[index] !== player.id) continue;
+        if (validCount === 0) firstIndex = index;
+        else if (validCount === 1) secondIndex = index;
+        lastIndex = index;
+        validCount++;
+      }
+      if (!validCount) continue;
+
+      const cellPoint = index => ({
         x: (index % this.cellsWide + 0.5) * cellSize,
         y: (Math.floor(index / this.cellsWide) + 0.5) * cellSize
-      }));
-      if (!points.length) continue;
-      if (points.length > 0) {
-        const last = points.length - 1;
-        points[last] = {
-          x: (player.prevX + (player.x - player.prevX) * interpolation + 0.5) * cellSize,
-          y: (player.prevY + (player.y - player.prevY) * interpolation + 0.5) * cellSize
-        };
-      }
-      if (points.length > 1) {
-        const dx = (points[1].x - points[0].x) * 0.5;
-        const dy = (points[1].y - points[0].y) * 0.5;
-        points[0] = { x: points[0].x - dx, y: points[0].y - dy };
+      });
+      const headPoint = {
+        x: (player.prevX + (player.x - player.prevX) * interpolation + 0.5) * cellSize,
+        y: (player.prevY + (player.y - player.prevY) * interpolation + 0.5) * cellSize
+      };
+      const firstPoint = cellPoint(firstIndex);
+      const secondPoint = validCount > 1 ? cellPoint(secondIndex) : null;
+      if (secondPoint) {
+        firstPoint.x -= (secondPoint.x - firstPoint.x) * 0.5;
+        firstPoint.y -= (secondPoint.y - firstPoint.y) * 0.5;
       } else {
-        points[0] = {
-          x: points[0].x - player.dx * cellSize * 0.5,
-          y: points[0].y - player.dy * cellSize * 0.5
-        };
+        firstPoint.x -= player.dx * cellSize * 0.5;
+        firstPoint.y -= player.dy * cellSize * 0.5;
       }
+
       const baseColor = player.id === 1 ? skin.color : getPlayerColor(player.id, skin.color);
       ctx.strokeStyle = this.getTrailColor(baseColor);
       ctx.fillStyle = ctx.strokeStyle;
-      if (player.human && trailEffect.id === 'glow') { ctx.shadowColor = trailEffect.color; ctx.shadowBlur = cellSize * 0.7; }
-      else if (player.human && trailEffect.id === 'comet') { ctx.shadowColor = trailEffect.color; ctx.shadowBlur = cellSize * 1.2; }
-      else { ctx.shadowBlur = 0; }
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-      for (let index = 1; index < points.length; index++) ctx.lineTo(points[index].x, points[index].y);
-      if (points.length === 1) {
-        ctx.arc(points[0].x, points[0].y, ctx.lineWidth / 2, 0, Math.PI * 2);
-        ctx.fill();
-        if (player.human && trailEffect.id === 'spark') { ctx.shadowBlur = 0; ctx.fillStyle = trailEffect.color; ctx.fillRect(points[0].x - cellSize * 0.14, points[0].y - cellSize * 0.14, cellSize * 0.28, cellSize * 0.28); }
+      if (player.human && trailEffect.id === 'glow') {
+        ctx.shadowColor = trailEffect.color;
+        ctx.shadowBlur = cellSize * 0.7;
+      } else if (player.human && trailEffect.id === 'comet') {
+        ctx.shadowColor = trailEffect.color;
+        ctx.shadowBlur = cellSize * 1.2;
       } else {
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(firstPoint.x, firstPoint.y);
+      if (validCount > 1) {
+        for (let i = 0; i < trailCells.length; i++) {
+          const index = trailCells[i];
+          if (index === firstIndex || this.grid.trail[index] !== player.id) continue;
+          const point = index === lastIndex ? headPoint : cellPoint(index);
+          ctx.lineTo(point.x, point.y);
+        }
         ctx.stroke();
-        const head = points[points.length - 1];
         ctx.beginPath();
-        ctx.arc(head.x, head.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+        ctx.arc(headPoint.x, headPoint.y, ctx.lineWidth / 2, 0, Math.PI * 2);
         ctx.fill();
-        if (player.human && trailEffect.id === 'spark') { ctx.shadowBlur = 0; ctx.fillStyle = trailEffect.color; ctx.fillRect(head.x - cellSize * 0.14, head.y - cellSize * 0.14, cellSize * 0.28, cellSize * 0.28); }
+      } else {
+        ctx.arc(firstPoint.x, firstPoint.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (player.human && trailEffect.id === 'spark') {
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = trailEffect.color;
+        ctx.fillRect(headPoint.x - cellSize * 0.14, headPoint.y - cellSize * 0.14, cellSize * 0.28, cellSize * 0.28);
       }
     }
     ctx.restore();
