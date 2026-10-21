@@ -58,44 +58,20 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
     let earnedCoins = 0;
     const minimapCanvas = minimapRef.current;
     const minimapCtx = minimapCanvas?.getContext('2d');
-    let minimapImage = null;
-    let minimapPaletteSkin = null;
-    const minimapPalette = new Map();
-    const minimapCssPalette = new Map();
-    const rgb = hex => [parseInt(hex.slice(1, 3), 16) || 0, parseInt(hex.slice(3, 5), 16) || 0, parseInt(hex.slice(5, 7), 16) || 0];
     const drawMinimap = () => {
       if (!minimapCanvas || !minimapCtx || !game?.grid) return;
       const grid = game.grid;
       const width = grid.width || game.cellsWide;
       const height = grid.height || game.cellsHigh;
-      if (minimapCanvas.width !== width || minimapCanvas.height !== height) {
-        minimapCanvas.width = width;
-        minimapCanvas.height = height;
-        minimapImage = null;
-      }
-      // Reuse the pixel buffer and color palette instead of allocating both on
-      // every minimap refresh. The palette changes only when the equipped skin does.
-      if (!minimapImage || minimapImage.width !== width || minimapImage.height !== height) {
-        minimapImage = minimapCtx.createImageData(width, height);
-      }
-      const skinId = useGameStore.getState().equippedSkin;
-      const skin = getSkinById(skinId);
-      if (minimapPaletteSkin !== skinId || minimapPalette.size !== game.players.size) {
-        minimapPalette.clear();
-        minimapCssPalette.clear();
-        for (const player of game.players.values()) {
-          const color = player.id === 1 ? skin.color : getPlayerColor(player.id, skin.color);
-          minimapPalette.set(player.id, rgb(color));
-          minimapCssPalette.set(player.id, color);
-        }
-        minimapPaletteSkin = skinId;
-      }
-      const image = minimapImage;
+      if (minimapCanvas.width !== width || minimapCanvas.height !== height) { minimapCanvas.width = width; minimapCanvas.height = height; }
+      const image = minimapCtx.createImageData(width, height);
+      const rgb = hex => [parseInt(hex.slice(1, 3), 16) || 0, parseInt(hex.slice(3, 5), 16) || 0, parseInt(hex.slice(5, 7), 16) || 0];
+      const palette = new Map([...game.players.values()].map(player => [player.id, rgb(player.id === 1 ? getSkinById(useGameStore.getState().equippedSkin).color : getPlayerColor(player.id, getSkinById(useGameStore.getState().equippedSkin).color))]));
       for (let i = 0; i < grid.owners.length; i++) {
         const offset = i * 4;
         if (!grid.walkable[i]) { image.data[offset + 3] = 0; continue; }
         const owner = grid.trail[i] || grid.owners[i];
-        const color = owner ? (minimapPalette.get(owner) || [140, 145, 165]) : [35, 40, 54];
+        const color = owner ? (palette.get(owner) || [140, 145, 165]) : [35, 40, 54];
         image.data[offset] = color[0]; image.data[offset + 1] = color[1]; image.data[offset + 2] = color[2]; image.data[offset + 3] = 255;
       }
       minimapCtx.putImageData(image, 0, 0);
@@ -118,7 +94,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
       }
       minimapCtx.fillStyle = '#fff';
       for (const player of game.players.values()) if (player.alive) {
-        minimapCtx.fillStyle = minimapCssPalette.get(player.id) || '#8c91a5';
+        minimapCtx.fillStyle = player.id === 1 ? getSkinById(useGameStore.getState().equippedSkin).color : getPlayerColor(player.id, getSkinById(useGameStore.getState().equippedSkin).color);
         minimapCtx.fillRect(player.x, player.y, 1, 1);
         if (player.id === leaderId) {
           minimapCtx.strokeStyle = '#ffd34f';
@@ -127,7 +103,7 @@ const GameCanvas = forwardRef(function GameCanvas({ onStats, onGameOver, mapId =
         }
       }
     };
-    const minimapTimer = window.setInterval(drawMinimap, 250);
+    const minimapTimer = window.setInterval(drawMinimap, 200);
     const unsubscribe = [
       events.on('capture', event => {
         if (!event.human) return;
