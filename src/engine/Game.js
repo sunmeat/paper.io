@@ -32,6 +32,8 @@ export class Game {
     this.countdownFinished = false;
     this.startedAt = this.countdownEndAt;
     this.dpr = 1;
+    this.viewportWidth = 0;
+    this.viewportHeight = 0;
     this.camera = { x: this.player?.x ?? 0, y: this.player?.y ?? 0, zoom: 1 };
     this.effects = [];
     this.effectPool = [];
@@ -160,6 +162,8 @@ export class Game {
     if (!this.running) return;
     const rect = this.canvas.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
+    this.viewportWidth = rect.width;
+    this.viewportHeight = rect.height;
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.canvas.width = Math.round(rect.width * this.dpr);
     this.canvas.height = Math.round(rect.height * this.dpr);
@@ -213,7 +217,8 @@ export class Game {
       this.accumulator = 0;
     } else {
       if (!this.lastTime) this.lastTime = time;
-      delta = Math.min(time - this.lastTime, GAME_CONFIG.maxFrameDeltaMs);
+      // Avoid a burst of catch-up simulation steps after a blocked frame.
+      delta = Math.min(time - this.lastTime, GAME_CONFIG.fixedStepMs * 2);
       this.lastTime = time;
     }
     this.frameDeltaMs = delta;
@@ -259,11 +264,14 @@ export class Game {
 
   draw() {
     if (!this.ctx || !this.grid) return;
-    const { width, height } = this.canvas.getBoundingClientRect();
+    const width = this.viewportWidth;
+    const height = this.viewportHeight;
     if (!width || !height) return;
 
     const cellSize = Math.min(width, height) / 27;
-    const interpolation = Math.max(0, Math.min(1, this.simulation.moveAccumulator / this.simulation.config.moveIntervalMs));
+    const interpolation = Math.max(0, Math.min(1,
+      (this.simulation.moveAccumulator + this.accumulator) / this.simulation.config.moveIntervalMs
+    ));
     const playerX = this.player ? this.player.prevX + (this.player.x - this.player.prevX) * interpolation : this.cellsWide / 2;
     const playerY = this.player ? this.player.prevY + (this.player.y - this.player.prevY) * interpolation : this.cellsHigh / 2;
     const targetX = this.simulation.over ? this.cellsWide / 2 : this.player?.alive ? playerX + 0.5 : this.cellsWide / 2;
@@ -279,9 +287,16 @@ export class Game {
       ? fullMapZoom
       : Math.max(0.96, Math.min(1.08, viewportZoom));
 
-    const cameraAlpha = 1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * (this.simulation.over ? 4 : 14));
-    this.camera.x += (targetX - this.camera.x) * cameraAlpha;
-    this.camera.y += (targetY - this.camera.y) * cameraAlpha;
+    if (this.simulation.over) {
+      const cameraAlpha = 1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * 4);
+      this.camera.x += (targetX - this.camera.x) * cameraAlpha;
+      this.camera.y += (targetY - this.camera.y) * cameraAlpha;
+    } else {
+      // Follow the interpolated player position directly. A second easing layer
+      // caused camera lag and visible oscillation at the 30 Hz simulation rate.
+      this.camera.x = targetX;
+      this.camera.y = targetY;
+    }
     this.camera.zoom += (targetZoom - this.camera.zoom) * (1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * 3.2));
 
     const visibleWidth = width / (cellSize * this.camera.zoom);
@@ -327,6 +342,8 @@ export class Game {
   }
 
   renderTerrain(cellSize, skin) {
+    // Preserve full-resolution territory rendering for sharp edges. Only the
+    // static background and ownership layers are cached, at the exact world scale.
     const width = Math.ceil(this.cellsWide * cellSize);
     const height = Math.ceil(this.cellsHigh * cellSize);
     if (this.maskCanvas.width !== width || this.maskCanvas.height !== height) {
@@ -336,7 +353,6 @@ export class Game {
       this.terrainCanvas.width = width; this.terrainCanvas.height = height; this.terrainDirty = true;
     }
 
-    // Static walkable background and arena outline are cached independently of ownership.
     if (this.maskDirty) {
       const layer = this.maskCtx;
       layer.clearRect(0, 0, width, height);
@@ -360,24 +376,51 @@ export class Game {
     const skinId = this.callbacks.getSkin?.() || 'classic';
     const changed = this.grid.drainDirtyOwners();
     const fullRedraw = this.terrainDirty || this.cachedSkinId !== skinId ||
-      this.cachedOwnerVersion !== this.grid.ownerVersion;
+      changed.length > this.grid.owners.length * 0.08;
 
-    // Ownership changes can affect borders several cells away from the changed cell.
-    // Redraw the complete cached ownership layer on capture/loss to avoid stale gaps
-    // left by clearing fractional-pixel rectangles in the incremental renderer.
-    if (fullRedraw || changed.length) {
+    if (fullRedraw) {
       const layer = this.terrainCtx;
       layer.clearRect(0, 0, width, height);
-      const cells = Array.from(this.grid.owners.keys());
-      this.paintOwnerCells(layer, cellSize, skin, cells);
-      this.renderTerritoryEdges(layer, cellSize, cells);
+      this.paintOwnerCells(layer, cellSize, skin, this.grid.owners.keys());
+      this.renderTerritoryEdges(layer, cellSize);
       this.terrainDirty = false;
       this.cachedOwnerVersion = this.grid.ownerVersion;
       this.cachedSkinId = skinId;
       this.renderMetrics.fullTerrainRedraws++;
+      this.renderMetrics.cellsRedrawn += this.grid.owners.length;
+    } else if (changed.length) {
+      // Clear complete pixel-aligned patches and repaint a two-cell border around
+      // each change. This keeps shared territory fills solid without downscaling.
+      const affected = new Set();
+      for (const index of changed) {
+        const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
+        for (let dy = -2; dy <= 2; dy++) {
+          const ny = y + dy;
+          if (ny < 0 || ny >= this.cellsHigh) continue;
+          for (let dx = -2; dx <= 2; dx++) {
+            const nx = x + dx;
+            if (nx < 0 || nx >= this.cellsWide) continue;
+            affected.add(this.grid.index(nx, ny));
+          }
+        }
+      }
+      const cells = [...affected];
+      const layer = this.terrainCtx;
+      const margin = Math.max(2, Math.ceil(cellSize * 0.12));
+      for (const index of cells) {
+        const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
+        const left = Math.floor(x * cellSize) - margin;
+        const top = Math.floor(y * cellSize) - margin;
+        const right = Math.ceil((x + 1) * cellSize) + margin;
+        const bottom = Math.ceil((y + 1) * cellSize) + margin;
+        layer.clearRect(left, top, right - left, bottom - top);
+      }
+      this.paintOwnerCells(layer, cellSize, skin, cells);
+      this.renderTerritoryEdges(layer, cellSize, cells);
+      this.cachedOwnerVersion = this.grid.ownerVersion;
+      this.renderMetrics.incrementalTerrainRedraws++;
       this.renderMetrics.cellsRedrawn += cells.length;
     }
-
     this.ctx.drawImage(this.maskCanvas, 0, 0);
     this.ctx.drawImage(this.terrainCanvas, 0, 0);
   }
