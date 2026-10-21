@@ -1,4 +1,4 @@
-import { captureArea } from './fill.js';
+import { captureArea, fillNarrowGaps } from './fill.js';
 import { Grid } from './Grid.js';
 import { createMapMask } from './maps.js';
 import { isReverseDirection } from './directions.js';
@@ -259,6 +259,7 @@ export class Simulation {
   step() {
     if (this.paused || this.over) return;
     this.tick++;
+    const ownerVersionAtStart = this.grid.ownerVersion;
     for (const player of this.players.values()) {
       for (const id of POWERUP_IDS) if (player.effects?.[id] > 0) player.effects[id]--;
       if (player.frozenTicks > 0) player.frozenTicks--;
@@ -367,8 +368,15 @@ export class Simulation {
 
     // A loop closes when a player returns to territory or crosses their own trail.
     for (const player of active) {
-      if (!player.alive || !player.trailCells.length ||
-          (!player.closedLoop && this.grid.ownerAt(player.x, player.y) !== player.id)) continue;
+      if (!player.alive || !player.trailCells.length) continue;
+      const headIndex = this.grid.index(player.x, player.y);
+      // The player stepped onto its own land this tick. An earlier closure in this
+      // loop may have captured that very cell from them; the loop is still closed,
+      // so take the cell back instead of leaving a gap in the sealed border.
+      const enteredOwnLand = player.closeAtIndex === headIndex;
+      if (!player.closedLoop && !enteredOwnLand && this.grid.ownerAt(player.x, player.y) !== player.id) continue;
+      if (enteredOwnLand && this.grid.owners[headIndex] !== player.id) this.grid.setOwnerAt(headIndex, player.id);
+      player.closeAtIndex = -1;
       const captured = captureArea(this.grid, player.id, player.trailCells);
       player.trailCells = [];
       player.closedLoop = false;
@@ -383,10 +391,33 @@ export class Simulation {
       const victim = this.players.get(victimId);
       if (victim?.alive) this.eliminatePlayer(victim, killer, { transferTerritory: pendingTerritoryTransfers.has(victimId) });
     }
+    this.restoreTrailMarks(active);
+    // Captures, eliminations and respawns can leave 1-2 cell wide neutral slits
+    // between cells of one owner. Close them so territory reads as solid land.
+    if (this.grid.ownerVersion !== ownerVersionAtStart) {
+      fillNarrowGaps(this.grid, { minX: 0, maxX: this.cellsWide - 1, minY: 0, maxY: this.cellsHigh - 1 });
+    }
     this.updateMaxTerritory();
     if (!this.over) this.checkTerritoryLoss();
     for (const player of this.players.values()) if (player.alive && player.invulnerableTicks > 0) player.invulnerableTicks--;
     if (!this.over) this.checkRoundOutcome();
+  }
+
+  /**
+   * Re-marks trail cells that a rival's trail occupied while we walked over it.
+   * Once that rival has been eliminated its trail is gone, so our own cell must
+   * show up in the grid again (rendering and self-crossing checks read the grid).
+   */
+  restoreTrailMarks(players) {
+    const { grid } = this;
+    for (const player of players) {
+      if (!player.alive) continue;
+      const cells = player.trailCells;
+      for (let i = 0; i < cells.length; i++) {
+        const index = cells[i];
+        if (grid.trail[index] === 0 && grid.owners[index] !== player.id) grid.setTrailAt(index, player.id);
+      }
+    }
   }
 
   updateMaxTerritory() {
@@ -512,8 +543,14 @@ export class Simulation {
     player.edgeTicks = this.grid.isEdge(nx, ny) ? (player.edgeTicks || 0) + 1 : 0;
 
     if (this.resolvingTick) {
-      if (this.grid.ownerAt(nx, ny) !== player.id && this.grid.trail[nextIndex] === 0) {
-        this.grid.setTrail(nx, ny, player.id);
+      player.closeAtIndex = this.grid.ownerAt(nx, ny) === player.id && player.trailCells.length ? nextIndex : -1;
+      if (this.grid.ownerAt(nx, ny) !== player.id && trailOwnerId !== player.id) {
+        // Always record the cell, even when a rival trail currently occupies it.
+        // That rival is eliminated at the end of the tick and its trail is cleared;
+        // skipping the cell here left a one-cell gap in our own trail, so the loop
+        // never sealed and the capture flood fill leaked out. The grid mark is
+        // restored after eliminations (see restoreTrailMarks).
+        if (trailOwnerId === 0) this.grid.setTrailAt(nextIndex, player.id);
         player.trailCells.push(nextIndex);
       }
       return;

@@ -81,10 +81,80 @@ export function retainLargestTerritoryComponents(grid) {
   return neutralized;
 }
 
+/** Widest neutral channel (in cells) that is closed so territory stays solid. */
+export const MAX_FILLED_GAP = 2;
+
+/**
+ * Claims narrow neutral slits that sit between two cells of the same owner.
+ * Flood fill only seals areas that are fully enclosed; a 1-2 cell wide inlet is
+ * open to the outside, so it used to stay unclaimed and show up as a thin stripe
+ * inside the territory. Only plain neutral cells are claimed: rival land, trails
+ * and unwalkable cells are never touched.
+ *
+ * `bounds` limits the scan to a rectangle (cell coordinates). With `owner` set,
+ * only that player's slits are closed; otherwise every owner's are.
+ * Returns the number of claimed cells.
+ */
+export function fillNarrowGaps(grid, bounds, { owner = 0, maxGap = MAX_FILLED_GAP } = {}) {
+  const { width, height, owners, trail, walkable } = grid;
+  const minX = Math.max(0, bounds.minX - maxGap - 1);
+  const maxX = Math.min(width - 1, bounds.maxX + maxGap + 1);
+  const minY = Math.max(0, bounds.minY - maxGap - 1);
+  const maxY = Math.min(height - 1, bounds.maxY + maxGap + 1);
+  const isNeutral = index => walkable[index] === 1 && owners[index] === 0 && trail[index] === 0;
+  const landOwner = index => (walkable[index] === 1 && (!owner || owners[index] === owner) ? owners[index] : 0);
+
+  // Walks from a neutral cell along one axis. The cell is part of a narrow slit
+  // when the neutral run is at most maxGap long and the same owner's land closes
+  // both ends. Returns that owner's id, or 0.
+  const sealedAlong = (x, y, stepX, stepY) => {
+    let before = 0;
+    let cx = x - stepX, cy = y - stepY;
+    while (before < maxGap && cx >= 0 && cy >= 0 && cx < width && cy < height && isNeutral(cy * width + cx)) {
+      before++; cx -= stepX; cy -= stepY;
+    }
+    if (cx < 0 || cy < 0 || cx >= width || cy >= height) return 0;
+    const first = landOwner(cy * width + cx);
+    if (!first) return 0;
+    let after = 0;
+    cx = x + stepX; cy = y + stepY;
+    while (before + after + 1 < maxGap + 1 && cx >= 0 && cy >= 0 && cx < width && cy < height && isNeutral(cy * width + cx)) {
+      after++; cx += stepX; cy += stepY;
+    }
+    if (cx < 0 || cy < 0 || cx >= width || cy >= height) return 0;
+    return landOwner(cy * width + cx) === first && before + after + 1 <= maxGap ? first : 0;
+  };
+
+  let claimed = 0;
+  // Filling one slit can narrow a neighbouring one, so repeat until stable.
+  for (let pass = 0; pass < 3; pass++) {
+    const fillIndices = [];
+    const fillOwners = [];
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const index = y * width + x;
+        if (!isNeutral(index)) continue;
+        const slitOwner = sealedAlong(x, y, 1, 0) || sealedAlong(x, y, 0, 1);
+        if (slitOwner) { fillIndices.push(index); fillOwners.push(slitOwner); }
+      }
+    }
+    if (!fillIndices.length) break;
+    for (let i = 0; i < fillIndices.length; i++) grid.setOwnerAt(fillIndices[i], fillOwners[i]);
+    claimed += fillIndices.length;
+  }
+  return claimed;
+}
+
 export function captureArea(grid, owner, trailCells) {
   const capturedTrailOwners = new Set();
+  const bounds = { minX: grid.width, maxX: 0, minY: grid.height, maxY: 0 };
   for (const index of trailCells) {
     if (!grid.walkable[index]) continue;
+    const tx = index % grid.width, ty = Math.floor(index / grid.width);
+    if (tx < bounds.minX) bounds.minX = tx;
+    if (tx > bounds.maxX) bounds.maxX = tx;
+    if (ty < bounds.minY) bounds.minY = ty;
+    if (ty > bounds.maxY) bounds.maxY = ty;
 
     const trailOwner = grid.trail[index];
     // Ignore stale trail indices that point at ordinary rival territory.
@@ -158,6 +228,7 @@ export function captureArea(grid, owner, trailCells) {
 
   grid.capturedTrailOwners = capturedTrailOwners;
   grid.clearTrail(owner);
+  if (bounds.minX <= bounds.maxX) captured += fillNarrowGaps(grid, bounds, { owner });
   retainLargestTerritoryComponents(grid);
   return captured;
 }

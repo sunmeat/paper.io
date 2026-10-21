@@ -63,6 +63,12 @@ export class Grid {
     }
   }
 
+  setTrailAt(index, owner) {
+    if (!this.walkable[index] || this.trail[index] === owner) return;
+    this.trail[index] = owner;
+    this.version++;
+  }
+
   clearTrail(owner) {
     for (let i = 0; i < this.trail.length; i++) {
       if ((owner === undefined || this.trail[i] === owner) && this.trail[i] !== 0) {
