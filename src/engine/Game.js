@@ -50,13 +50,12 @@ export class Game {
     this.terrainCanvas = document.createElement('canvas');
     this.terrainCtx = this.terrainCanvas.getContext('2d');
     this.terrainDirty = true;
-    this.minimapCanvas = document.createElement('canvas');
-    this.minimapCanvas.width = this.cellsWide;
-    this.minimapCanvas.height = this.cellsHigh;
-    this.minimapCtx = this.minimapCanvas.getContext('2d');
-    this.minimapVersion = -1;
     this.cachedSkinId = null;
+    this.cachedTerrainSkinId = null;
     this.cachedOwnerVersion = -1;
+    this.terrainScale = 1;
+    this.viewportWidth = 0;
+    this.viewportHeight = 0;
 
     this.unsubscribeEvents = [
       this.simulation.events.on('leaderChange', event => {
@@ -70,7 +69,9 @@ export class Game {
         const now = performance.now();
         const victim = this.players.get(event.playerId);
         if (event.human) this.hitStopUntil = now + 120;
-        this.cameraShake = Math.max(this.cameraShake, event.human ? 9 : 3);
+        // Only the player's own death should shake the camera. Off-screen bot
+        // eliminations happen frequently and made the whole view jitter.
+        if (event.human) this.cameraShake = Math.max(this.cameraShake, 5);
         const skin = getSkinById(this.callbacks.getSkin?.() || 'classic');
         this.addEffect({
           type: 'death',
@@ -160,12 +161,14 @@ export class Game {
     if (!this.running) return;
     const rect = this.canvas.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
+    this.viewportWidth = rect.width;
+    this.viewportHeight = rect.height;
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.canvas.width = Math.round(rect.width * this.dpr);
     this.canvas.height = Math.round(rect.height * this.dpr);
     this.terrainDirty = true;
     this.maskDirty = true;
-    this.minimapVersion = -1;
+
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.draw();
   }
@@ -188,7 +191,7 @@ export class Game {
     this.camera = { x: this.player?.x ?? 0, y: this.player?.y ?? 0, zoom: 1 };
     this.terrainDirty = true;
     this.maskDirty = true;
-    this.minimapVersion = -1;
+
     this.accumulator = 0;
     this.lastTime = 0;
     this.countdownEndAt = performance.now() + 3000;
@@ -213,7 +216,9 @@ export class Game {
       this.accumulator = 0;
     } else {
       if (!this.lastTime) this.lastTime = time;
-      delta = Math.min(time - this.lastTime, GAME_CONFIG.maxFrameDeltaMs);
+      // Limit catch-up after a blocked frame. Large deltas caused multiple
+      // simulation steps at once and made the camera visibly snap.
+      delta = Math.min(time - this.lastTime, GAME_CONFIG.fixedStepMs * 2);
       this.lastTime = time;
     }
     this.frameDeltaMs = delta;
@@ -243,7 +248,7 @@ export class Game {
     this.camera.y = this.player.y + 0.5;
     this.camera.zoom = 1;
     this.terrainDirty = true;
-    this.minimapVersion = -1;
+
     this.emitStats();
     return true;
   }
@@ -259,11 +264,14 @@ export class Game {
 
   draw() {
     if (!this.ctx || !this.grid) return;
-    const { width, height } = this.canvas.getBoundingClientRect();
+    const width = this.viewportWidth;
+    const height = this.viewportHeight;
     if (!width || !height) return;
 
     const cellSize = Math.min(width, height) / 27;
-    const interpolation = Math.max(0, Math.min(1, this.simulation.moveAccumulator / this.simulation.config.moveIntervalMs));
+    const interpolation = Math.max(0, Math.min(1,
+      (this.simulation.moveAccumulator + this.accumulator) / this.simulation.config.moveIntervalMs
+    ));
     const playerX = this.player ? this.player.prevX + (this.player.x - this.player.prevX) * interpolation : this.cellsWide / 2;
     const playerY = this.player ? this.player.prevY + (this.player.y - this.player.prevY) * interpolation : this.cellsHigh / 2;
     const targetX = this.simulation.over ? this.cellsWide / 2 : this.player?.alive ? playerX + 0.5 : this.cellsWide / 2;
@@ -279,9 +287,16 @@ export class Game {
       ? fullMapZoom
       : Math.max(0.96, Math.min(1.08, viewportZoom));
 
-    const cameraAlpha = 1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * (this.simulation.over ? 4 : 14));
-    this.camera.x += (targetX - this.camera.x) * cameraAlpha;
-    this.camera.y += (targetY - this.camera.y) * cameraAlpha;
+    const cameraAlpha = 1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * 4);
+    if (this.simulation.over) {
+      this.camera.x += (targetX - this.camera.x) * cameraAlpha;
+      this.camera.y += (targetY - this.camera.y) * cameraAlpha;
+    } else {
+      // Player coordinates are already interpolated between fixed simulation
+      // steps, so following them directly avoids adding a second source of lag.
+      this.camera.x = targetX;
+      this.camera.y = targetY;
+    }
     this.camera.zoom += (targetZoom - this.camera.zoom) * (1 - Math.exp(-(this.frameDeltaMs || 1000 / 60) / 1000 * 3.2));
 
     const visibleWidth = width / (cellSize * this.camera.zoom);
@@ -312,7 +327,7 @@ export class Game {
     if (this.cachedSkinId !== skinId) {
       this.cachedSkinId = skinId;
       this.terrainDirty = true;
-      this.minimapVersion = -1;
+
     }
 
     this.renderTerrain(cellSize, skin);
@@ -327,8 +342,11 @@ export class Game {
   }
 
   renderTerrain(cellSize, skin) {
-    const width = Math.ceil(this.cellsWide * cellSize);
-    const height = Math.ceil(this.cellsHigh * cellSize);
+    // Keep cached layers small on every device. The world has a fixed grid, so
+    // a 1-4 px backing cell is enough and avoids multi-hundred-megabyte canvases.
+    const layerCellSize = Math.max(1, Math.min(4, Math.ceil(cellSize / 6)));
+    const width = this.cellsWide * layerCellSize;
+    const height = this.cellsHigh * layerCellSize;
     if (this.maskCanvas.width !== width || this.maskCanvas.height !== height) {
       this.maskCanvas.width = width; this.maskCanvas.height = height; this.maskDirty = true;
     }
@@ -336,50 +354,75 @@ export class Game {
       this.terrainCanvas.width = width; this.terrainCanvas.height = height; this.terrainDirty = true;
     }
 
-    // Static walkable background and arena outline are cached independently of ownership.
     if (this.maskDirty) {
       const layer = this.maskCtx;
       layer.clearRect(0, 0, width, height);
       layer.fillStyle = '#10131c'; layer.fillRect(0, 0, width, height);
       layer.fillStyle = '#171b28';
       for (let y = 0; y < this.cellsHigh; y++) for (let x = 0; x < this.cellsWide; x++) {
-        if (this.grid.walkable[this.grid.index(x, y)]) layer.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        if (this.grid.walkable[this.grid.index(x, y)]) layer.fillRect(x * layerCellSize, y * layerCellSize, layerCellSize, layerCellSize);
       }
-      layer.strokeStyle = '#aeb9d8'; layer.lineWidth = Math.max(1.5, cellSize * 0.1); layer.beginPath();
+      layer.strokeStyle = '#aeb9d8'; layer.lineWidth = Math.max(1, layerCellSize * 0.1); layer.beginPath();
       for (let y = 0; y < this.cellsHigh; y++) for (let x = 0; x < this.cellsWide; x++) {
         if (!this.grid.walkable[this.grid.index(x, y)]) continue;
-        const px = x * cellSize, py = y * cellSize;
-        if (!this.grid.inside(x, y - 1)) { layer.moveTo(px, py); layer.lineTo(px + cellSize, py); }
-        if (!this.grid.inside(x + 1, y)) { layer.moveTo(px + cellSize, py); layer.lineTo(px + cellSize, py + cellSize); }
-        if (!this.grid.inside(x, y + 1)) { layer.moveTo(px + cellSize, py + cellSize); layer.lineTo(px, py + cellSize); }
-        if (!this.grid.inside(x - 1, y)) { layer.moveTo(px, py + cellSize); layer.lineTo(px, py); }
+        const px = x * layerCellSize, py = y * layerCellSize;
+        if (!this.grid.inside(x, y - 1)) { layer.moveTo(px, py); layer.lineTo(px + layerCellSize, py); }
+        if (!this.grid.inside(x + 1, y)) { layer.moveTo(px + layerCellSize, py); layer.lineTo(px + layerCellSize, py + layerCellSize); }
+        if (!this.grid.inside(x, y + 1)) { layer.moveTo(px + layerCellSize, py + layerCellSize); layer.lineTo(px, py + layerCellSize); }
+        if (!this.grid.inside(x - 1, y)) { layer.moveTo(px, py + layerCellSize); layer.lineTo(px, py); }
       }
       layer.stroke(); this.maskDirty = false; this.terrainDirty = true;
     }
 
     const skinId = this.callbacks.getSkin?.() || 'classic';
     const changed = this.grid.drainDirtyOwners();
-    const fullRedraw = this.terrainDirty || this.cachedSkinId !== skinId ||
-      this.cachedOwnerVersion !== this.grid.ownerVersion;
+    const fullRedraw = this.terrainDirty || this.cachedTerrainSkinId !== skinId ||
+      changed.length > this.grid.owners.length * 0.08;
 
-    // Ownership changes can affect borders several cells away from the changed cell.
-    // Redraw the complete cached ownership layer on capture/loss to avoid stale gaps
-    // left by clearing fractional-pixel rectangles in the incremental renderer.
-    if (fullRedraw || changed.length) {
+    if (fullRedraw) {
       const layer = this.terrainCtx;
       layer.clearRect(0, 0, width, height);
-      const cells = Array.from(this.grid.owners.keys());
-      this.paintOwnerCells(layer, cellSize, skin, cells);
-      this.renderTerritoryEdges(layer, cellSize, cells);
+      this.paintOwnerCells(layer, layerCellSize, skin, this.grid.owners.keys());
+      this.renderTerritoryEdges(layer, layerCellSize);
       this.terrainDirty = false;
       this.cachedOwnerVersion = this.grid.ownerVersion;
-      this.cachedSkinId = skinId;
+      this.cachedTerrainSkinId = skinId;
       this.renderMetrics.fullTerrainRedraws++;
+      this.renderMetrics.cellsRedrawn += this.grid.owners.length;
+    } else if (changed.length) {
+      // A changed cell affects the outline around it. Expand the dirty set by
+      // two cells, clear all dirty patches first, then repaint their current state.
+      const affected = new Set();
+      for (const index of changed) {
+        const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
+        for (let dy = -2; dy <= 2; dy++) {
+          const ny = y + dy;
+          if (ny < 0 || ny >= this.cellsHigh) continue;
+          for (let dx = -2; dx <= 2; dx++) {
+            const nx = x + dx;
+            if (nx < 0 || nx >= this.cellsWide) continue;
+            affected.add(this.grid.index(nx, ny));
+          }
+        }
+      }
+      const cells = [...affected];
+      const layer = this.terrainCtx;
+      for (const index of cells) {
+        const x = index % this.cellsWide, y = Math.floor(index / this.cellsWide);
+        layer.clearRect(x * layerCellSize - 1, y * layerCellSize - 1, layerCellSize + 2, layerCellSize + 2);
+      }
+      this.paintOwnerCells(layer, layerCellSize, skin, cells);
+      this.renderTerritoryEdges(layer, layerCellSize, cells);
+      this.cachedOwnerVersion = this.grid.ownerVersion;
+      this.renderMetrics.incrementalTerrainRedraws++;
       this.renderMetrics.cellsRedrawn += cells.length;
     }
 
-    this.ctx.drawImage(this.maskCanvas, 0, 0);
-    this.ctx.drawImage(this.terrainCanvas, 0, 0);
+    // Composite the compact cache into world space only when drawing the frame.
+    this.ctx.imageSmoothingEnabled = false;
+    this.ctx.drawImage(this.maskCanvas, 0, 0, this.cellsWide * cellSize, this.cellsHigh * cellSize);
+    this.ctx.drawImage(this.terrainCanvas, 0, 0, this.cellsWide * cellSize, this.cellsHigh * cellSize);
+    this.ctx.imageSmoothingEnabled = true;
   }
 
   paintOwnerCells(ctx, cellSize, skin, indices) {
@@ -468,39 +511,6 @@ export class Game {
     }
 
     ctx.stroke();
-    ctx.restore();
-  }
-
-  renderMinimap(width, height, skin) {
-    if (this.minimapVersion !== this.grid.version) {
-      const image = this.minimapCtx.createImageData(this.cellsWide, this.cellsHigh);
-      const toRgb = id => {
-        const hex = (id === 1 ? skin.color : getPlayerColor(id, skin.color)).replace('#', '');
-        return [parseInt(hex.slice(0, 2), 16) || 0, parseInt(hex.slice(2, 4), 16) || 0, parseInt(hex.slice(4, 6), 16) || 0];
-      };
-      const palette = new Map();
-      for (const player of this.players.values()) palette.set(player.id, toRgb(player.id));
-      for (let i = 0; i < this.grid.walkable.length; i++) {
-        if (!this.grid.walkable[i]) continue;
-        const o = i * 4, id = this.grid.trail[i] || this.grid.owners[i];
-        const c = id ? (palette.get(id) || [160, 160, 180]) : [35, 40, 54];
-        image.data[o] = c[0]; image.data[o + 1] = c[1]; image.data[o + 2] = c[2]; image.data[o + 3] = 255;
-      }
-      this.minimapCtx.putImageData(image, 0, 0); this.minimapVersion = this.grid.version;
-    }
-    const ctx = this.ctx, size = Math.min(154, Math.max(100, Math.min(width, height) * 0.25));
-    const x = width - size - 14, y = 68, mapHeight = size * this.cellsHigh / this.cellsWide;
-    ctx.save(); ctx.fillStyle = '#0b0e17'; ctx.fillRect(x - 5, y - 5, size + 10, mapHeight + 10);
-    ctx.strokeStyle = '#7883a7'; ctx.lineWidth = 1; ctx.strokeRect(x - 5, y - 5, size + 10, mapHeight + 10);
-    ctx.imageSmoothingEnabled = false; ctx.drawImage(this.minimapCanvas, x, y, size, mapHeight);
-    ctx.font = '9px monospace'; ctx.textBaseline = 'middle';
-    for (const player of this.players.values()) {
-      if (!player.alive) continue;
-      const px = x + (player.x + 0.5) * size / this.cellsWide, py = y + (player.y + 0.5) * mapHeight / this.cellsHigh;
-      ctx.fillStyle = player.id === 1 ? skin.color : getPlayerColor(player.id, skin.color);
-      ctx.beginPath(); ctx.arc(px, py, player.id === 1 ? 3.2 : 2.1, 0, Math.PI * 2); ctx.fill();
-      if (player.id !== 1) { ctx.fillStyle = '#f3f4fa'; ctx.fillText(player.x + ',' + player.y, Math.min(x + size - 26, px + 3), py - 4); }
-    }
     ctx.restore();
   }
 
